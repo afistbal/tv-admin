@@ -168,7 +168,7 @@ export function UserList() {
         onOk: async () => {
           setCancelSubLoadingId(userId);
           try {
-            const res = await apiGet<unknown>("subscription/cancel", { id: userId });
+            const res = await apiPostJson<unknown>("subscription/cancel", { id: userId });
             if (res.c !== 0) {
               message.error(res.m || "取消订阅失败");
               return;
