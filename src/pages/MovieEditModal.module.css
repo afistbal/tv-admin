@@ -1,0 +1,125 @@
+.spinNest {
+  min-height: 200px;
+}
+
+.coverRow {
+  margin-top: 8px;
+}
+
+.coverImg {
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid #f0f0f0;
+}
+
+.coverPlaceholder {
+  color: rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+}
+
+.tagAreaWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.checkCard {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.addChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  background: #fafafa;
+  font-size: 13px;
+  color: #52c41a;
+  cursor: pointer;
+}
+
+.addChipTag {
+  color: #722ed1;
+}
+
+.tagSearchRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.tagSearchRow :global(.ant-input) {
+  flex: 1;
+}
+
+.episodeSummary {
+  margin-top: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.episodeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.episodeCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fafafa;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.episodeCard:hover {
+  border-color: #d9d9d9;
+  background: #fff;
+}
+
+.epNum {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.75);
+  font-size: 14px;
+}
+
+.epIcons {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.icOk {
+  color: #52c41a;
+}
+
+.icBad {
+  color: #ff4d4f;
+}
+
+.icLock {
+  color: #faad14;
+}
+
+.icOpen {
+  color: rgba(0, 0, 0, 0.25);
+}

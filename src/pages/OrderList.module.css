@@ -1,0 +1,71 @@
+/* 代收记录：筛选条（与白底页面一致，无灰底蒙层） */
+.filterWrap {
+  margin-bottom: 4px;
+}
+
+.filterBar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 10px 0;
+  margin-bottom: 12px;
+}
+
+.filterBar::after {
+  content: " ";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  transform: scaleY(0.5);
+  background-color: #d9d9d9;
+}
+
+.filterItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.filterLabel {
+  flex-shrink: 0;
+  min-width: 4.5em;
+  text-align: right;
+  color: rgba(0, 0, 0, 0.65);
+  font-size: 14px;
+  line-height: 1.5715;
+}
+
+/* 日期范围：限制宽度，避免占满一行 */
+.dateRange {
+  width: 330px;
+  max-width: min(330px, 100%);
+}
+
+.totalHint {
+  margin-left: auto;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .filterLabel {
+    min-width: 4em;
+    text-align: left;
+  }
+
+  .dateRange {
+    width: min(330px, 100%);
+  }
+
+  .totalHint {
+    margin-left: 0;
+    width: 100%;
+    padding-top: 4px;
+  }
+}

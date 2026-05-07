@@ -1,0 +1,53 @@
+/**
+ * 整页不随表格拉长：视口内分区滚动
+ * - 左侧：Logo 固定 + 菜单区域单独滚动
+ * - 右侧：顶栏固定 + 主内容（白卡片内）单独滚动
+ */
+.root {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+}
+
+.sider {
+  height: 100vh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.siderBrand {
+  flex-shrink: 0;
+}
+
+.siderMenuScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.right {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  flex-shrink: 0;
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 16px;
+}
+
+.contentInner {
+  padding: 24px;
+}

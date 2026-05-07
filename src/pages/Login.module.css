@@ -1,0 +1,107 @@
+/* 浅色登录页：明确白底，不使用黑色/暗色主题 */
+.page,
+.pageLoading {
+  min-height: 100vh;
+  margin: 0;
+  box-sizing: border-box;
+  background: #ffffff;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.page {
+  padding: 150px 16px 24px;
+}
+
+.pageLoading {
+  padding: 48px 16px 24px;
+  text-align: center;
+}
+
+.login {
+  margin: 0 auto;
+  box-sizing: border-box;
+  width: min(512px, 100%);
+  max-width: 100%;
+}
+
+.title {
+  margin: 0 0 72px;
+  text-align: center;
+  font-size: 34px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  line-height: 1.25;
+}
+
+.form :global(.ant-form-item .ant-form-item-label > label) {
+  font-size: 16px;
+  height: auto;
+  line-height: 45px;
+}
+
+.form :global(.ant-input),
+.form :global(.ant-input-affix-wrapper) {
+  font-size: 16px;
+}
+
+.form :global(.ant-input-lg) {
+  min-height: 45px;
+  line-height: 1.45;
+}
+
+.codeCompact:global(.ant-space-compact) {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.codeCompact :global(.ant-input.ant-input-lg) {
+  height: 45px;
+  min-height: 45px;
+  max-height: 45px;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+.codeCompact :global(.ant-btn.ant-btn-lg) {
+  height: 45px !important;
+  min-height: 45px !important;
+  max-height: 45px !important;
+  line-height: 43px;
+  box-sizing: border-box;
+}
+
+.form :global(.ant-form-item) {
+  margin-bottom: 21px;
+}
+
+.login :global(.ant-btn-lg) {
+  font-size: 16px;
+  min-height: 45px;
+  padding-left: 19px;
+  padding-right: 19px;
+}
+
+.googleIcon {
+  font-size: 18px;
+}
+
+.submitWrap {
+  margin-top: 10px;
+  margin-bottom: 0;
+  text-align: center;
+}
+
+.submitWrap :global(.ant-btn) {
+  width: 100%;
+}
+
+.divider {
+  margin: 22px 0;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 15px;
+}
+
+.googleBtn {
+  width: 100%;
+}

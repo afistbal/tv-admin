@@ -1,0 +1,89 @@
+.thumbCell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.thumbImg {
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid #f0f0f0;
+}
+
+.thumbCell :global(.ant-image) {
+  line-height: 0;
+}
+
+.thumbPlaceholder {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.35);
+}
+
+/** 短剧名称：两行截断；列变宽后 `max-width:100%` 吃满单元格，悬停 tooltip 看全文 */
+.titleCell {
+  max-width: 100%;
+  margin-bottom: 0 !important;
+  line-height: 1.35;
+  word-break: break-word;
+  vertical-align: top;
+}
+
+/** Tag 列：单行，最多 3 个 chip，超出省略号；全文见 Tooltip */
+.tagCellRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.tagChip {
+  flex: 0 1 auto;
+  max-width: 72px;
+  margin-inline-end: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px !important;
+  line-height: 18px !important;
+  padding: 0 6px !important;
+}
+
+.tagMore {
+  flex-shrink: 0;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+/** 操作列：四个链接单行展示 */
+.actionsCell {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0 2px;
+  width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.actionLink {
+  padding: 0 2px !important;
+  height: auto !important;
+  font-size: 12px !important;
+  line-height: 20px !important;
+  flex: 0 0 auto;
+}
+
+/**
+ * 固定右侧「操作」列在 `scroll.x: max-content` 下常被算得过宽，出现大块留白。
+ * 用列 className 收紧 th/td 宽度（与列配置 `width` 一致）。
+ */
+.opCol {
+  width: 168px !important;
+  min-width: 168px !important;
+  max-width: 168px !important;
+}

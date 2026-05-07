@@ -1,34 +1,112 @@
-import { useMemo, useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
+  BarChartOutlined,
   DashboardOutlined,
+  LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  PlaySquareOutlined,
+  TeamOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
-import { Layout, Menu, theme, Typography } from "antd";
+import { Dropdown, Layout, Menu, Space, Tag, theme, Typography } from "antd";
+import type { MenuProps } from "antd";
+import { useAuth } from "@/auth/AuthContext";
+import styles from "./BasicLayout.module.css";
 
 const { Header, Sider, Content } = Layout;
 
-const menuItems = [
-  { key: "/dashboard", icon: <DashboardOutlined />, label: <Link to="/dashboard">工作台</Link> },
+const menuItems: MenuProps["items"] = [
+  { key: "/dashboard", icon: <DashboardOutlined />, label: <Link to="/dashboard">仪表盘</Link> },
+  {
+    key: "sub-users",
+    icon: <TeamOutlined />,
+    label: "用户管理",
+    children: [{ key: "/users/list", label: <Link to="/users/list">用户列表</Link> }],
+  },
+  {
+    key: "sub-data",
+    icon: <BarChartOutlined />,
+    label: "数据管理",
+    children: [
+      {
+        key: "/data/promotion-sources",
+        label: <Link to="/data/promotion-sources">推广来源</Link>,
+      },
+      {
+        key: "/data/orders",
+        label: <Link to="/data/orders">代收记录</Link>,
+      },
+    ],
+  },
+  {
+    key: "sub-drama",
+    icon: <PlaySquareOutlined />,
+    label: "短剧管理",
+    children: [{ key: "/drama/movies", label: <Link to="/drama/movies">影片列表</Link> }],
+  },
 ];
 
 export function BasicLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [openKeys, setOpenKeys] = useState<string[]>(["sub-users", "sub-data", "sub-drama"]);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
+  /** 切换路由后仍保持各一级分组默认展开 */
+  useEffect(() => {
+    if (!collapsed) {
+      setOpenKeys(["sub-users", "sub-data", "sub-drama"]);
+    }
+  }, [location.pathname, collapsed]);
+
+  const userMenu: MenuProps["items"] = [
+    {
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "退出登录",
+      onClick: () => {
+        logout();
+        navigate("/login", { replace: true });
+      },
+    },
+  ];
+
   const selectedKeys = useMemo(() => {
-    const hit = menuItems.find((i) => location.pathname.startsWith(i.key));
-    return hit ? [hit.key] : [];
+    if (location.pathname.startsWith("/drama/movies")) {
+      return ["/drama/movies"];
+    }
+    if (location.pathname.startsWith("/data/orders")) {
+      return ["/data/orders"];
+    }
+    if (location.pathname.startsWith("/data/promotion-sources")) {
+      return ["/data/promotion-sources"];
+    }
+    if (location.pathname.startsWith("/users")) {
+      return ["/users/list"];
+    }
+    if (location.pathname.startsWith("/dashboard")) {
+      return ["/dashboard"];
+    }
+    return [];
   }, [location.pathname]);
 
   return (
-    <Layout style={{ minHeight: "100%" }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} theme="dark">
+    <Layout className={styles.root} style={{ background: "#ffffff" }}>
+      <Sider
+        trigger={null}
+        collapsible
+        collapsed={collapsed}
+        theme="dark"
+        className={styles.sider}
+      >
         <div
+          className={styles.siderBrand}
           style={{
             height: 64,
             display: "flex",
@@ -41,10 +119,20 @@ export function BasicLayout() {
             {collapsed ? "TV" : "TV 管理后台"}
           </Typography.Title>
         </div>
-        <Menu theme="dark" mode="inline" selectedKeys={selectedKeys} items={menuItems} />
+        <div className={styles.siderMenuScroll}>
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={selectedKeys}
+            openKeys={collapsed ? [] : openKeys}
+            onOpenChange={setOpenKeys}
+            items={menuItems}
+          />
+        </div>
       </Sider>
-      <Layout>
+      <Layout className={styles.right} style={{ background: "#ffffff" }}>
         <Header
+          className={styles.header}
           style={{
             padding: "0 16px",
             background: colorBgContainer,
@@ -58,13 +146,23 @@ export function BasicLayout() {
           ) : (
             <MenuFoldOutlined style={{ fontSize: 18 }} onClick={() => setCollapsed(true)} />
           )}
-          <Typography.Text type="secondary">欢迎回来</Typography.Text>
+          <Typography.Text type="secondary" style={{ flex: 1 }}>
+            欢迎回来{user?.name ? `，${String(user.name)}` : ""}
+          </Typography.Text>
+          <Space size="middle">
+            <Tag color="blue">管理员</Tag>
+            <Dropdown menu={{ items: userMenu }} placement="bottomRight">
+              <Space style={{ cursor: "pointer" }}>
+                <UserOutlined />
+                <Typography.Text>{user?.name ?? user?.email ?? "账号"}</Typography.Text>
+              </Space>
+            </Dropdown>
+          </Space>
         </Header>
-        <Content style={{ margin: 16 }}>
+        <Content className={styles.content}>
           <div
+            className={styles.contentInner}
             style={{
-              padding: 24,
-              minHeight: 360,
               background: colorBgContainer,
               borderRadius: borderRadiusLG,
             }}
