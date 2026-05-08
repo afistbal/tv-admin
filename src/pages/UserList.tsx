@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Avatar,
   Button,
+  DatePicker,
   Input,
   Modal,
   Pagination,
@@ -15,6 +16,8 @@ import {
   Typography,
   message,
 } from "antd";
+import type { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
 import { apiGet, apiPostJson } from "@/api/client";
 import type { ApiResult } from "@/api/types";
@@ -28,7 +31,23 @@ const TYPE_ALL = 0;
 const TYPE_REGISTERED = 1;
 const TYPE_ANONYMOUS = 2;
 
+/** 与 OrderList 一致：GET 由 client 将 `daterange` 展开为 `daterange[0]` / `daterange[1]` */
+function defaultTodayRange(): [Dayjs, Dayjs] {
+  const d = dayjs();
+  return [d.startOf("day"), d.startOf("day")];
+}
+
+function rangeToDaterangeStrings(range: [Dayjs, Dayjs]): [string, string] {
+  const [from, to] = range;
+  return [from.startOf("day").format("YYYY-MM-DD HH:mm:ss"), to.endOf("day").format("YYYY-MM-DD HH:mm:ss")];
+}
+
 /** 界面文案为简体中文；语义与 slot 后台字段一致。 */
+
+function fmtSource(v: unknown): string {
+  const s = String(v ?? "").trim();
+  return s || "—";
+}
 
 function fmtAliveMinutes(alive: unknown): string {
   const n = Number(alive);
@@ -51,6 +70,7 @@ export function UserList() {
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
   const [type, setType] = useState(TYPE_ALL);
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(() => defaultTodayRange());
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [info, setInfo] = useState<AdminUserInfo | null>(null);
@@ -60,13 +80,14 @@ export function UserList() {
   const [cancelSubLoadingId, setCancelSubLoadingId] = useState<number | null>(null);
   const searchTimer = useRef<number | null>(null);
 
-  const fetchList = useCallback(async (p: number, kw: string, t: number) => {
+  const fetchList = useCallback(async (p: number, kw: string, t: number, range: [Dayjs, Dayjs]) => {
     setLoading(true);
     try {
       const res: ApiResult<AdminUserListPayload> = await apiGet<AdminUserListPayload>("admin/user", {
         page: p,
         keyword: kw,
         type: t,
+        daterange: rangeToDaterangeStrings(range),
       });
       if (res.c !== 0) {
         message.error(res.m || "加载失败");
@@ -89,8 +110,8 @@ export function UserList() {
   }, []);
 
   useEffect(() => {
-    void fetchList(page, keyword, type);
-  }, [page, keyword, type, fetchList]);
+    void fetchList(page, keyword, type, dateRange);
+  }, [page, keyword, type, dateRange, fetchList]);
 
   useEffect(() => {
     if (detailId == null) {
@@ -174,7 +195,7 @@ export function UserList() {
               return;
             }
             message.success("已取消订阅");
-            void fetchList(page, keyword, type);
+            void fetchList(page, keyword, type, dateRange);
           } catch {
             message.error("网络异常");
           } finally {
@@ -183,7 +204,7 @@ export function UserList() {
         },
       });
     },
-    [fetchList, page, keyword, type],
+    [fetchList, page, keyword, type, dateRange],
   );
 
   const handleSave = async () => {
@@ -202,7 +223,7 @@ export function UserList() {
         return;
       }
       message.success("保存成功");
-      void fetchList(page, keyword, type);
+      void fetchList(page, keyword, type, dateRange);
       closeDetail();
     } catch {
       message.error("网络异常");
@@ -242,6 +263,17 @@ export function UserList() {
         dataIndex: "admin",
         width: 112,
         render: (v: unknown) => (Number(v) === 1 ? <Tag color="red">是</Tag> : <Tag>否</Tag>),
+      },
+      {
+        title: "来源",
+        dataIndex: "source",
+        width: 168,
+        ellipsis: true,
+        render: (_: unknown, record) => (
+          <Typography.Text copyable={String(record.source ?? "").trim() ? { text: String(record.source) } : false}>
+            {fmtSource(record.source)}
+          </Typography.Text>
+        ),
       },
       {
         title: "时间",
@@ -324,6 +356,34 @@ export function UserList() {
           <Typography.Text type="secondary">🙍‍♂️用户数量 {total || "..."}</Typography.Text>
         </Space>
         <Space wrap className={styles.toolbarRight}>
+          <Typography.Text type="secondary">日期</Typography.Text>
+          <DatePicker.RangePicker
+            className={styles.dateRange}
+            format="YYYY-MM-DD"
+            value={dateRange}
+            onChange={(dates) => {
+              if (dates?.[0] && dates[1]) {
+                setDateRange([dates[0].startOf("day"), dates[1].startOf("day")]);
+                setPage(1);
+              } else {
+                setDateRange(defaultTodayRange());
+                setPage(1);
+              }
+            }}
+            presets={[
+              {
+                label: "今天",
+                value: [dayjs().startOf("day"), dayjs().startOf("day")] satisfies [Dayjs, Dayjs],
+              },
+              {
+                label: "昨天",
+                value: [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").startOf("day")] satisfies [
+                  Dayjs,
+                  Dayjs,
+                ],
+              },
+            ]}
+          />
           <Select
             value={type}
             style={{ width: 160 }}
@@ -352,7 +412,7 @@ export function UserList() {
               setKeyword(kw);
               setPage(1);
               if (page === 1) {
-                void fetchList(1, kw, type);
+                void fetchList(1, kw, type, dateRange);
               }
             }}
           >
@@ -367,7 +427,7 @@ export function UserList() {
         columns={columns}
         dataSource={rows}
         pagination={false}
-        scroll={{ x: 992 }}
+        scroll={{ x: 1160 }}
         size="middle"
       />
 
@@ -423,6 +483,16 @@ export function UserList() {
                 <span className={styles.detailLabel}>登录方式</span>
                 <span className={styles.detailValue}>
                   {Number(info.anonymous) === 1 ? "游客" : "注册用户"}
+                </span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>来源</span>
+                <span className={styles.detailValue}>
+                  <Typography.Text
+                    copyable={String(info.source ?? "").trim() ? { text: String(info.source) } : false}
+                  >
+                    {fmtSource(info.source)}
+                  </Typography.Text>
                 </span>
               </div>
               <div className={styles.detailRow}>

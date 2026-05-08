@@ -30,6 +30,11 @@
   justify-content: flex-end;
 }
 
+.dateRange {
+  width: 280px;
+  max-width: min(280px, 100%);
+}
+
 .paginationWrap {
   margin-top: 16px;
   display: flex;

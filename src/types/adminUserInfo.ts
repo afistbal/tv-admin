@@ -6,6 +6,8 @@ export type AdminUserInfo = {
   anonymous?: number;
   vip?: number;
   admin?: number;
+  /** 注册/访问来源 */
+  source?: string;
   created_at?: string | null;
   login_at?: string | null;
   active_at?: string | null;

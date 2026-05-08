@@ -5,6 +5,8 @@ export type AdminUserRow = {
   anonymous?: number;
   vip?: number;
   admin?: number;
+  /** 注册/访问来源，如渠道码、域名、IP */
+  source?: string;
   created_at?: string | null;
   login_at?: string | null;
   avatar?: string;

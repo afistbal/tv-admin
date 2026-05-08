@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import getPlacements from "antd/es/_util/placements";
 import {
   BarChartOutlined,
   DashboardOutlined,
@@ -10,12 +11,15 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Dropdown, Layout, Menu, Space, Tag, theme, Typography } from "antd";
+import { Dropdown, Layout, Menu, Popover, Space, Tag, Tooltip, theme, Typography } from "antd";
 import type { MenuProps } from "antd";
 import { useAuth } from "@/auth/AuthContext";
 import styles from "./BasicLayout.module.css";
 
 const { Header, Sider, Content } = Layout;
+
+/** 展开侧栏时保持三个分组常开；用常量避免每次路由变化都 new 数组触发菜单无意义重绘 */
+const DEFAULT_SUBMENU_OPEN_KEYS = ["sub-users", "sub-data", "sub-drama"] as const;
 
 const menuItems: MenuProps["items"] = [
   { key: "/dashboard", icon: <DashboardOutlined />, label: <Link to="/dashboard">仪表盘</Link> },
@@ -48,9 +52,127 @@ const menuItems: MenuProps["items"] = [
   },
 ];
 
+/** 折叠侧栏专用：Popover 内用 Link，避免 hover 浮层提前关掉时 Button 的 click 丢失；与 HashRouter 一致 */
+function CollapsedPopoverLinks({ links }: { links: readonly { to: string; label: string }[] }) {
+  return (
+    <div className={styles.collapsedPopoverPanel} onMouseDown={(e) => e.stopPropagation()}>
+      {links.map((it) => (
+        <Link key={it.to} to={it.to} className={styles.collapsedPopoverEntry} onClick={(e) => e.stopPropagation()}>
+          {it.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function CollapsedSideNav({ pathname }: { pathname: string }) {
+  const { token } = theme.useToken();
+
+  /** 比默认多一段水平偏移，浮层整体再往右靠一点（rightTop 时增大 offset[0]） */
+  const builtinPlacements = useMemo(
+    () =>
+      getPlacements({
+        arrowPointAtCenter: false,
+        autoAdjustOverflow: true,
+        arrowWidth: token.sizePopupArrow,
+        borderRadius: token.borderRadius,
+        offset: token.marginXXS + 14,
+        visibleFirst: true,
+      }),
+    [token.borderRadius, token.marginXXS, token.sizePopupArrow],
+  );
+
+  const dashboardActive = pathname.startsWith("/dashboard");
+  const usersActive = pathname.startsWith("/users");
+  const dataActive = pathname.startsWith("/data");
+  const dramaActive = pathname.startsWith("/drama/movies");
+
+  /**
+   * color=#001529：面板与小箭头同色（antd 会给箭头设 --antd-arrow-background-color）
+   * builtinPlacements：额外右偏，避免贴侧栏太近
+   */
+  const popCommon = {
+    placement: "rightTop" as const,
+    trigger: "hover" as const,
+    mouseEnterDelay: 0,
+    mouseLeaveDelay: 0.14,
+    arrow: true,
+    /** 深色气泡 + 深色箭头，避免默认白箭头 */
+    color: "#001529",
+    builtinPlacements,
+    getPopupContainer: () => document.body,
+    overlayStyle: { zIndex: 3100 },
+    classNames: { root: styles.collapsedPopoverRoot },
+    overlayInnerStyle: {
+      padding: 0,
+      background: "transparent",
+      boxShadow: "none",
+    },
+  };
+
+  return (
+    <nav className={styles.collapsedNav} data-admin-collapsed-nav="1" aria-label="主导航">
+      <Tooltip title="仪表盘" placement="right">
+        <Link
+          to="/dashboard"
+          className={`${styles.collapsedIconBtn} ${dashboardActive ? styles.collapsedIconBtnActive : ""}`}
+        >
+          <DashboardOutlined />
+        </Link>
+      </Tooltip>
+
+      <Popover {...popCommon} content={<CollapsedPopoverLinks links={[{ to: "/users/list", label: "用户列表" }]} />}>
+        <div
+          className={`${styles.collapsedIconBtn} ${usersActive ? styles.collapsedIconBtnActive : ""}`}
+          role="button"
+          tabIndex={0}
+          aria-label="用户管理"
+        >
+          <TeamOutlined />
+        </div>
+      </Popover>
+
+      <Popover
+        {...popCommon}
+        content={
+          <CollapsedPopoverLinks
+            links={[
+              { to: "/data/promotion-sources", label: "推广来源" },
+              { to: "/data/orders", label: "代收记录" },
+            ]}
+          />
+        }
+      >
+        <div
+          className={`${styles.collapsedIconBtn} ${dataActive ? styles.collapsedIconBtnActive : ""}`}
+          role="button"
+          tabIndex={0}
+          aria-label="数据管理"
+        >
+          <BarChartOutlined />
+        </div>
+      </Popover>
+
+      <Popover
+        {...popCommon}
+        content={<CollapsedPopoverLinks links={[{ to: "/drama/movies", label: "影片列表" }]} />}
+      >
+        <div
+          className={`${styles.collapsedIconBtn} ${dramaActive ? styles.collapsedIconBtnActive : ""}`}
+          role="button"
+          tabIndex={0}
+          aria-label="短剧管理"
+        >
+          <PlaySquareOutlined />
+        </div>
+      </Popover>
+    </nav>
+  );
+}
+
 export function BasicLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const [openKeys, setOpenKeys] = useState<string[]>(["sub-users", "sub-data", "sub-drama"]);
+  const [openKeys, setOpenKeys] = useState<string[]>(() => [...DEFAULT_SUBMENU_OPEN_KEYS]);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -58,11 +180,20 @@ export function BasicLayout() {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  /** 切换路由后仍保持各一级分组默认展开 */
+  /** 切换路由后仍保持各一级分组默认展开（pathname 变化时若已是展开态则不重复 set，减轻菜单闪动） */
   useEffect(() => {
-    if (!collapsed) {
-      setOpenKeys(["sub-users", "sub-data", "sub-drama"]);
+    if (collapsed) {
+      return;
     }
+    setOpenKeys((prev) => {
+      if (
+        prev.length === DEFAULT_SUBMENU_OPEN_KEYS.length &&
+        DEFAULT_SUBMENU_OPEN_KEYS.every((k, i) => prev[i] === k)
+      ) {
+        return prev;
+      }
+      return [...DEFAULT_SUBMENU_OPEN_KEYS];
+    });
   }, [location.pathname, collapsed]);
 
   const userMenu: MenuProps["items"] = [
@@ -120,14 +251,18 @@ export function BasicLayout() {
           </Typography.Title>
         </div>
         <div className={styles.siderMenuScroll}>
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={selectedKeys}
-            openKeys={collapsed ? [] : openKeys}
-            onOpenChange={setOpenKeys}
-            items={menuItems}
-          />
+          {collapsed ? (
+            <CollapsedSideNav pathname={location.pathname} />
+          ) : (
+            <Menu
+              theme="dark"
+              mode="inline"
+              selectedKeys={selectedKeys}
+              openKeys={openKeys}
+              onOpenChange={setOpenKeys}
+              items={menuItems}
+            />
+          )}
         </div>
       </Sider>
       <Layout className={styles.right} style={{ background: "#ffffff" }}>

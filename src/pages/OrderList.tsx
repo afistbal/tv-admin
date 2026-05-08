@@ -115,12 +115,12 @@ export function OrderList() {
     setLoading(true);
     try {
       const uidTrim = uid.trim();
-      /** 与 gold-game 订单/代收列表一致：`keyword` + `keywordType`（选用户 id 时为 `userId`） */
+      const kwTrim = kw.trim();
       const res: ApiResult<AdminOrderListPayload> = await apiGet<AdminOrderListPayload>("admin/order", {
         page: p,
         daterange: rangeToDaterangeStrings(range),
-        keyword: uidTrim ? uidTrim : kw,
-        keywordType: uidTrim ? "userId" : "",
+        keyword: kwTrim || undefined,
+        user_id: uidTrim || undefined,
         status: status === "" ? undefined : status,
       });
       if (res.c !== 0) {

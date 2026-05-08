@@ -1,58 +1,49 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { Spin } from "antd";
 import { RequireAuth } from "@/auth/RequireAuth";
+import { BasicLayout } from "@/layouts/BasicLayout";
+import { Dashboard } from "@/pages/Dashboard";
+import { MovieList } from "@/pages/MovieList";
+import { OrderList } from "@/pages/OrderList";
+import { PromotionSources } from "@/pages/PromotionSources";
+import { UserActivity } from "@/pages/UserActivity";
+import { UserList } from "@/pages/UserList";
 
-const Login = lazy(() => import("@/pages/Login").then((m) => ({ default: m.Login })));
-const BasicLayout = lazy(() =>
-  import("@/layouts/BasicLayout").then((m) => ({ default: m.BasicLayout })),
-);
-const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })));
-const UserList = lazy(() => import("@/pages/UserList").then((m) => ({ default: m.UserList })));
-const UserActivity = lazy(() =>
-  import("@/pages/UserActivity").then((m) => ({ default: m.UserActivity })),
-);
-const PromotionSources = lazy(() =>
-  import("@/pages/PromotionSources").then((m) => ({ default: m.PromotionSources })),
-);
-const OrderList = lazy(() => import("@/pages/OrderList").then((m) => ({ default: m.OrderList })));
-const MovieList = lazy(() => import("@/pages/MovieList").then((m) => ({ default: m.MovieList })));
+/** 登录页单独分包，其余后台页同步引入，避免切换菜单时 lazy + Suspense(null) 造成主区域白屏闪烁 */
+const LoginLazy = lazy(() => import("@/pages/Login").then((m) => ({ default: m.Login })));
 const NotFound = lazy(() => import("@/pages/NotFound").then((m) => ({ default: m.NotFound })));
-
-function RouteFallback() {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "40vh",
-      }}
-    >
-      <Spin size="large" />
-    </div>
-  );
-}
 
 export function AppRouter() {
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route element={<RequireAuth />}>
-          <Route path="/" element={<BasicLayout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="users/list" element={<UserList />} />
-            <Route path="users/activity/:userId" element={<UserActivity />} />
-            <Route path="data/promotion-sources" element={<PromotionSources />} />
-            <Route path="data/orders/:orderId" element={<Navigate to="/data/orders" replace />} />
-            <Route path="data/orders" element={<OrderList />} />
-            <Route path="drama/movies" element={<MovieList />} />
-          </Route>
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <Suspense fallback={null}>
+            <LoginLazy />
+          </Suspense>
+        }
+      />
+      <Route element={<RequireAuth />}>
+        <Route path="/" element={<BasicLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="users/list" element={<UserList />} />
+          <Route path="users/activity/:userId" element={<UserActivity />} />
+          <Route path="data/promotion-sources" element={<PromotionSources />} />
+          <Route path="data/orders/:orderId" element={<Navigate to="/data/orders" replace />} />
+          <Route path="data/orders" element={<OrderList />} />
+          <Route path="drama/movies" element={<MovieList />} />
         </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Suspense>
+      </Route>
+      <Route
+        path="*"
+        element={
+          <Suspense fallback={null}>
+            <NotFound />
+          </Suspense>
+        }
+      />
+    </Routes>
   );
 }

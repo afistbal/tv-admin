@@ -10,3 +10,16 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
+
+/**
+ * Table 自带 loading 走 Spin 嵌套样式：antd 给容器与蒙层加了较慢的 opacity transition，
+ * 数据已到、spinning 已 false 时仍会渐隐一小段时间，观感像「慢半拍」。
+ * 仅作用于表格区域，不影响其它页面的独立 Spin。
+ */
+.ant-table-wrapper .ant-spin-nested-loading > .ant-spin-container {
+  transition: none !important;
+}
+
+.ant-table-wrapper .ant-spin-nested-loading > .ant-spin-container::after {
+  transition: none !important;
+}

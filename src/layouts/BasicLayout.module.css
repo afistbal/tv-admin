@@ -51,3 +51,89 @@
 .contentInner {
   padding: 24px;
 }
+
+/* 折叠侧栏：图标条 + Dropdown，与 antd 深色菜单选中态接近 */
+.collapsedNav {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.collapsedIconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  margin: 4px 12px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 18px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.collapsedIconBtn:hover {
+  background-color: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+
+.collapsedIconBtnActive {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.collapsedIconBtnActive:hover {
+  background-color: rgba(0, 0, 0, 0.45);
+}
+
+a.collapsedIconBtn {
+  text-decoration: none;
+}
+
+/**
+ * 与侧栏展开时 ant-menu-dark 子项观感对齐：深色底、约 40px 行高、左右 16px 内边距
+ * （对齐 ant-menu-vertical.ant-menu-sub .ant-menu-item）
+ */
+.collapsedPopoverPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 168px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #001529;
+  box-shadow:
+    0 6px 16px 0 rgba(0, 0, 0, 0.08),
+    0 3px 6px -4px rgba(0, 0, 0, 0.12),
+    0 9px 28px 8px rgba(0, 0, 0, 0.05);
+}
+
+.collapsedPopoverEntry {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5715;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.collapsedPopoverEntry:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+/* 与 Popover color=#001529 一致，保证小三角为深色底 */
+.collapsedPopoverRoot {
+  --antd-arrow-background-color: #001529;
+}
