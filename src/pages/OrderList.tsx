@@ -96,31 +96,20 @@ export function OrderList() {
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(() => defaultTodayRange());
-  const [userIdInput, setUserIdInput] = useState("");
-  const [userId, setUserId] = useState("");
   const [orderStatus, setOrderStatus] = useState<string>("");
   const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailInfo, setDetailInfo] = useState<AdminOrderInfo | null>(null);
   const searchTimer = useRef<number | null>(null);
 
-  const fetchList = useCallback(
-    async (
-      p: number,
-      kw: string,
-      range: [Dayjs, Dayjs],
-      uid: string,
-      status: string,
-    ) => {
+  const fetchList = useCallback(async (p: number, kw: string, range: [Dayjs, Dayjs], status: string) => {
     setLoading(true);
     try {
-      const uidTrim = uid.trim();
       const kwTrim = kw.trim();
       const res: ApiResult<AdminOrderListPayload> = await apiGet<AdminOrderListPayload>("admin/order", {
         page: p,
         daterange: rangeToDaterangeStrings(range),
         keyword: kwTrim || undefined,
-        user_id: uidTrim || undefined,
         status: status === "" ? undefined : status,
       });
       if (res.c !== 0) {
@@ -146,8 +135,8 @@ export function OrderList() {
   );
 
   useEffect(() => {
-    void fetchList(page, keyword, dateRange, userId, orderStatus);
-  }, [page, keyword, dateRange, userId, orderStatus, fetchList]);
+    void fetchList(page, keyword, dateRange, orderStatus);
+  }, [page, keyword, dateRange, orderStatus, fetchList]);
 
   useEffect(() => {
     if (detailOrderId == null) {
@@ -201,25 +190,10 @@ export function OrderList() {
     }, 400);
   };
 
-  const userIdTimer = useRef<number | null>(null);
-  const onUserIdChange = (v: string) => {
-    setUserIdInput(v);
-    if (userIdTimer.current) {
-      window.clearTimeout(userIdTimer.current);
-    }
-    userIdTimer.current = window.setTimeout(() => {
-      setUserId(v.trim());
-      setPage(1);
-    }, 400);
-  };
-
   useEffect(
     () => () => {
       if (searchTimer.current) {
         window.clearTimeout(searchTimer.current);
-      }
-      if (userIdTimer.current) {
-        window.clearTimeout(userIdTimer.current);
       }
     },
     [],
@@ -363,17 +337,6 @@ export function OrderList() {
             />
           </div>
           <div className={orderStyles.filterItem}>
-            <span className={orderStyles.filterLabel}>用户id：</span>
-            <Input
-              allowClear
-              placeholder="请输入用户 id"
-              value={userIdInput}
-              onChange={(e) => onUserIdChange(e.target.value)}
-              style={{ width: 168 }}
-              maxLength={32}
-            />
-          </div>
-          <div className={orderStyles.filterItem}>
             <span className={orderStyles.filterLabel}>订单状态：</span>
             <Select
               value={orderStatus}
@@ -391,13 +354,13 @@ export function OrderList() {
             />
           </div>
           <div className={orderStyles.filterItem}>
-            <span className={orderStyles.filterLabel}>检索：</span>
+            <span className={orderStyles.filterLabel}>关键词：</span>
             <Input
               allowClear
-              placeholder="关键词"
+              placeholder="用户 id / 订单号"
               value={keywordInput}
               onChange={(e) => onKeywordChange(e.target.value)}
-              style={{ width: 200 }}
+              style={{ width: 220 }}
               maxLength={32}
             />
           </div>
@@ -405,12 +368,10 @@ export function OrderList() {
             type="primary"
             onClick={() => {
               const kw = keywordInput.trim();
-              const uid = userIdInput.trim();
               setKeyword(kw);
-              setUserId(uid);
               setPage(1);
               if (page === 1) {
-                void fetchList(1, kw, dateRange, uid, orderStatus);
+                void fetchList(1, kw, dateRange, orderStatus);
               }
             }}
           >
