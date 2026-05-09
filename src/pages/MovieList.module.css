@@ -4,6 +4,16 @@
   justify-content: flex-start;
 }
 
+.thumbClickable {
+  cursor: pointer;
+}
+
+.thumbClickable:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .thumbImg {
   border-radius: 4px;
   object-fit: cover;
@@ -17,6 +27,62 @@
 .thumbPlaceholder {
   font-size: 12px;
   color: rgba(0, 0, 0, 0.35);
+}
+
+/** 去掉 Modal 默认内边距与 inline-block 基线留白；仅作用于封面大图 Modal */
+.posterPreviewModalWrap :global(.ant-modal-content),
+.posterPreviewModalWrap :global(.ant-modal-body) {
+  padding: 0 !important;
+  margin: 0;
+}
+
+.posterPreviewModalWrap :global(.ant-modal-body) {
+  line-height: 0;
+  min-height: 0;
+}
+
+.posterPreviewWrap {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: min(92vw, 960px);
+  line-height: 0;
+}
+
+.posterPreviewCloseBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.posterPreviewCloseBtn:hover {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.posterPreviewImg {
+  display: block;
+  max-width: 100%;
+  max-height: 85vh;
+  width: auto;
+  height: auto;
+  margin: 0;
+  object-fit: contain;
 }
 
 /** 短剧名称：两行截断；列变宽后 `max-width:100%` 吃满单元格，悬停 tooltip 看全文 */

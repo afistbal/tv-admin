@@ -116,6 +116,7 @@ export function MovieList() {
   /** 操作列：导出 / 改状态 等 */
   const [rowActionBusyId, setRowActionBusyId] = useState<number | null>(null);
   const [tagNameById, setTagNameById] = useState<Map<number, string>>(() => new Map());
+  const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
   const searchTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -334,14 +335,14 @@ export function MovieList() {
     [fetchList, page, keyword, language],
   );
 
-  const handleViewFullPoster = useCallback(
+  const openPosterPreview = useCallback(
     (row: AdminMovieRow) => {
       const url = moviePosterUrl(row.image as string | undefined, appStatic);
       if (!url) {
         message.warning("无封面或未配置静态资源");
         return;
       }
-      window.open(url, "_blank", "noopener,noreferrer");
+      setPosterPreviewUrl(url);
     },
     [appStatic],
   );
@@ -449,7 +450,22 @@ export function MovieList() {
         render: (_: unknown, row) => {
           const poster = moviePosterUrl(row.image as string | undefined, appStatic);
           return (
-            <div className={styles.thumbCell}>
+            <div
+              className={`${styles.thumbCell}${poster ? ` ${styles.thumbClickable}` : ""}`}
+              onClick={poster ? () => openPosterPreview(row) : undefined}
+              onKeyDown={
+                poster
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openPosterPreview(row);
+                      }
+                    }
+                  : undefined
+              }
+              role={poster ? "button" : undefined}
+              tabIndex={poster ? 0 : undefined}
+            >
               {poster ? (
                 <Image src={poster} alt="" width={56} height={75} className={styles.thumbImg} preview={false} />
               ) : (
@@ -468,7 +484,6 @@ export function MovieList() {
         className: styles.opCol,
         render: (_: unknown, row) => {
           const busy = rowActionBusyId === row.id;
-          const hasPoster = Boolean(moviePosterUrl(row.image as string | undefined, appStatic));
           const moreItems: MenuProps["items"] = [
             {
               key: "audioZh",
@@ -481,13 +496,6 @@ export function MovieList() {
               label: "设为英文",
               disabled: busy,
               onClick: () => void handleSetAudioTrack(row, "en"),
-            },
-            { type: "divider" },
-            {
-              key: "fullImage",
-              label: "查看大图",
-              disabled: busy || !hasPoster,
-              onClick: () => handleViewFullPoster(row),
             },
             { type: "divider" },
             {
@@ -542,7 +550,7 @@ export function MovieList() {
       handleExportMovie,
       handleMovieStatus,
       handleSetAudioTrack,
-      handleViewFullPoster,
+      openPosterPreview,
       tagNameById,
     ],
   );
@@ -614,6 +622,32 @@ export function MovieList() {
           onChange={(p) => setPage(p)}
         />
       </div>
+
+      <Modal
+        title={null}
+        open={posterPreviewUrl != null}
+        footer={null}
+        closable={false}
+        onCancel={() => setPosterPreviewUrl(null)}
+        centered
+        width="auto"
+        destroyOnClose
+        wrapClassName={styles.posterPreviewModalWrap}
+        styles={{
+          content: { padding: 0, margin: 0 },
+          body: { padding: 0, margin: 0, lineHeight: 0, minHeight: 0 },
+        }}
+        maskClosable
+      >
+        {posterPreviewUrl ? (
+          <div className={styles.posterPreviewWrap}>
+            <button type="button" className={styles.posterPreviewCloseBtn} onClick={() => setPosterPreviewUrl(null)} aria-label="关闭">
+              ✕
+            </button>
+            <img src={posterPreviewUrl} alt="" className={styles.posterPreviewImg} />
+          </div>
+        ) : null}
+      </Modal>
 
       {editId != null ? (
         <MovieEditModal
