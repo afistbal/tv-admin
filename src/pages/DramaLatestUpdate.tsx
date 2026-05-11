@@ -233,8 +233,8 @@ export function DramaLatestUpdate() {
         dataIndex: "title",
         key: "title",
         width: 240,
-        onCell: (_: EpisodeRow, rowIndex: number) => ({
-          rowSpan: titleRowSpans[rowIndex] ?? 1,
+        onCell: (_: EpisodeRow, index?: number) => ({
+          rowSpan: index === undefined ? 1 : (titleRowSpans[index] ?? 1),
         }),
         render: (title: string) => (
           <div className={styles.titleCell}>

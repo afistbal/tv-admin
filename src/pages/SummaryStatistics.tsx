@@ -4,6 +4,7 @@ import {
   useMemo,
   useState,
   type CSSProperties,
+  type HTMLAttributes,
   type Key,
   type MouseEvent,
 } from "react";
@@ -467,9 +468,11 @@ export function SummaryStatistics() {
       <Table<AdminStatSummaryRow>
         className={styles.summaryStatsTable}
         rowKey={(row) => tableRowKey(row)}
-        onRow={(record) => ({
-          "data-row-kind": record._rowKind ?? "",
-        })}
+        onRow={(record) =>
+          ({
+            "data-row-kind": String(record._rowKind ?? ""),
+          }) as HTMLAttributes<HTMLTableRowElement>
+        }
         rowClassName={(record) => {
           if (record._rowKind === "summary") {
             return styles.summaryRow;
