@@ -19,6 +19,7 @@ import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
 import { apiGet } from "@/api/client";
+import type { ApiGetQueryValue } from "@/api/client";
 import type { ApiResult } from "@/api/types";
 import type { AdminOrderInfo, AdminOrderListPayload, AdminOrderRow } from "@/types/adminOrder";
 import { formatDateTimeZh } from "@/lib/formatDateTime";
@@ -95,23 +96,26 @@ export function OrderList() {
   const [perPage, setPerPage] = useState(24);
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(() => defaultTodayRange());
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(() => defaultTodayRange());
   const [orderStatus, setOrderStatus] = useState<string>("");
   const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailInfo, setDetailInfo] = useState<AdminOrderInfo | null>(null);
   const searchTimer = useRef<number | null>(null);
 
-  const fetchList = useCallback(async (p: number, kw: string, range: [Dayjs, Dayjs], status: string) => {
+  const fetchList = useCallback(async (p: number, kw: string, range: [Dayjs, Dayjs] | null, status: string) => {
     setLoading(true);
     try {
       const kwTrim = kw.trim();
-      const res: ApiResult<AdminOrderListPayload> = await apiGet<AdminOrderListPayload>("admin/order", {
+      const q: Record<string, ApiGetQueryValue> = {
         page: p,
-        daterange: rangeToDaterangeStrings(range),
         keyword: kwTrim || undefined,
         status: status === "" ? undefined : status,
-      });
+      };
+      if (range != null) {
+        q.daterange = rangeToDaterangeStrings(range);
+      }
+      const res: ApiResult<AdminOrderListPayload> = await apiGet<AdminOrderListPayload>("admin/order", q);
       if (res.c !== 0) {
         message.error(res.m || "加载失败");
         setRows([]);
@@ -210,12 +214,19 @@ export function OrderList() {
       {
         title: "用户id",
         dataIndex: "user_id",
-        width: 100,
+        /** 略宽于订单 ID 列；不与 `ellipsis`+`copyable` 同用，避免 WebKit（macOS Safari）把正文挤成极窄 */
+        width: 132,
+        minWidth: 132,
         fixed: "left",
         render: (v: unknown) => (
-          <Typography.Text copyable={v != null && String(v) !== "" ? { text: String(v) } : false} ellipsis>
-            {v != null && String(v) !== "" ? String(v) : "—"}
-          </Typography.Text>
+          <div className={orderStyles.userIdCell}>
+            <Typography.Text
+              className={orderStyles.userIdText}
+              copyable={v != null && String(v) !== "" ? { text: String(v) } : false}
+            >
+              {v != null && String(v) !== "" ? String(v) : "—"}
+            </Typography.Text>
+          </div>
         ),
       },
       {
@@ -245,12 +256,14 @@ export function OrderList() {
       {
         title: "平台订单号",
         dataIndex: "platform_sn",
-        ellipsis: true,
-        width: 200,
+        width: 260,
+        minWidth: 260,
         render: (v: unknown) => (
-          <Typography.Text ellipsis copyable={String(v ?? "").trim() ? { text: String(v) } : false}>
-            {String(v ?? "—")}
-          </Typography.Text>
+          <div className={orderStyles.platformSnCell}>
+            <Typography.Text copyable={String(v ?? "").trim() ? { text: String(v) } : false}>
+              {String(v ?? "—")}
+            </Typography.Text>
+          </div>
         ),
       },
       {
@@ -311,13 +324,14 @@ export function OrderList() {
             <DatePicker.RangePicker
               className={orderStyles.dateRange}
               format="YYYY-MM-DD"
+              allowClear
               value={dateRange}
               onChange={(dates) => {
                 if (dates?.[0] && dates[1]) {
                   setDateRange([dates[0].startOf("day"), dates[1].startOf("day")]);
                   setPage(1);
                 } else {
-                  setDateRange(defaultTodayRange());
+                  setDateRange(null);
                   setPage(1);
                 }
               }}
@@ -387,7 +401,7 @@ export function OrderList() {
         columns={columns}
         dataSource={rows}
         pagination={false}
-        scroll={{ x: 1128 }}
+        scroll={{ x: 1220 }}
         size="middle"
       />
 

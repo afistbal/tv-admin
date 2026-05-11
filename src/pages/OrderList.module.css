@@ -46,6 +46,42 @@
   max-width: min(330px, 100%);
 }
 
+/** 用户 id + 复制：避免 WebKit 下 flex 子项宽度为 0 导致正文被截成「217…」 */
+.userIdCell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.userIdCell :global(.ant-typography) {
+  margin-bottom: 0 !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.userIdText {
+  font-variant-numeric: tabular-nums;
+}
+
+/** 平台订单号：长串可换行，避免与 `copyable` 同用 `ellipsis` 在 WebKit 下被截成「int_…」 */
+.platformSnCell {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.platformSnCell :global(.ant-typography) {
+  margin-bottom: 0 !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
 .totalHint {
   margin-left: auto;
   color: rgba(0, 0, 0, 0.45);

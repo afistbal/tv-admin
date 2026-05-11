@@ -20,6 +20,7 @@ import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
 import { apiGet, apiPostJson } from "@/api/client";
+import type { ApiGetQueryValue } from "@/api/client";
 import type { ApiResult } from "@/api/types";
 import type { AdminUserListPayload, AdminUserRow } from "@/types/adminUser";
 import type { AdminUserInfo } from "@/types/adminUserInfo";
@@ -70,7 +71,7 @@ export function UserList() {
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
   const [type, setType] = useState(TYPE_ALL);
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(() => defaultTodayRange());
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(() => defaultTodayRange());
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [info, setInfo] = useState<AdminUserInfo | null>(null);
@@ -80,15 +81,18 @@ export function UserList() {
   const [cancelSubLoadingId, setCancelSubLoadingId] = useState<number | null>(null);
   const searchTimer = useRef<number | null>(null);
 
-  const fetchList = useCallback(async (p: number, kw: string, t: number, range: [Dayjs, Dayjs]) => {
+  const fetchList = useCallback(async (p: number, kw: string, t: number, range: [Dayjs, Dayjs] | null) => {
     setLoading(true);
     try {
-      const res: ApiResult<AdminUserListPayload> = await apiGet<AdminUserListPayload>("admin/user", {
+      const q: Record<string, ApiGetQueryValue> = {
         page: p,
         keyword: kw,
         type: t,
-        daterange: rangeToDaterangeStrings(range),
-      });
+      };
+      if (range != null) {
+        q.daterange = rangeToDaterangeStrings(range);
+      }
+      const res: ApiResult<AdminUserListPayload> = await apiGet<AdminUserListPayload>("admin/user", q);
       if (res.c !== 0) {
         message.error(res.m || "加载失败");
         setRows([]);
@@ -360,13 +364,14 @@ export function UserList() {
           <DatePicker.RangePicker
             className={styles.dateRange}
             format="YYYY-MM-DD"
+            allowClear
             value={dateRange}
             onChange={(dates) => {
               if (dates?.[0] && dates[1]) {
                 setDateRange([dates[0].startOf("day"), dates[1].startOf("day")]);
                 setPage(1);
               } else {
-                setDateRange(defaultTodayRange());
+                setDateRange(null);
                 setPage(1);
               }
             }}
