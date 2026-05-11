@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 18" width="64" height="18" role="img" aria-label="Google Pay">
+  <defs>
+    <linearGradient id="gpayG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4285F4"/>
+      <stop offset="25%" stop-color="#EA4335"/>
+      <stop offset="50%" stop-color="#FBBC04"/>
+      <stop offset="100%" stop-color="#34A853"/>
+    </linearGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="63" height="17" rx="9" fill="#fff" stroke="#dadce0" stroke-width="1"/>
+  <text x="8" y="13.5" font-family="Product Sans, Roboto, sans-serif" font-size="12" font-weight="800" fill="url(#gpayG)">G</text>
+  <text x="22" y="13" font-family="Roboto, 'Segoe UI', sans-serif" font-size="8" font-weight="600" fill="#5F6368">Pay</text>
+</svg>

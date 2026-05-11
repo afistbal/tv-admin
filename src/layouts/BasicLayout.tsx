@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import getPlacements from "antd/es/_util/placements";
 import {
@@ -7,6 +7,7 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  PieChartOutlined,
   PlaySquareOutlined,
   TeamOutlined,
   UserOutlined,
@@ -19,7 +20,7 @@ import styles from "./BasicLayout.module.css";
 const { Header, Sider, Content } = Layout;
 
 /** 展开侧栏时保持三个分组常开；用常量避免每次路由变化都 new 数组触发菜单无意义重绘 */
-const DEFAULT_SUBMENU_OPEN_KEYS = ["sub-users", "sub-data", "sub-drama"] as const;
+const DEFAULT_SUBMENU_OPEN_KEYS = ["sub-users", "sub-data", "sub-drama", "sub-stats"] as const;
 
 const menuItems: MenuProps["items"] = [
   { key: "/dashboard", icon: <DashboardOutlined />, label: <Link to="/dashboard">仪表盘</Link> },
@@ -48,12 +49,48 @@ const menuItems: MenuProps["items"] = [
     key: "sub-drama",
     icon: <PlaySquareOutlined />,
     label: "短剧管理",
-    children: [{ key: "/drama/movies", label: <Link to="/drama/movies">影片列表</Link> }],
+    children: [
+      { key: "/drama/movies", label: <Link to="/drama/movies">影片列表</Link> },
+      { key: "/drama/latest-update", label: <Link to="/drama/latest-update">最新更新</Link> },
+    ],
+  },
+  {
+    key: "sub-stats",
+    icon: <PieChartOutlined />,
+    label: "统计管理",
+    children: [
+      {
+        key: "/stats/summary",
+        label: (
+          <Link to="/stats/summary">
+            <Space size={6} align="center">
+              汇总统计
+              <Tag color="orange" style={{ margin: 0, fontSize: 10, lineHeight: "14px", padding: "0 5px" }}>
+                demo
+              </Tag>
+            </Space>
+          </Link>
+        ),
+      },
+      {
+        key: "/stats/subscription-users",
+        label: (
+          <Link to="/stats/subscription-users">
+            <Space size={6} align="center">
+              订阅用户
+              <Tag color="orange" style={{ margin: 0, fontSize: 10, lineHeight: "14px", padding: "0 5px" }}>
+                demo
+              </Tag>
+            </Space>
+          </Link>
+        ),
+      },
+    ],
   },
 ];
 
 /** 折叠侧栏专用：Popover 内用 Link，避免 hover 浮层提前关掉时 Button 的 click 丢失；与 HashRouter 一致 */
-function CollapsedPopoverLinks({ links }: { links: readonly { to: string; label: string }[] }) {
+function CollapsedPopoverLinks({ links }: { links: readonly { to: string; label: ReactNode }[] }) {
   return (
     <div className={styles.collapsedPopoverPanel} onMouseDown={(e) => e.stopPropagation()}>
       {links.map((it) => (
@@ -85,7 +122,8 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
   const dashboardActive = pathname.startsWith("/dashboard");
   const usersActive = pathname.startsWith("/users");
   const dataActive = pathname.startsWith("/data");
-  const dramaActive = pathname.startsWith("/drama/movies");
+  const dramaActive = pathname.startsWith("/drama");
+  const statsActive = pathname.startsWith("/stats");
 
   /**
    * color=#001529：面板与小箭头同色（antd 会给箭头设 --antd-arrow-background-color）
@@ -155,7 +193,14 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
 
       <Popover
         {...popCommon}
-        content={<CollapsedPopoverLinks links={[{ to: "/drama/movies", label: "影片列表" }]} />}
+        content={
+          <CollapsedPopoverLinks
+            links={[
+              { to: "/drama/movies", label: "影片列表" },
+              { to: "/drama/latest-update", label: "最新更新" },
+            ]}
+          />
+        }
       >
         <div
           className={`${styles.collapsedIconBtn} ${dramaActive ? styles.collapsedIconBtnActive : ""}`}
@@ -164,6 +209,47 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
           aria-label="短剧管理"
         >
           <PlaySquareOutlined />
+        </div>
+      </Popover>
+
+      <Popover
+        {...popCommon}
+        content={
+          <CollapsedPopoverLinks
+            links={[
+              {
+                to: "/stats/summary",
+                label: (
+                  <Space size={6} align="center">
+                    汇总统计
+                    <Tag color="orange" style={{ margin: 0, fontSize: 10, lineHeight: "14px", padding: "0 5px" }}>
+                      demo
+                    </Tag>
+                  </Space>
+                ),
+              },
+              {
+                to: "/stats/subscription-users",
+                label: (
+                  <Space size={6} align="center">
+                    订阅用户
+                    <Tag color="orange" style={{ margin: 0, fontSize: 10, lineHeight: "14px", padding: "0 5px" }}>
+                      demo
+                    </Tag>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        }
+      >
+        <div
+          className={`${styles.collapsedIconBtn} ${statsActive ? styles.collapsedIconBtnActive : ""}`}
+          role="button"
+          tabIndex={0}
+          aria-label="统计管理"
+        >
+          <PieChartOutlined />
         </div>
       </Popover>
     </nav>
@@ -209,6 +295,9 @@ export function BasicLayout() {
   ];
 
   const selectedKeys = useMemo(() => {
+    if (location.pathname.startsWith("/drama/latest-update")) {
+      return ["/drama/latest-update"];
+    }
     if (location.pathname.startsWith("/drama/movies")) {
       return ["/drama/movies"];
     }
@@ -223,6 +312,12 @@ export function BasicLayout() {
     }
     if (location.pathname.startsWith("/dashboard")) {
       return ["/dashboard"];
+    }
+    if (location.pathname.startsWith("/stats/subscription-users")) {
+      return ["/stats/subscription-users"];
+    }
+    if (location.pathname.startsWith("/stats/summary")) {
+      return ["/stats/summary"];
     }
     return [];
   }, [location.pathname]);

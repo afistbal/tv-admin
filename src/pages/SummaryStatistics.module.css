@@ -1,0 +1,191 @@
+.toolbarRight {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.dateRange {
+  width: 280px;
+  max-width: min(280px, 100%);
+}
+
+.channelSelect {
+  width: min(280px, 100%);
+  min-width: 200px;
+  max-width: 280px;
+}
+
+.hint {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+}
+
+.numCell {
+  font-variant-numeric: tabular-nums;
+}
+
+/**
+ * 汇总行：与 gold-game `tree-parent-row` 一致 — 浅灰底 + 加粗；
+ * 首列、固定列与后面列同色靠内联 style + 此处兜底。
+ */
+.summaryRow :global(td) {
+  cursor: pointer;
+  font-weight: 600;
+  background-color: #fafafa !important;
+}
+
+/** 子行（渠道明细行）：整行同色 #f0f7ff，含渠道列与数字列 */
+.childRow :global(td) {
+  background: #f0f7ff !important;
+  background-color: #f0f7ff !important;
+}
+
+.summaryStatsTable :global(tr[data-row-kind="detail"] td) {
+  background: #f0f7ff !important;
+  background-color: #f0f7ff !important;
+}
+
+.summaryStatsTable :global(.ant-table-tbody) tr.childRow:hover :global(td),
+.summaryStatsTable :global(tr[data-row-kind="detail"]:hover td) {
+  background: #e6f0fd !important;
+  background-color: #e6f0fd !important;
+}
+
+.summaryStatsTable :global(.ant-table-tbody) tr.summaryRow:hover :global(td) {
+  background-color: #f0f0f0 !important;
+}
+
+/** 汇总行渠道：全部展示，不省略（Vue 侧多包名横排） */
+.channelSummaryInline {
+  display: block;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.45;
+}
+
+.channelDetailCell {
+  font-size: 14px;
+  line-height: 1.5715;
+  word-break: break-all;
+}
+
+/**
+ * 表头：缩进(0) + 展开区(var) + 「日期」；与表体汇总行同一基准线垂直居中。
+ */
+.dateHeadMirror {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+  column-gap: 0;
+}
+
+.dateHeadIndentMirror {
+  flex: 0 0 auto;
+  width: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.dateHeadBtnMirror {
+  flex: 0 0 var(--date-expand-slot);
+  width: var(--date-expand-slot);
+  min-width: var(--date-expand-slot);
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.dateHeadLabel {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 22px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/**
+ * 首列：`--date-expand-slot` = 展开/收起占位（表头槽、箭头按钮、叶子占位同宽）；列宽容纳 40px + 日期。
+ */
+.dateExpandMergedCol {
+  --date-expand-slot: 40px;
+  box-sizing: border-box;
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: 320px;
+  /* 与 antd middle 表体一致（12px 8px），表头/首列对齐 */
+  padding: 12px 8px !important;
+  vertical-align: middle;
+}
+
+.summaryStatsTable :global(.ant-table-thead .ant-table-cell).dateExpandMergedCol {
+  display: flex !important;
+  align-items: center;
+}
+
+.summaryStatsTable :global(.ant-table-tbody > .ant-table-row > td:first-child) {
+  display: flex !important;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow: hidden;
+  /* flex td 偶发行高塌陷，与右侧单元格统一视觉高度 */
+  min-height: 46px;
+}
+
+.summaryStatsTable :global(.ant-table-tbody > .ant-table-row > td:first-child .ant-table-row-indent) {
+  flex-shrink: 0;
+}
+
+.dateCellText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 22px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.summaryStatsTable :global(.ant-table-row-expand-icon) {
+  display: none !important;
+}
+
+.expandArrowBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: var(--date-expand-slot);
+  min-width: var(--date-expand-slot);
+  margin-inline: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.expandArrowBtn:hover {
+  color: #1677ff;
+}
+
+.expandArrowIcon {
+  font-size: 12px;
+}
+
+.expandLeafSpacer {
+  display: inline-block;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: var(--date-expand-slot);
+  min-width: var(--date-expand-slot);
+  vertical-align: middle;
+}
+
