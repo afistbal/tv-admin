@@ -6,6 +6,17 @@ body,
   background-color: #ffffff;
 }
 
+/* iOS Safari：100vh 含地址栏跳动；与 flex 主布局配合 */
+@supports (-webkit-touch-callout: none) {
+  html {
+    height: -webkit-fill-available;
+  }
+  body,
+  #root {
+    min-height: -webkit-fill-available;
+  }
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -22,4 +33,37 @@ body {
 
 .ant-table-wrapper .ant-spin-nested-loading > .ant-spin-container::after {
   transition: none !important;
+}
+
+/**
+ * Safari / WebKit：横向滚动表 + 固定列
+ * - 父级 min-width:0 避免 flex 子项把表格撑破视口
+ * - touch 惯性滚动
+ * - 保持 table-cell，勿在全局把 td 改成 flex
+ */
+.ant-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ant-table-wrapper .ant-spin-nested-loading,
+.ant-table-wrapper .ant-spin-container {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ant-table-wrapper .ant-table {
+  width: 100%;
+}
+
+.ant-table-wrapper .ant-table-container {
+  /* 旧版 WebKit 偶发重绘裁切固定列阴影 */
+  -webkit-font-smoothing: antialiased;
+}
+
+.ant-table-body,
+.ant-table-content {
+  -webkit-overflow-scrolling: touch;
 }

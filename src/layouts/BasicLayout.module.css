@@ -50,6 +50,9 @@
 
 .contentInner {
   padding: 24px;
+  /* Safari：flex 子项内表格横向 scroll 需可收缩 */
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* 折叠侧栏：图标条 + Dropdown，与 antd 深色菜单选中态接近 */

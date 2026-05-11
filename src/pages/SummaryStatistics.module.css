@@ -120,34 +120,39 @@
   vertical-align: middle;
 }
 
+/**
+ * 勿对 td/th 使用 display:flex（非表格 display，Chrome 宽容、Safari 易列错位/固定列异常）。
+ * 表头内层已有 .dateHeadMirror flex；表体首列用 vertical-align + 子项 inline-block 对齐。
+ */
 .summaryStatsTable :global(.ant-table-thead .ant-table-cell).dateExpandMergedCol {
-  display: flex !important;
-  align-items: center;
+  vertical-align: middle !important;
 }
 
 .summaryStatsTable :global(.ant-table-tbody > .ant-table-row > td:first-child) {
-  display: flex !important;
-  flex-wrap: nowrap;
-  align-items: center;
+  vertical-align: middle !important;
   overflow: hidden;
-  /* flex td 偶发行高塌陷，与右侧单元格统一视觉高度 */
   min-height: 46px;
+  white-space: nowrap;
+}
+
+.summaryStatsTable :global(.ant-table-tbody > .ant-table-row > td:first-child > *) {
+  vertical-align: middle;
 }
 
 .summaryStatsTable :global(.ant-table-tbody > .ant-table-row > td:first-child .ant-table-row-indent) {
-  flex-shrink: 0;
+  display: inline-block;
 }
 
 .dateCellText {
-  flex: 1;
+  display: inline-block;
+  vertical-align: middle;
+  max-width: min(200px, calc(100% - 48px));
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 14px;
   line-height: 22px;
-  display: inline-flex;
-  align-items: center;
 }
 
 .summaryStatsTable :global(.ant-table-row-expand-icon) {
