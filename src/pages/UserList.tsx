@@ -32,6 +32,9 @@ const TYPE_ALL = 0;
 const TYPE_REGISTERED = 1;
 const TYPE_ANONYMOUS = 2;
 
+/** GET `admin/user`：`admin` 0=非管理员 1=管理员；全部不传该字段 */
+type AdminSearchFilter = "all" | "0" | "1";
+
 /** 与 OrderList 一致：GET 由 client 将 `daterange` 展开为 `daterange[0]` / `daterange[1]` */
 function defaultTodayRange(): [Dayjs, Dayjs] {
   const d = dayjs();
@@ -71,6 +74,7 @@ export function UserList() {
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
   const [type, setType] = useState(TYPE_ALL);
+  const [adminSearch, setAdminSearch] = useState<AdminSearchFilter>("all");
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(() => defaultTodayRange());
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -81,7 +85,8 @@ export function UserList() {
   const [cancelSubLoadingId, setCancelSubLoadingId] = useState<number | null>(null);
   const searchTimer = useRef<number | null>(null);
 
-  const fetchList = useCallback(async (p: number, kw: string, t: number, range: [Dayjs, Dayjs] | null) => {
+  const fetchList = useCallback(
+    async (p: number, kw: string, t: number, range: [Dayjs, Dayjs] | null, admin: AdminSearchFilter) => {
     setLoading(true);
     try {
       const q: Record<string, ApiGetQueryValue> = {
@@ -91,6 +96,9 @@ export function UserList() {
       };
       if (range != null) {
         q.daterange = rangeToDaterangeStrings(range);
+      }
+      if (admin !== "all") {
+        q.admin = Number(admin);
       }
       const res: ApiResult<AdminUserListPayload> = await apiGet<AdminUserListPayload>("admin/user", q);
       if (res.c !== 0) {
@@ -111,11 +119,13 @@ export function UserList() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  },
+    [],
+  );
 
   useEffect(() => {
-    void fetchList(page, keyword, type, dateRange);
-  }, [page, keyword, type, dateRange, fetchList]);
+    void fetchList(page, keyword, type, dateRange, adminSearch);
+  }, [page, keyword, type, dateRange, adminSearch, fetchList]);
 
   useEffect(() => {
     if (detailId == null) {
@@ -199,7 +209,7 @@ export function UserList() {
               return;
             }
             message.success("已取消订阅");
-            void fetchList(page, keyword, type, dateRange);
+            void fetchList(page, keyword, type, dateRange, adminSearch);
           } catch {
             message.error("网络异常");
           } finally {
@@ -208,7 +218,7 @@ export function UserList() {
         },
       });
     },
-    [fetchList, page, keyword, type, dateRange],
+    [fetchList, page, keyword, type, dateRange, adminSearch],
   );
 
   const handleSave = async () => {
@@ -228,7 +238,7 @@ export function UserList() {
         return;
       }
       message.success("保存成功");
-      void fetchList(page, keyword, type, dateRange);
+      void fetchList(page, keyword, type, dateRange, adminSearch);
       closeDetail();
     } catch {
       message.error("网络异常");
@@ -403,6 +413,20 @@ export function UserList() {
               { value: TYPE_ANONYMOUS, label: "游客" },
             ]}
           />
+          <Typography.Text type="secondary">管理员</Typography.Text>
+          <Select<AdminSearchFilter>
+            value={adminSearch}
+            style={{ width: 128 }}
+            onChange={(v) => {
+              setAdminSearch(v);
+              setPage(1);
+            }}
+            options={[
+              { value: "all", label: "全部" },
+              { value: "0", label: "非管理员" },
+              { value: "1", label: "管理员" },
+            ]}
+          />
           <Input
             allowClear
             placeholder="🔍检索"
@@ -418,7 +442,7 @@ export function UserList() {
               setKeyword(kw);
               setPage(1);
               if (page === 1) {
-                void fetchList(1, kw, type, dateRange);
+                void fetchList(1, kw, type, dateRange, adminSearch);
               }
             }}
           >
