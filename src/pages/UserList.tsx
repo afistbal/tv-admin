@@ -217,7 +217,8 @@ export function UserList() {
     }
     setSaving(true);
     try {
-      const res = await apiPostJson<unknown>("admin/user/save", {
+      /** 与 slot_old `UserDetail` 一致：`api('admin/user/save', { data })` 未指定 method 时为 GET + query */
+      const res = await apiGet<unknown>("admin/user/save", {
         id: detailId,
         admin: isAdmin === "yes" ? 1 : 0,
         vip: isVip === "yes" ? 1 : 0,
