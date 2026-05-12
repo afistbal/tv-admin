@@ -55,10 +55,14 @@
   min-width: 0;
 }
 
-.titleCell :global(.ant-typography) {
+.titleText {
   margin-bottom: 0 !important;
   flex: 1 1 auto;
   min-width: 0;
+  white-space: normal !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 
 .addrCell {
@@ -68,9 +72,12 @@
   min-width: 0;
 }
 
-.addrCell :global(.ant-typography) {
+.addrText {
   margin-bottom: 0 !important;
   flex: 1 1 auto;
   min-width: 0;
+  white-space: normal !important;
   word-break: break-all;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }

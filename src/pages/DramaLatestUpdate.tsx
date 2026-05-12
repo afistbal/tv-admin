@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Space, Table, Typography, message } from "antd";
+import { Button, DatePicker, Input, Space, Table, Typography, message } from "antd";
+import type { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
 import { apiGet } from "@/api/client";
 import type { ApiGetQueryValue } from "@/api/client";
@@ -15,14 +17,26 @@ function pad(num: number) {
   return String(num).padStart(2, "0");
 }
 
-function formatDateTime(input: Date) {
-  return `${input.getFullYear()}-${pad(input.getMonth() + 1)}-${pad(input.getDate())} ${pad(input.getHours())}:${pad(input.getMinutes())}:${pad(input.getSeconds())}`;
+function defaultDateRange(): [Dayjs, Dayjs] {
+  const end = dayjs().startOf("day");
+  const start = end.subtract(6, "day");
+  return [start, end];
 }
 
-function weekDateRange(): readonly [string, string] {
-  const end = new Date();
-  const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
-  return [formatDateTime(start), formatDateTime(end)] as const;
+/** 与 slot `movie/listnew` 一致：daterange JSON 二元组，起止含整天 */
+function rangeToApiStrings(range: [Dayjs, Dayjs]): [string, string] {
+  const [from, to] = range;
+  let a = from.startOf("day");
+  let b = to.startOf("day");
+  if (a.isAfter(b)) {
+    const t = a;
+    a = b;
+    b = t;
+  }
+  return [
+    a.format("YYYY-MM-DD HH:mm:ss"),
+    b.endOf("day").format("YYYY-MM-DD HH:mm:ss"),
+  ];
 }
 
 function formatDisplayTime(raw: string) {
@@ -51,6 +65,10 @@ function pickText(row: TRow, keys: string[], fallback = "—") {
     }
   }
   return fallback;
+}
+
+function rowTitle(row: TRow): string {
+  return pickText(row, ["titile", "title", "name", "book_title"], "");
 }
 
 function joinUrl(base: string, path: string) {
@@ -122,59 +140,101 @@ function computeTitleRowSpans(rows: EpisodeRow[]): number[] {
 }
 
 /**
- * 移植自 slot_old `WeeklyUpdateTable`（`/page/week-data`）：近 7 日 `movie/listnew`；
- * 同一剧多集合并「名称」列单元格；名称、链接带复制。
+ * 进入页面：默认近 7 日时间范围自动请求 `movie/listnew`（与点「更新列表」相同）。
+ * 之后：点「更新列表」→ 仅按时间范围请求 → 成功后再用当前名称对本次结果做前端模糊匹配（`title`）。
+ * 「查询」：不重复请求，仅按名称重筛当前已拉取的数据。
  */
 export function DramaLatestUpdate() {
   const staticBase = useAppStaticBase() ?? "";
-  const [list, setList] = useState<TRow[]>([]);
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(() => defaultDateRange());
+  const [titleKeyword, setTitleKeyword] = useState("");
+  /** 与接口返回同步快照：仅在「更新列表」成功返回后写入；「查询」只更新此项 */
+  const [appliedTitle, setAppliedTitle] = useState("");
+  const [apiList, setApiList] = useState<TRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
   const [clientPage, setClientPage] = useState(1);
-  const dateRange = useMemo(() => weekDateRange(), []);
 
-  const load = useCallback(async () => {
+  const fetchByDateRange = useCallback(async (): Promise<boolean> => {
     setLoading(true);
     try {
+      const [s, e] = rangeToApiStrings(dateRange);
       const q: Record<string, ApiGetQueryValue> = {
-        daterange: JSON.stringify([dateRange[0], dateRange[1]]),
+        daterange: JSON.stringify([s, e]),
       };
       const res: ApiResult<MovieListNewPayload> = await apiGet<MovieListNewPayload>("movie/listnew", q);
       if (res.c !== 0) {
         message.error(res.m || "加载失败");
-        setList([]);
+        setApiList([]);
         setTotal(0);
-        return;
+        setHasFetched(false);
+        return false;
       }
       const d = res.d;
-      setList(Array.isArray(d?.data) ? d.data : []);
+      const data = Array.isArray(d?.data) ? d.data : [];
+      setApiList(data);
       setTotal(Number(d?.count) || 0);
+      setHasFetched(true);
+      return true;
     } catch {
       message.error("网络异常");
-      setList([]);
+      setApiList([]);
       setTotal(0);
+      setHasFetched(false);
+      return false;
     } finally {
       setLoading(false);
     }
   }, [dateRange]);
 
+  /** 更新列表：先接口，成功后再把当前名称框内容作为 appliedTitle（对本次数据筛选） */
+  const handleSearch = useCallback(async () => {
+    const ok = await fetchByDateRange();
+    if (ok) {
+      setAppliedTitle(titleKeyword.trim());
+      setClientPage(1);
+    }
+  }, [fetchByDateRange, titleKeyword]);
+
+  /** 进入页面：默认时间范围自动拉取（与点「更新列表」一致） */
   useEffect(() => {
-    void load();
-  }, [load]);
+    void handleSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载一次；改日期后请手动点「更新列表」
+  }, []);
+
+  /** 仅名称：对已返回的数据再筛，不调接口 */
+  const handleFilterTitle = useCallback(() => {
+    if (!hasFetched) {
+      message.warning("请先点击「更新列表」拉取时间范围内的数据");
+      return;
+    }
+    setAppliedTitle(titleKeyword.trim());
+    setClientPage(1);
+  }, [hasFetched, titleKeyword]);
+
+  const filteredApiList = useMemo(() => {
+    const kw = appliedTitle.trim().toLowerCase();
+    if (!kw) {
+      return apiList;
+    }
+    return apiList.filter((row) => rowTitle(row).toLowerCase().includes(kw));
+  }, [apiList, appliedTitle]);
 
   const rows = useMemo<EpisodeRow[]>(() => {
-    return list.flatMap((row, groupIndex) => {
-      const title = pickText(row, ["titile", "title", "name", "book_title"]);
+    return filteredApiList.flatMap((row, groupIndex) => {
+      const title = rowTitle(row);
       const outerTime = pickText(
         row,
         ["updated_at", "update_time", "time", "created_at", "publish_time", "publish_at"],
         "",
       );
       const raw = row["list"];
+      const rowId = row["id"] != null ? String(row["id"]) : String(groupIndex);
       if (!Array.isArray(raw) || raw.length === 0) {
         return [
           {
-            key: `g${groupIndex}-0`,
+            key: `g${rowId}-0`,
             title,
             time: formatDisplayTime(outerTime || "—"),
             episode: pickText(row, ["episode", "episodes", "currentEp", "current_ep", "videos"]),
@@ -195,7 +255,7 @@ export function DramaLatestUpdate() {
           "",
         );
         return {
-          key: `g${groupIndex}-${index}`,
+          key: `g${rowId}-${index}`,
           title,
           time: formatDisplayTime(outerTime || innerTime || "—"),
           episode:
@@ -207,7 +267,7 @@ export function DramaLatestUpdate() {
         };
       });
     });
-  }, [list, staticBase]);
+  }, [filteredApiList, staticBase]);
 
   const clientTotalPage = Math.max(1, Math.ceil(rows.length / CLIENT_PAGE_SIZE));
   const pagedRows = useMemo(() => {
@@ -232,13 +292,16 @@ export function DramaLatestUpdate() {
         title: "名称",
         dataIndex: "title",
         key: "title",
-        width: 240,
+        width: 260,
         onCell: (_: EpisodeRow, index?: number) => ({
           rowSpan: index === undefined ? 1 : (titleRowSpans[index] ?? 1),
         }),
         render: (title: string) => (
           <div className={styles.titleCell}>
-            <Typography.Text className={orderStyles.userIdText} ellipsis={{ tooltip: true }} copyable={title && title !== "—" ? { text: title } : false}>
+            <Typography.Text
+              className={styles.titleText}
+              copyable={title && title !== "—" ? { text: title } : false}
+            >
               {title}
             </Typography.Text>
           </div>
@@ -269,7 +332,7 @@ export function DramaLatestUpdate() {
           const copyable = a && a !== "—" ? { text: a } : false;
           return (
             <div className={styles.addrCell}>
-              <Typography.Text className={orderStyles.userIdText} ellipsis={{ tooltip: true }} copyable={copyable}>
+              <Typography.Text className={styles.addrText} copyable={copyable}>
                 {isLink ? (
                   <a href={a} target={a.startsWith("http") ? "_blank" : undefined} rel={a.startsWith("http") ? "noreferrer" : undefined}>
                     {a}
@@ -291,8 +354,53 @@ export function DramaLatestUpdate() {
       <Typography.Title level={4} style={{ marginTop: 0 }}>
         最新更新
       </Typography.Title>
+
+      <div className={orderStyles.filterWrap}>
+        <div className={orderStyles.filterBar}>
+          <div className={orderStyles.filterItem}>
+            <span className={orderStyles.filterLabel}>时间范围：</span>
+            <DatePicker.RangePicker
+              className={orderStyles.dateRange}
+              format="YYYY-MM-DD"
+              allowClear={false}
+              value={dateRange}
+              onChange={(dates) => {
+                if (dates?.[0] && dates[1]) {
+                  let a = dates[0].startOf("day");
+                  let b = dates[1].startOf("day");
+                  if (a.isAfter(b)) {
+                    const t = a;
+                    a = b;
+                    b = t;
+                  }
+                  setDateRange([a, b]);
+                }
+              }}
+            />
+            <Button type="primary" loading={loading} onClick={() => void handleSearch()}>
+              更新列表
+            </Button>
+          </div>
+          <div className={orderStyles.filterItem}>
+            <span className={orderStyles.filterLabel}>名称：</span>
+            <Input
+              allowClear
+              placeholder={hasFetched ? "模糊匹配 title" : "拉取完成后可输入"}
+              disabled={!hasFetched}
+              value={titleKeyword}
+              onChange={(e) => setTitleKeyword(e.target.value)}
+              style={{ width: 220 }}
+              maxLength={128}
+            />
+            <Button disabled={!hasFetched || loading} onClick={handleFilterTitle}>
+              查询
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
-        近 7 日剧集更新数据
+        进入页面已按默认时间自动请求；修改时间后请点「更新列表」。名称在数据返回后可填，点「更新列表」会重新请求并带上名称筛选，点「查询」只筛当前结果。
       </Typography.Text>
 
       <div className={styles.tableScroll}>
@@ -305,12 +413,15 @@ export function DramaLatestUpdate() {
           size="middle"
           tableLayout="fixed"
           scroll={{ x: 960 }}
+          locale={{
+            emptyText: loading ? "加载中…" : hasFetched ? "暂无数据" : "请点击「更新列表」拉取数据",
+          }}
         />
       </div>
 
       <div className={styles.footer}>
         <div className={styles.footerStat}>
-          影剧总数: {total} | 展示总行数: {rows.length}
+          接口影剧数: {total} | 当前匹配剧: {filteredApiList.length} | 展示行数: {rows.length}
         </div>
         <Space className={styles.footerPager} wrap>
           <Button type="default" disabled={clientPage <= 1} onClick={() => goPage(clientPage - 1)}>
