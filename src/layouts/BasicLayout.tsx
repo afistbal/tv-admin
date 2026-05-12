@@ -61,29 +61,11 @@ const menuItems: MenuProps["items"] = [
     children: [
       {
         key: "/stats/summary",
-        label: (
-          <Link to="/stats/summary">
-            <Space size={6} align="center">
-              汇总统计
-              <Tag color="orange" style={{ margin: 0, fontSize: 10, lineHeight: "14px", padding: "0 5px" }}>
-                demo
-              </Tag>
-            </Space>
-          </Link>
-        ),
+        label: <Link to="/stats/summary">汇总统计</Link>,
       },
       {
         key: "/stats/subscription-users",
-        label: (
-          <Link to="/stats/subscription-users">
-            <Space size={6} align="center">
-              订阅用户
-              <Tag color="orange" style={{ margin: 0, fontSize: 10, lineHeight: "14px", padding: "0 5px" }}>
-                demo
-              </Tag>
-            </Space>
-          </Link>
-        ),
+        label: <Link to="/stats/subscription-users">订阅用户</Link>,
       },
     ],
   },
@@ -217,28 +199,8 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
         content={
           <CollapsedPopoverLinks
             links={[
-              {
-                to: "/stats/summary",
-                label: (
-                  <Space size={6} align="center">
-                    汇总统计
-                    <Tag color="orange" style={{ margin: 0, fontSize: 10, lineHeight: "14px", padding: "0 5px" }}>
-                      demo
-                    </Tag>
-                  </Space>
-                ),
-              },
-              {
-                to: "/stats/subscription-users",
-                label: (
-                  <Space size={6} align="center">
-                    订阅用户
-                    <Tag color="orange" style={{ margin: 0, fontSize: 10, lineHeight: "14px", padding: "0 5px" }}>
-                      demo
-                    </Tag>
-                  </Space>
-                ),
-              },
+              { to: "/stats/summary", label: "汇总统计" },
+              { to: "/stats/subscription-users", label: "订阅用户" },
             ]}
           />
         }

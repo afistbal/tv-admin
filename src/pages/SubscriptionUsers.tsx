@@ -1,16 +1,35 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Button, Card, Col, DatePicker, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography } from "antd";
+import {
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Input,
+  Row,
+  Select,
+  Statistic,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+} from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
-import type { SubscriptionPaymentMethodKey, SubscriptionUserRow } from "@/types/adminStatSubscription";
+import { apiPostJson } from "@/api/client";
+import type { ApiResult } from "@/api/types";
+import type { AdminUserSubscriptionListPayload, AdminUserSubscriptionRow } from "@/types/adminUserSubscription";
+import type { SubscriptionPaymentMethodKey } from "@/types/adminStatSubscription";
 import { formatDateTimeZh } from "@/lib/formatDateTime";
 import orderStyles from "./OrderList.module.css";
 import listStyles from "./UserList.module.css";
 import styles from "./SubscriptionUsers.module.css";
 
-/** 假数据支付方式：含 Apple Pay / Google Pay 单独或与 Visa 组合 */
+/** 无值占位（与产品约定一致，ASCII 连字符） */
+const EMPTY = "-";
+
 const PAYMENT_METHOD_KEYS: SubscriptionPaymentMethodKey[] = [
   "apple_pay_visa",
   "apple_pay",
@@ -18,16 +37,6 @@ const PAYMENT_METHOD_KEYS: SubscriptionPaymentMethodKey[] = [
   "google_pay",
   "visa",
 ];
-
-/** 假数据商品：结构与代收页「商品」列一致（名称 + 金额）；接口就绪后对齐 `product_name` / `amount` */
-const MOCK_PRODUCT_ROWS = [
-  { name: "VIP Weekly", amount: "7.99" },
-  { name: "VIP Monthly", amount: "19.99" },
-  { name: "VIP Quarterly", amount: "49.99" },
-  { name: "VIP Annual", amount: "99.99" },
-  { name: "Drama Full Unlock", amount: "12.99" },
-  { name: "Episode Bundle ×12", amount: "5.99" },
-] as const;
 
 function paySvgUrl(file: string): string {
   const base = import.meta.env.BASE_URL;
@@ -50,7 +59,10 @@ function paymentAriaLabel(method: SubscriptionPaymentMethodKey): string {
   }
 }
 
-/** 仅展示品牌图（`public/payment/*.svg`），无额外文案 */
+function isPaymentMethodKey(s: string): s is SubscriptionPaymentMethodKey {
+  return (PAYMENT_METHOD_KEYS as readonly string[]).includes(s);
+}
+
 function PaymentMethodCell({ method }: { method: SubscriptionPaymentMethodKey }) {
   const showApple = method === "apple_pay_visa" || method === "apple_pay";
   const showGoogle = method === "google_pay_visa" || method === "google_pay";
@@ -95,146 +107,230 @@ function PaymentMethodCell({ method }: { method: SubscriptionPaymentMethodKey })
   );
 }
 
-/** 稳定伪随机 [0, max) */
-function rnd(seed: number, max: number): number {
-  let x = seed >>> 0;
-  x ^= x << 13;
-  x ^= x >>> 17;
-  x ^= x << 5;
-  return (x >>> 0) % max;
+function pickPaymentMethodRaw(row: AdminUserSubscriptionRow): string {
+  const v =
+    row.payment_method ??
+    row["paymentMethod"] ??
+    row["pay_method"] ??
+    row["payment_type"] ??
+    row["pay_type"];
+  return v != null ? String(v).trim() : "";
 }
 
-function mockIsoOnDay(day: Dayjs, seed: number, hour: number, minute: number): string {
-  const second = rnd(seed + 11, 60);
-  return day.hour(hour).minute(minute).second(second).millisecond(0).toISOString();
+function cellPaymentMethod(row: AdminUserSubscriptionRow): ReactNode {
+  const raw = pickPaymentMethodRaw(row);
+  if (raw === "") {
+    return EMPTY;
+  }
+  if (isPaymentMethodKey(raw)) {
+    return <PaymentMethodCell method={raw} />;
+  }
+  return <Typography.Text>{raw}</Typography.Text>;
 }
 
-/** 默认近 7 个自然日（含今日）：起 = 今日-6，止 = 今日 */
+function cellStr(v: unknown): string {
+  if (v == null) {
+    return EMPTY;
+  }
+  const s = String(v).trim();
+  return s === "" ? EMPTY : s;
+}
+
+function cellDatetime(v: unknown): string {
+  if (v == null) {
+    return EMPTY;
+  }
+  const s = String(v).trim();
+  if (s === "") {
+    return EMPTY;
+  }
+  return formatDateTimeZh(s);
+}
+
+function cellBillingAmount(row: AdminUserSubscriptionRow): string {
+  const raw = row.billing_amount ?? row.amount;
+  if (raw == null) {
+    return EMPTY;
+  }
+  const s = String(raw).trim();
+  if (s === "") {
+    return EMPTY;
+  }
+  return `$${s}`;
+}
+
+function pickUserId(row: AdminUserSubscriptionRow): string {
+  return cellStr(row.user_id);
+}
+
+const subscriptionKindTagSx = { marginInlineEnd: 0 } as const;
+
+/**
+ * `status === 1`：`is_renewal === 1` → 续订；`0`/缺省 → 首次；其它取值 → 待定。
+ * `status !== 1`：一律 待定。
+ */
+function paymentKindTag(row: AdminUserSubscriptionRow): ReactNode {
+  if (Number(row.status) !== 1) {
+    return (
+      <Tag color="default" style={subscriptionKindTagSx}>
+        待定
+      </Tag>
+    );
+  }
+  const raw = row.is_renewal ?? row["isRenewal"];
+  if (raw === 1 || raw === true || raw === "1") {
+    return (
+      <Tag color="lime" style={subscriptionKindTagSx}>
+        续订
+      </Tag>
+    );
+  }
+  if (raw === 0 || raw === false || raw === "0" || raw == null || raw === "") {
+    return (
+      <Tag color="blue" style={subscriptionKindTagSx}>
+        首次
+      </Tag>
+    );
+  }
+  return (
+    <Tag color="default" style={subscriptionKindTagSx}>
+      待定
+    </Tag>
+  );
+}
+
 function defaultDateRange(): [Dayjs, Dayjs] {
   const end = dayjs().startOf("day");
   const start = end.subtract(6, "day");
   return [start, end];
 }
 
-/**
- * 按所选日期段逐日生成假数据（含起止自然日）；接口就绪后对齐 `daterange`。
- */
-function buildMockRows(range: [Dayjs, Dayjs], statusFilter: string): SubscriptionUserRow[] {
-  let startDay = range[0].startOf("day");
-  let endDay = range[1].startOf("day");
-  if (startDay.isAfter(endDay)) {
-    const t = startDay;
-    startDay = endDay;
-    endDay = t;
-  }
-
-  const out: SubscriptionUserRow[] = [];
-  let seq = 0;
-
-  for (let d = startDay; !d.isAfter(endDay); d = d.add(1, "day")) {
-    const dayStr = d.format("YYYY-MM-DD");
-    const daySeed = d.year() * 400 + d.month() * 40 + d.date();
-    const nRows = 4 + rnd(daySeed, 5);
-
-    for (let i = 0; i < nRows; i++) {
-      seq += 1;
-      const seed = daySeed * 100 + i * 17 + seq;
-      const roll = rnd(seed, 100);
-      let status: 0 | 1 | 2 | 3;
-      if (roll < 38) {
-        status = 0;
-      } else if (roll < 73) {
-        status = 1;
-      } else if (roll < 88) {
-        status = 2;
-      } else {
-        status = 3;
-      }
-
-      if (statusFilter !== "" && String(status) !== statusFilter) {
-        continue;
-      }
-
-      const paymentMethod = PAYMENT_METHOD_KEYS[rnd(seed + 3, PAYMENT_METHOD_KEYS.length)];
-      const uid = `${8000000 + rnd(seed, 900000)}`;
-      const prod = MOCK_PRODUCT_ROWS[rnd(seed + 5, MOCK_PRODUCT_ROWS.length)];
-      const isRenewal = rnd(seed + 7, 100) < 30;
-
-      let pendingBillingTime: string | null = null;
-      let billingTime: string | null = null;
-      let platformSn: string | null = null;
-
-      if (status === 0) {
-        pendingBillingTime = mockIsoOnDay(d, seed, 10 + rnd(seed, 8), rnd(seed + 2, 60));
-      } else if (status === 1) {
-        billingTime = mockIsoOnDay(d, seed, 6 + rnd(seed, 12), rnd(seed + 4, 60));
-        platformSn = `PT_${dayStr.replace(/-/g, "")}_${uid}_${rnd(seed, 99999)}`;
-      } else if (status === 2) {
-        billingTime = mockIsoOnDay(d, seed, 14, rnd(seed + 1, 60));
-      } else {
-        billingTime = mockIsoOnDay(d, seed, 9 + rnd(seed, 6), rnd(seed + 8, 60));
-        platformSn = `FL_${dayStr.replace(/-/g, "")}_${uid}_${rnd(seed + 9, 99999)}`;
-      }
-
-      out.push({
-        key: `sub_${dayStr}_${seq}`,
-        uid,
-        productName: prod.name,
-        amount: prod.amount,
-        ...(isRenewal ? { isRenewal: true } : {}),
-        status,
-        paymentMethod,
-        pendingBillingTime,
-        billingTime,
-        platformSn,
-      });
-    }
-  }
-
-  /** 新记录靠前：按扣费/待扣费时间倒序，缺省放后 */
-  const timeKey = (r: SubscriptionUserRow) =>
-    r.billingTime ?? r.pendingBillingTime ?? "1970-01-01T00:00:00.000Z";
-  out.sort((a, b) => (timeKey(a) < timeKey(b) ? 1 : timeKey(a) > timeKey(b) ? -1 : 0));
-
-  return out;
+function rangeToDaterangeStrings(range: [Dayjs, Dayjs]): [string, string] {
+  const [from, to] = range;
+  return [from.startOf("day").format("YYYY-MM-DD HH:mm:ss"), to.endOf("day").format("YYYY-MM-DD HH:mm:ss")];
 }
 
-function statusTag(status: SubscriptionUserRow["status"]): ReactNode {
-  if (status === 0) {
-    return <Tag>未支付</Tag>;
+/** 与后端 `status` 一致：搜索与列表展示 */
+const SUBSCRIPTION_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "0", label: "0 待定" },
+  { value: "1", label: "1 成功" },
+  { value: "2", label: "2 取消订阅" },
+  { value: "3", label: "3 订阅异常（二次扣款第一次失败）" },
+  { value: "4", label: "4 订阅异常（二次扣款第二次失败）" },
+  { value: "5", label: "5 订阅异常（二次扣款第三次失败）" },
+  { value: "10", label: "10 订阅失败（不再执行订阅了）" },
+];
+
+function subscriptionStatusMeta(status: unknown): { label: string; color?: string } | null {
+  if (status == null || status === "") {
+    return null;
   }
-  if (status === 1) {
-    return <Tag color="success">已支付</Tag>;
+  const n = Number(status);
+  if (!Number.isFinite(n)) {
+    return { label: String(status) };
   }
-  if (status === 2) {
-    return <Tag color="purple">已退款</Tag>;
+  switch (n) {
+    case 0:
+      return { label: "待定", color: "default" };
+    case 1:
+      return { label: "成功", color: "success" };
+    case 2:
+      return { label: "取消订阅", color: "processing" };
+    case 3:
+      return { label: "订阅异常（二次扣款第一次失败）", color: "error" };
+    case 4:
+      return { label: "订阅异常（二次扣款第二次失败）", color: "error" };
+    case 5:
+      return { label: "订阅异常（二次扣款第三次失败）", color: "error" };
+    case 10:
+      return { label: "订阅失败（不再执行订阅了）", color: "magenta" };
+    default:
+      return { label: String(n) };
   }
-  return <Tag color="error">扣费失败</Tag>;
+}
+
+function statusTag(status: unknown): ReactNode {
+  const meta = subscriptionStatusMeta(status);
+  if (meta == null) {
+    return EMPTY;
+  }
+  return (
+    <Tag color={meta.color} style={{ marginInlineEnd: 0, whiteSpace: "normal", lineHeight: 1.45 }}>
+      {meta.label}
+    </Tag>
+  );
 }
 
 export function SubscriptionUsers() {
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(() => defaultDateRange());
   const [orderStatus, setOrderStatus] = useState<string>("");
-  const [rows, setRows] = useState<SubscriptionUserRow[]>([]);
+  const [rows, setRows] = useState<AdminUserSubscriptionRow[]>([]);
+  const [keywordInput, setKeywordInput] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const searchTimer = useRef<number | null>(null);
 
-  const loadMock = useCallback(() => {
+  const fetchList = useCallback(async (kw: string, range: [Dayjs, Dayjs], status: string) => {
     setLoading(true);
-    window.setTimeout(() => {
-      setRows(buildMockRows(dateRange, orderStatus));
+    try {
+      const kwTrim = kw.trim();
+      const body: Record<string, unknown> = {
+        daterange: rangeToDaterangeStrings(range),
+      };
+      if (kwTrim !== "") {
+        body.keyword = kwTrim;
+      }
+      if (status !== "") {
+        body.status = status;
+      }
+      const res: ApiResult<AdminUserSubscriptionListPayload> = await apiPostJson<AdminUserSubscriptionListPayload>(
+        "admin/user/subscription",
+        body,
+      );
+      if (res.c !== 0) {
+        message.error(res.m || "加载失败");
+        setRows([]);
+        return;
+      }
+      const d = res.d;
+      setRows(Array.isArray(d.data) ? d.data : []);
+    } catch {
+      message.error("网络异常");
+      setRows([]);
+    } finally {
       setLoading(false);
-    }, 100);
-  }, [dateRange, orderStatus]);
-
-  useEffect(() => {
-    loadMock();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载拉取；改条件请点「搜索」
+    }
   }, []);
 
+  useEffect(() => {
+    void fetchList(keyword, dateRange, orderStatus);
+  }, [keyword, dateRange, orderStatus, fetchList]);
+
+  const onKeywordChange = (v: string) => {
+    setKeywordInput(v);
+    if (searchTimer.current) {
+      window.clearTimeout(searchTimer.current);
+    }
+    searchTimer.current = window.setTimeout(() => {
+      setKeyword(v.trim());
+    }, 400);
+  };
+
+  useEffect(
+    () => () => {
+      if (searchTimer.current) {
+        window.clearTimeout(searchTimer.current);
+      }
+    },
+    [],
+  );
+
   const statSummary = useMemo(() => {
-    const allUids = rows.map((r) => r.uid);
-    const expectedPay = new Set(allUids).size;
-    const successUids = new Set(rows.filter((r) => r.status === 1).map((r) => r.uid));
+    const uids = rows.map((r) => pickUserId(r)).filter((u) => u !== EMPTY);
+    const expectedPay = new Set(uids).size;
+    const successUids = new Set(
+      rows.filter((r) => Number(r.status) === 1).map((r) => pickUserId(r)).filter((u) => u !== EMPTY),
+    );
     const successPay = successUids.size;
     const successRatioPct =
       expectedPay > 0 ? Math.round((successPay / expectedPay) * 1000) / 10 : null;
@@ -242,99 +338,93 @@ export function SubscriptionUsers() {
     return { expectedPay, successPay, successRatioPct, unpaidCount };
   }, [rows]);
 
-  const columns: ColumnsType<SubscriptionUserRow> = useMemo(
+  const columns: ColumnsType<AdminUserSubscriptionRow> = useMemo(
     () => [
       {
-        title: "用户 id",
-        dataIndex: "uid",
-        key: "uid",
-        width: 148,
+        title: "订阅 id",
+        key: "id",
+        width: 96,
         fixed: "left",
-        render: (v: string) => (
-          <div className={orderStyles.userIdCell}>
-            <Typography.Text className={orderStyles.userIdText} copyable={v ? { text: String(v) } : false}>
-              {v ?? "—"}
-            </Typography.Text>
-          </div>
-        ),
+        render: (_: unknown, record: AdminUserSubscriptionRow) => cellStr(record.id),
       },
       {
-        title: "产品",
-        key: "product",
-        width: 160,
-        render: (_: unknown, record: SubscriptionUserRow) => {
-          const amtStr =
-            record.amount != null && String(record.amount).trim() !== ""
-              ? `$${String(record.amount)}`
-              : "—";
+        title: "用户 id",
+        key: "user_id",
+        width: 120,
+        render: (_: unknown, record: AdminUserSubscriptionRow) => {
+          const v = pickUserId(record);
           return (
-            <div className={listStyles.timeCell}>
-              <div className={listStyles.timeLine}>
-                <Space wrap size={4}>
-                  <Typography.Text ellipsis>{record.productName ?? "—"}</Typography.Text>
-                  {record.isRenewal ? <Tag color="lime">续订</Tag> : null}
-                </Space>
-              </div>
-              <div className={listStyles.timeLine}>
-                <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-                  {amtStr}
-                </Typography.Text>
-              </div>
+            <div className={orderStyles.userIdCell}>
+              <Typography.Text className={orderStyles.userIdText} copyable={v !== EMPTY ? { text: v } : false}>
+                {v}
+              </Typography.Text>
+            </div>
+          );
+        },
+      },
+      {
+        title: "订单 id",
+        key: "order_id",
+        width: 120,
+        render: (_: unknown, record: AdminUserSubscriptionRow) => {
+          const v = cellStr(record.order_id);
+          return (
+            <div className={orderStyles.userIdCell}>
+              <Typography.Text className={orderStyles.userIdText} copyable={v !== EMPTY ? { text: v } : false}>
+                {v}
+              </Typography.Text>
             </div>
           );
         },
       },
       {
         title: "状态",
-        dataIndex: "status",
         key: "status",
-        width: 108,
-        render: (s: SubscriptionUserRow["status"]) => statusTag(s),
+        width: 260,
+        render: (_: unknown, record: AdminUserSubscriptionRow) => statusTag(record.status),
       },
       {
-        title: "支付方式",
-        dataIndex: "paymentMethod",
-        key: "paymentMethod",
-        width: 220,
-        render: (m: SubscriptionPaymentMethodKey) => <PaymentMethodCell method={m} />,
+        title: "付款方式",
+        key: "payment_method",
+        width: 200,
+        render: (_: unknown, record: AdminUserSubscriptionRow) => cellPaymentMethod(record),
+      },
+      {
+        title: "扣费金额",
+        key: "billing_amount",
+        width: 110,
+        render: (_: unknown, record: AdminUserSubscriptionRow) => cellBillingAmount(record),
       },
       {
         title: "时间",
         key: "time",
-        width: 220,
-        render: (_: unknown, record: SubscriptionUserRow) => {
-          const billingDisplay =
-            record.billingTime != null && String(record.billingTime).trim() !== ""
-              ? formatDateTimeZh(record.billingTime)
-              : "—";
-          const pendingDisplay =
-            record.pendingBillingTime != null && String(record.pendingBillingTime).trim() !== ""
-              ? formatDateTimeZh(record.pendingBillingTime)
-              : "—";
-          return (
-            <div className={listStyles.timeCell}>
-              <div className={listStyles.timeLine}>
-                <span className={listStyles.timeLabel}>扣费时间：</span>
-                <span>{billingDisplay}</span>
-              </div>
-              <div className={listStyles.timeLine}>
-                <span className={listStyles.timeLabel}>待扣费时间：</span>
-                <span>{pendingDisplay}</span>
-              </div>
+        width: 260,
+        render: (_: unknown, record: AdminUserSubscriptionRow) => (
+          <div className={listStyles.timeCell}>
+            <div className={listStyles.timeLine}>
+              <span className={listStyles.timeLabel}>订阅：</span>
+              {paymentKindTag(record)}
             </div>
-          );
-        },
+            <div className={listStyles.timeLine}>
+              <span className={listStyles.timeLabel}>创建时间：</span>
+              <span>{cellDatetime(record.created_at)}</span>
+            </div>
+            <div className={listStyles.timeLine}>
+              <span className={listStyles.timeLabel}>到期时间：</span>
+              <span>{cellDatetime(record.billing_at)}</span>
+            </div>
+          </div>
+        ),
       },
       {
         title: "平台订单号",
-        dataIndex: "platformSn",
-        key: "platformSn",
-        width: 260,
+        key: "platform_sn",
+        width: 280,
         ellipsis: false,
-        render: (v: string | null) => {
-          const s = v != null && String(v).trim() !== "" ? String(v) : "";
-          if (!s) {
-            return "—";
+        render: (_: unknown, record: AdminUserSubscriptionRow) => {
+          const s = cellStr(record.platform_sn);
+          if (s === EMPTY) {
+            return EMPTY;
           }
           return (
             <div className={orderStyles.platformSnCell}>
@@ -344,8 +434,11 @@ export function SubscriptionUsers() {
         },
       },
     ],
-    [styles],
+    [],
   );
+
+  const rowKey = (row: AdminUserSubscriptionRow) =>
+    String(row.id ?? `${row.user_id ?? ""}_${row.platform_sn ?? ""}_${row.order_id ?? ""}`);
 
   return (
     <div>
@@ -355,6 +448,17 @@ export function SubscriptionUsers() {
 
       <div className={orderStyles.filterWrap}>
         <div className={orderStyles.filterBar}>
+          <div className={orderStyles.filterItem}>
+            <span className={orderStyles.filterLabel}>关键词：</span>
+            <Input
+              allowClear
+              placeholder="用户 id / 订单号等"
+              value={keywordInput}
+              onChange={(e) => onKeywordChange(e.target.value)}
+              style={{ width: 220 }}
+              maxLength={64}
+            />
+          </div>
           <div className={orderStyles.filterItem}>
             <span className={orderStyles.filterLabel}>日期：</span>
             <DatePicker.RangePicker
@@ -377,36 +481,41 @@ export function SubscriptionUsers() {
             />
           </div>
           <div className={orderStyles.filterItem}>
-            <span className={orderStyles.filterLabel}>订单状态：</span>
+            <span className={orderStyles.filterLabel}>状态：</span>
             <Select
               value={orderStatus}
-              onChange={(v) => setOrderStatus(v ?? "")}
-              style={{ width: 128 }}
-              options={[
-                { label: "全部", value: "" },
-                { label: "未支付", value: "0" },
-                { label: "已支付", value: "1" },
-                { label: "已退款", value: "2" },
-                { label: "扣费失败", value: "3" },
-              ]}
+              onChange={(v) => {
+                setOrderStatus(v ?? "");
+              }}
+              style={{ width: 320 }}
+              popupMatchSelectWidth={false}
+              options={[{ label: "全部", value: "" }, ...SUBSCRIPTION_STATUS_OPTIONS]}
             />
           </div>
-          <Button type="primary" onClick={() => loadMock()}>
+          <Button
+            type="primary"
+            onClick={() => {
+              const kw = keywordInput.trim();
+              setKeyword(kw);
+              void fetchList(kw, dateRange, orderStatus);
+            }}
+          >
             搜索
           </Button>
+          <span className={orderStyles.totalHint}>共 {rows.length} 条</span>
         </div>
       </div>
 
       <Card size="small" className={styles.statCards}>
         <Row gutter={[24, 16]}>
           <Col xs={24} sm={8}>
-            <Statistic title="应支付人数" value={statSummary.expectedPay} />
+            <Statistic title="列表用户数" value={statSummary.expectedPay} />
           </Col>
           <Col xs={24} sm={8}>
             <Statistic
               title={
                 <span className={styles.statTitleInline}>
-                  <span>支付成功</span>
+                  <span>成功</span>
                   {statSummary.successRatioPct != null ? (
                     <Typography.Text type="success" className={styles.statTitleRatio}>
                       {statSummary.successRatioPct}%
@@ -421,8 +530,8 @@ export function SubscriptionUsers() {
             <Statistic
               title={
                 <span className={styles.statTitleInline}>
-                  <span>未支付</span>
-                  <Tooltip title="应支付人数 − 支付成功人数">
+                  <span>其他</span>
+                  <Tooltip title="当前列表去重：用户数 − 状态为「成功」的人数（含待定、取消、异常、失败等）">
                     <QuestionCircleOutlined className={styles.statTitleHintIcon} aria-label="说明" />
                   </Tooltip>
                 </span>
@@ -433,13 +542,13 @@ export function SubscriptionUsers() {
         </Row>
       </Card>
 
-      <Table<SubscriptionUserRow>
-        rowKey="key"
+      <Table<AdminUserSubscriptionRow>
+        rowKey={rowKey}
         loading={loading}
         columns={columns}
         dataSource={rows}
         pagination={false}
-        scroll={{ x: 1260 }}
+        scroll={{ x: 1660 }}
         size="middle"
         locale={{ emptyText: loading ? "加载中…" : "暂无数据" }}
       />

@@ -9,16 +9,15 @@ import {
   type MouseEvent,
 } from "react";
 import { DownOutlined, UpOutlined } from "@ant-design/icons";
-import { Button, DatePicker, Input, Space, Table, Typography } from "antd";
+import { Button, DatePicker, Input, Space, Table, Tooltip, Typography, message } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
-import type { AdminStatSummaryRow } from "@/types/adminStatSummary";
+import { apiPostJson } from "@/api/client";
+import type { ApiResult } from "@/api/types";
+import type { AdminStatSummaryRow, AdminStatTotalPayload } from "@/types/adminStatSummary";
 import stylesToolbar from "./UserList.module.css";
 import styles from "./SummaryStatistics.module.css";
-
-/** 下拉假渠道（包码样式；接口就绪后改由服务端返回） */
-const MOCK_CHANNELS = ["A100F100", "B200F200", "C300F300"] as const;
 
 /** 默认恰好 3 个自然日：今日往前共 3 天 → 起 = 今日-2 的 00:00，止 = 今日 23:59 */
 function defaultRange(): [Dayjs, Dayjs] {
@@ -27,110 +26,16 @@ function defaultRange(): [Dayjs, Dayjs] {
   return [start, end];
 }
 
-/** 按日期字符串 + 渠道生成稳定伪随机整数 */
-function mockInt(dateStr: string, channel: string, salt: number, mod: number): number {
-  let h = salt;
-  const s = `${dateStr}|${channel}`;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) - h + s.charCodeAt(i)) >>> 0;
+/** `admin/stat/total`（POST）：`daterange` 为 `[Y-m-d, Y-m-d]`（`YYYY-MM-DD`），不含时分秒 */
+function rangeToStatTotalDaterange(range: [Dayjs, Dayjs]): [string, string] {
+  let a = range[0].startOf("day");
+  let b = range[1].startOf("day");
+  if (a.isAfter(b)) {
+    const t = a;
+    a = b;
+    b = t;
   }
-  return (h % mod) + 1;
-}
-
-function sumField(rows: AdminStatSummaryRow[], key: string): number {
-  return rows.reduce((a, r) => {
-    const v = r[key];
-    const n = Number(v);
-    return a + (Number.isFinite(n) ? n : 0);
-  }, 0);
-}
-
-/**
- * 假数据约定：
- * - **未选渠道（全部）**：每日一条汇总父行 + **`children` 各渠道明细**（默认展开，可看渠道数据）。
- * - **选了某一渠道搜索**：每日一条扁平行（无 children），与汇总行同款样式。
- * 日期顺序：新 → 旧。
- */
-function buildMockRows(range: [Dayjs, Dayjs], channelFilter: string): AdminStatSummaryRow[] {
-  const trimmed = channelFilter.trim();
-  /** 留空 = 全部 MOCK 渠道；非空 = 按粘贴/输入的单个渠道码筛选（不限制为下拉项） */
-  const channels = trimmed !== "" ? [trimmed] : [...MOCK_CHANNELS];
-  if (channels.length === 0) {
-    return [];
-  }
-
-  /** 起止反了或同一天选错顺序时，仍会生成 0 行 → 先规范为 start ≤ end（按自然日） */
-  let startDay = range[0].startOf("day");
-  let endDay = range[1].startOf("day");
-  if (startDay.isAfter(endDay)) {
-    const t = startDay;
-    startDay = endDay;
-    endDay = t;
-  }
-
-  const dateAsc: Dayjs[] = [];
-  let d = startDay;
-  while (!d.isAfter(endDay)) {
-    dateAsc.push(d);
-    d = d.add(1, "day");
-  }
-  const datesNewestFirst = [...dateAsc].reverse();
-
-  const singleChannelOnly = channels.length === 1;
-  const out: AdminStatSummaryRow[] = [];
-
-  for (const day of datesNewestFirst) {
-    const dateStr = day.format("YYYY-MM-DD");
-
-    if (singleChannelOnly) {
-      const ch = channels[0];
-      out.push({
-        key: `${dateStr}_${ch}`,
-        _rowKind: "summary",
-        _channelNames: [ch],
-        theDate: dateStr,
-        packageName: ch,
-        newRegister: mockInt(dateStr, ch, 11, 80),
-        retentionNextDay: mockInt(dateStr, ch, 22, 40),
-        activeCount: mockInt(dateStr, ch, 33, 200) + 50,
-        subscriptionCount: mockInt(dateStr, ch, 44, 60),
-        subscriptionSecondCount: mockInt(dateStr, ch, 55, 25),
-        subscriptionSecondFail: mockInt(dateStr, ch, 66, 8),
-      });
-      continue;
-    }
-
-    const details: AdminStatSummaryRow[] = channels.map((ch) => ({
-      key: `${dateStr}_${ch}`,
-      _rowKind: "detail",
-      theDate: dateStr,
-      packageName: ch,
-      newRegister: mockInt(dateStr, ch, 11, 80),
-      retentionNextDay: mockInt(dateStr, ch, 22, 40),
-      activeCount: mockInt(dateStr, ch, 33, 200) + 50,
-      subscriptionCount: mockInt(dateStr, ch, 44, 60),
-      subscriptionSecondCount: mockInt(dateStr, ch, 55, 25),
-      subscriptionSecondFail: mockInt(dateStr, ch, 66, 8),
-    }));
-
-    const summary: AdminStatSummaryRow = {
-      key: `sum_${dateStr}`,
-      _rowKind: "summary",
-      _primary: true,
-      theDate: dateStr,
-      _channelNames: [...channels],
-      children: details,
-      newRegister: sumField(details, "newRegister"),
-      retentionNextDay: sumField(details, "retentionNextDay"),
-      activeCount: sumField(details, "activeCount"),
-      subscriptionCount: sumField(details, "subscriptionCount"),
-      subscriptionSecondCount: sumField(details, "subscriptionSecondCount"),
-      subscriptionSecondFail: sumField(details, "subscriptionSecondFail"),
-    };
-
-    out.push(summary);
-  }
-  return out;
+  return [a.format("YYYY-MM-DD"), b.format("YYYY-MM-DD")];
 }
 
 function pickStr(row: AdminStatSummaryRow, keys: string[]): string {
@@ -169,7 +74,7 @@ function channelNamesFromRow(row: AdminStatSummaryRow): string[] {
   for (const c of raw) {
     if (c != null && typeof c === "object") {
       const o = c as AdminStatSummaryRow;
-      const n = String(o.packageName ?? o.package_name ?? o.channel ?? "").trim();
+      const n = String(o.packageName ?? o.package_name ?? o.channel ?? o.source ?? "").trim();
       if (n) {
         names.push(n);
       }
@@ -215,6 +120,150 @@ function pickNum(row: AdminStatSummaryRow, keys: string[]): string {
   return "—";
 }
 
+/** `admin/stat/total` 扁平行：`stat_date` + `source` + `reg_count` 等 */
+function isStatTotalFlatApiShape(rows: AdminStatSummaryRow[]): boolean {
+  if (rows.length === 0) {
+    return false;
+  }
+  if (rows.some((r) => Array.isArray(r.children) && (r.children as unknown[]).length > 0)) {
+    return false;
+  }
+  return rows.some((r) => r["stat_date"] != null && r["reg_count"] !== undefined);
+}
+
+function mapFlatStatRowToDetail(raw: AdminStatSummaryRow): AdminStatSummaryRow {
+  const o = raw as Record<string, unknown>;
+  const date = String(o["stat_date"] ?? "").trim();
+  const src = String(o["source"] ?? "").trim();
+  const id = o["id"];
+  const reg = o["reg_count"];
+  const reg2 = o["reg_second_count"];
+  const login = o["login_count"];
+  const sub = o["subscription_count"];
+  const sub2 = o["subscription_second_count"];
+  const subFail = o["subscription_fail_count"];
+  return {
+    ...raw,
+    key: String(id ?? `${date}_${src}`),
+    _rowKind: "detail",
+    theDate: date,
+    packageName: src,
+    newRegister: reg,
+    retentionNextDay: reg2,
+    activeCount: login,
+    subscriptionCount: sub,
+    subscriptionSecondCount: sub2,
+    subscriptionSecondFail: subFail,
+  };
+}
+
+function sumNum(rows: AdminStatSummaryRow[], key: string): number {
+  let t = 0;
+  for (const r of rows) {
+    const n = Number(r[key]);
+    if (Number.isFinite(n)) {
+      t += n;
+    }
+  }
+  return t;
+}
+
+function statRowSortDate(row: AdminStatSummaryRow): string {
+  const s = pickStr(row, ["theDate", "the_date", "stat_date", "date", "statDate"]);
+  return s === "—" ? "" : s;
+}
+
+function pickChannelLabel(row: AdminStatSummaryRow): string {
+  return String(row.packageName ?? row["source"] ?? "").trim();
+}
+
+/**
+ * 渠道展示顺序：① `A`+数字 包码（如 A100F100、A100Z310）；② yogoshort.com；③ www.yogoshort.com；④ 其余（unknown、localhost、IP 等）最后。
+ */
+function channelSortTier(source: string): number {
+  const s = source.trim();
+  if (s === "") {
+    return 99;
+  }
+  if (/^A\d/i.test(s)) {
+    return 0;
+  }
+  const low = s.toLowerCase();
+  if (low === "yogoshort.com") {
+    return 1;
+  }
+  if (low === "www.yogoshort.com") {
+    return 2;
+  }
+  return 3;
+}
+
+function compareChannelSource(a: string, b: string): number {
+  const ta = channelSortTier(a);
+  const tb = channelSortTier(b);
+  if (ta !== tb) {
+    return ta - tb;
+  }
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+}
+
+/** 日期新→旧，同日按渠道排序规则 */
+function sortStatTotalFlatRows(rows: AdminStatSummaryRow[]): AdminStatSummaryRow[] {
+  return [...rows].sort((a, b) => {
+    const cmp = statRowSortDate(b).localeCompare(statRowSortDate(a));
+    if (cmp !== 0) {
+      return cmp;
+    }
+    return compareChannelSource(pickChannelLabel(a), pickChannelLabel(b));
+  });
+}
+
+/** 按自然日父行汇总 + 各 `source` 子行（日期新→旧） */
+function groupStatTotalFlatRows(flat: AdminStatSummaryRow[]): AdminStatSummaryRow[] {
+  const details = sortStatTotalFlatRows(flat.map(mapFlatStatRowToDetail));
+  const byDate = new Map<string, AdminStatSummaryRow[]>();
+  for (const row of details) {
+    const d = String(row.theDate ?? "").trim();
+    if (d === "") {
+      continue;
+    }
+    const arr = byDate.get(d) ?? [];
+    arr.push(row);
+    byDate.set(d, arr);
+  }
+  const datesDesc = [...byDate.keys()].sort((a, b) => b.localeCompare(a));
+  return datesDesc.map((dateStr) => {
+    const rawChildren = byDate.get(dateStr) ?? [];
+    const children = [...rawChildren].sort((a, b) =>
+      compareChannelSource(pickChannelLabel(a), pickChannelLabel(b)),
+    );
+    const names = children
+      .map((c) => String(c.packageName ?? "").trim())
+      .filter((s) => s !== "");
+    return {
+      key: `sum_${dateStr}`,
+      _rowKind: "summary",
+      _primary: true,
+      theDate: dateStr,
+      _channelNames: names,
+      children,
+      newRegister: sumNum(children, "newRegister"),
+      retentionNextDay: sumNum(children, "retentionNextDay"),
+      activeCount: sumNum(children, "activeCount"),
+      subscriptionCount: sumNum(children, "subscriptionCount"),
+      subscriptionSecondCount: sumNum(children, "subscriptionSecondCount"),
+      subscriptionSecondFail: sumNum(children, "subscriptionSecondFail"),
+    } as AdminStatSummaryRow;
+  });
+}
+
+function adaptStatTotalRows(list: AdminStatSummaryRow[]): AdminStatSummaryRow[] {
+  if (!isStatTotalFlatApiShape(list)) {
+    return list;
+  }
+  return groupStatTotalFlatRows(list);
+}
+
 export function SummaryStatistics() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<AdminStatSummaryRow[]>([]);
@@ -222,17 +271,36 @@ export function SummaryStatistics() {
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(() => defaultRange());
   const [channel, setChannel] = useState("");
 
-  const loadMock = useCallback(() => {
+  const fetchList = useCallback(async () => {
     setLoading(true);
-    window.setTimeout(() => {
-      setRows(buildMockRows(dateRange, channel));
+    try {
+      const body: Record<string, unknown> = {
+        daterange: rangeToStatTotalDaterange(dateRange),
+      };
+      const kw = channel.trim();
+      if (kw !== "") {
+        body.keyword = kw;
+      }
+      const res: ApiResult<AdminStatTotalPayload> = await apiPostJson<AdminStatTotalPayload>("admin/stat/total", body);
+      if (res.c !== 0) {
+        message.error(res.m || "加载失败");
+        setRows([]);
+        return;
+      }
+      const d = res.d;
+      const list = Array.isArray(d?.data) ? d.data : Array.isArray(d?.rows) ? d.rows : [];
+      setRows(adaptStatTotalRows(list));
+    } catch {
+      message.error("网络异常");
+      setRows([]);
+    } finally {
       setLoading(false);
-    }, 120);
+    }
   }, [channel, dateRange]);
 
   useEffect(() => {
-    loadMock();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载加载；改条件后请点「搜索」
+    void fetchList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 首屏拉取；改日期/渠道后请点「搜索」
   }, []);
 
   /** 数据到达后再展开：`defaultExpandAllRows` 在异步 setState 后常不生效，改受控 */
@@ -283,11 +351,21 @@ export function SummaryStatistics() {
             );
           }
           const names = channelNamesFromRow(row);
+          const kids = row.children as AdminStatSummaryRow[] | undefined;
           if (names.length === 0) {
             return <span className={styles.channelSummaryInline}>—</span>;
           }
-          const line = names.join("、");
-          return <span className={styles.channelSummaryInline}>{line}</span>;
+          if (Array.isArray(kids) && kids.length > 1) {
+            return (
+              <Tooltip title={names.join("\n")} placement="topLeft">
+                <span className={styles.channelSummaryInline}>汇总（{kids.length}）</span>
+              </Tooltip>
+            );
+          }
+          if (Array.isArray(kids) && kids.length === 1) {
+            return <span className={styles.channelSummaryInline}>{names[0]}</span>;
+          }
+          return <span className={styles.channelSummaryInline}>{names.join("、")}</span>;
         },
       },
       {
@@ -299,7 +377,7 @@ export function SummaryStatistics() {
           style: cellBg(record),
         }),
         render: (_: unknown, row) =>
-          pickNum(row, ["newRegister", "new_register", "regPerson", "reg_person", "new_reg"]),
+          pickNum(row, ["newRegister", "new_register", "regPerson", "reg_person", "new_reg", "reg_count"]),
       },
       {
         title: "次日留存",
@@ -317,6 +395,8 @@ export function SummaryStatistics() {
             "retain_day2",
             "againActiveCount",
             "again_active_count",
+            "reg_second_count",
+            "login_second_count",
           ]),
       },
       {
@@ -328,7 +408,7 @@ export function SummaryStatistics() {
           style: cellBg(record),
         }),
         render: (_: unknown, row) =>
-          pickNum(row, ["activeCount", "active_count", "activePerson", "active_person"]),
+          pickNum(row, ["activeCount", "active_count", "activePerson", "active_person", "login_count"]),
       },
       {
         title: "订阅次数",
@@ -355,6 +435,7 @@ export function SummaryStatistics() {
             "second_subscription_count",
             "subscribe_second_count",
             "sub_second_count",
+            "subscription_second_count",
           ]),
       },
       {
@@ -371,6 +452,7 @@ export function SummaryStatistics() {
             "second_subscription_fail",
             "subscribe_second_fail",
             "sub_second_fail",
+            "subscription_fail_count",
           ]),
       },
     ],
@@ -459,7 +541,7 @@ export function SummaryStatistics() {
             value={channel}
             onChange={(e) => setChannel(e.target.value)}
           />
-          <Button type="primary" onClick={() => loadMock()}>
+          <Button type="primary" onClick={() => void fetchList()}>
             搜索
           </Button>
         </Space>
