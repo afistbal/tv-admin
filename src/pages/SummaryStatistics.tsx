@@ -9,7 +9,7 @@ import {
   type MouseEvent,
 } from "react";
 import { DownOutlined, UpOutlined } from "@ant-design/icons";
-import { Button, DatePicker, Input, Space, Table, Tooltip, Typography, message } from "antd";
+import { Button, DatePicker, Grid, Input, Space, Table, Tooltip, Typography, message } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
@@ -138,6 +138,7 @@ function mapFlatStatRowToDetail(raw: AdminStatSummaryRow): AdminStatSummaryRow {
   const id = o["id"];
   const reg = o["reg_count"];
   const reg2 = o["reg_second_count"];
+  const login2 = o["login_second_count"];
   const login = o["login_count"];
   const sub = o["subscription_count"];
   const sub2 = o["subscription_second_count"];
@@ -150,6 +151,7 @@ function mapFlatStatRowToDetail(raw: AdminStatSummaryRow): AdminStatSummaryRow {
     packageName: src,
     newRegister: reg,
     retentionNextDay: reg2,
+    loginSecondCount: login2,
     activeCount: login,
     subscriptionCount: sub,
     subscriptionSecondCount: sub2,
@@ -249,6 +251,7 @@ function groupStatTotalFlatRows(flat: AdminStatSummaryRow[]): AdminStatSummaryRo
       children,
       newRegister: sumNum(children, "newRegister"),
       retentionNextDay: sumNum(children, "retentionNextDay"),
+      loginSecondCount: sumNum(children, "loginSecondCount"),
       activeCount: sumNum(children, "activeCount"),
       subscriptionCount: sumNum(children, "subscriptionCount"),
       subscriptionSecondCount: sumNum(children, "subscriptionSecondCount"),
@@ -265,6 +268,7 @@ function adaptStatTotalRows(list: AdminStatSummaryRow[]): AdminStatSummaryRow[] 
 }
 
 export function SummaryStatistics() {
+  const screens = Grid.useBreakpoint();
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<AdminStatSummaryRow[]>([]);
   const [expandedRowKeys, setExpandedRowKeys] = useState<Key[]>([]);
@@ -321,8 +325,8 @@ export function SummaryStatistics() {
           </div>
         ),
         key: "theDate",
-        width: 260,
-        fixed: "left",
+        width: 188,
+        fixed: screens.md ? "left" : undefined,
         className: styles.dateExpandMergedCol,
         onCell: (record) => ({
           style: cellBg(record),
@@ -339,7 +343,8 @@ export function SummaryStatistics() {
       {
         title: "渠道",
         key: "channel",
-        minWidth: 220,
+        width: 152,
+        minWidth: 120,
         ellipsis: false,
         onCell: (record) => ({
           style: cellBg(record),
@@ -380,7 +385,11 @@ export function SummaryStatistics() {
           pickNum(row, ["newRegister", "new_register", "regPerson", "reg_person", "new_reg", "reg_count"]),
       },
       {
-        title: "次日留存",
+        title: (
+          <Tooltip title="接口字段 reg_second_count（注册侧次日指标；与 login_second_count 分列展示）">
+            <span>次日留存</span>
+          </Tooltip>
+        ),
         key: "retention",
         width: 100,
         className: styles.numCell,
@@ -396,8 +405,22 @@ export function SummaryStatistics() {
             "againActiveCount",
             "again_active_count",
             "reg_second_count",
-            "login_second_count",
           ]),
+      },
+      {
+        title: (
+          <Tooltip title="接口字段 login_second_count（登录侧「次日」统计，与 reg_second_count 不同）">
+            <span>登录次日</span>
+          </Tooltip>
+        ),
+        key: "loginSecond",
+        width: 100,
+        className: styles.numCell,
+        onCell: (record) => ({
+          style: cellBg(record),
+        }),
+        render: (_: unknown, row) =>
+          pickNum(row, ["loginSecondCount", "login_second_count", "loginSecond", "login_second"]),
       },
       {
         title: "活跃数",
@@ -439,7 +462,11 @@ export function SummaryStatistics() {
           ]),
       },
       {
-        title: "二次订阅失败",
+        title: (
+          <Tooltip title="接口字段 subscription_fail_count（若后端仅统计二次失败，可与产品文案对齐为「二次」）">
+            <span>订阅失败次数</span>
+          </Tooltip>
+        ),
         key: "sub2Fail",
         width: 120,
         className: styles.numCell,
@@ -457,6 +484,7 @@ export function SummaryStatistics() {
       },
     ],
     [
+      screens.md,
       styles.dateHeadMirror,
       styles.dateHeadIndentMirror,
       styles.dateHeadBtnMirror,
@@ -510,11 +538,11 @@ export function SummaryStatistics() {
   );
 
   return (
-    <div>
+    <div className={styles.page}>
       <Typography.Title level={4} style={{ marginTop: 0 }}>
         汇总统计
       </Typography.Title>
-      <div className={stylesToolbar.toolbar}>
+      <div className={`${stylesToolbar.toolbar} ${styles.toolbarMobile}`}>
         <Space wrap className={styles.toolbarRight}>
           <Typography.Text type="secondary">日期</Typography.Text>
           <DatePicker.RangePicker
@@ -547,39 +575,41 @@ export function SummaryStatistics() {
         </Space>
       </div>
 
-      <Table<AdminStatSummaryRow>
-        className={styles.summaryStatsTable}
-        rowKey={(row) => tableRowKey(row)}
-        onRow={(record) =>
-          ({
-            "data-row-kind": String(record._rowKind ?? ""),
-          }) as HTMLAttributes<HTMLTableRowElement>
-        }
-        rowClassName={(record) => {
-          if (record._rowKind === "summary") {
-            return styles.summaryRow;
+      <div className={styles.tableScroll}>
+        <Table<AdminStatSummaryRow>
+          className={styles.summaryStatsTable}
+          rowKey={(row) => tableRowKey(row)}
+          onRow={(record) =>
+            ({
+              "data-row-kind": String(record._rowKind ?? ""),
+            }) as HTMLAttributes<HTMLTableRowElement>
           }
-          if (record._rowKind === "detail") {
-            return styles.childRow;
-          }
-          return "";
-        }}
-        loading={loading}
-        columns={columns}
-        dataSource={rows}
-        pagination={false}
-        scroll={{ x: 1196 }}
-        size="middle"
-        indentSize={20}
-        expandable={expandableConfig}
-        locale={{
-          emptyText: loading
-            ? "加载中…"
-            : channel.trim() !== ""
-              ? "暂无数据（请确认渠道码或日期范围）"
-              : "暂无数据（请检查日期范围是否包含有效自然日）",
-        }}
-      />
+          rowClassName={(record) => {
+            if (record._rowKind === "summary") {
+              return styles.summaryRow;
+            }
+            if (record._rowKind === "detail") {
+              return styles.childRow;
+            }
+            return "";
+          }}
+          loading={loading}
+          columns={columns}
+          dataSource={rows}
+          pagination={false}
+          scroll={{ x: 1180 }}
+          size="middle"
+          indentSize={20}
+          expandable={expandableConfig}
+          locale={{
+            emptyText: loading
+              ? "加载中…"
+              : channel.trim() !== ""
+                ? "暂无数据（请确认渠道码或日期范围）"
+                : "暂无数据（请检查日期范围是否包含有效自然日）",
+          }}
+        />
+      </div>
     </div>
   );
 }

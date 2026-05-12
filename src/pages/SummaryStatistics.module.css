@@ -1,8 +1,45 @@
+/* 页面根：与主布局 flex 配合，避免宽表撑破视口 */
+.page {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.tableScroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .toolbarRight {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
+}
+
+@media (max-width: 768px) {
+  .toolbarMobile :global(.ant-space-item) {
+    max-width: 100%;
+  }
+
+  .toolbarRight {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .dateRange {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .channelSelect {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
 }
 
 .dateRange {
@@ -112,9 +149,9 @@
 .dateExpandMergedCol {
   --date-expand-slot: 40px;
   box-sizing: border-box;
-  width: 260px !important;
-  min-width: 260px !important;
-  max-width: 320px;
+  width: 188px !important;
+  min-width: 188px !important;
+  max-width: 220px;
   /* 与 antd middle 表体一致（12px 8px），表头/首列对齐 */
   padding: 12px 8px !important;
   vertical-align: middle;
@@ -146,7 +183,7 @@
 .dateCellText {
   display: inline-block;
   vertical-align: middle;
-  max-width: min(200px, calc(100% - 48px));
+  max-width: min(128px, calc(100% - 48px));
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

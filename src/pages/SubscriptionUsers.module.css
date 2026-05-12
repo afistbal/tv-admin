@@ -1,3 +1,52 @@
+/* 页面根：避免 flex 子项在窄屏下撑破主内容区 */
+.page {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 表格横向滚动：表头与 body 同步在容器内滚动 */
+.tableScroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 与 OrderList 筛选条组合：窄屏纵向铺满、控件不溢出视口 */
+@media (max-width: 768px) {
+  .filterBarSubscription {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filterFieldFull {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .filterFieldFull :global(.ant-input),
+  .filterFieldFull :global(.ant-picker-range),
+  .filterFieldFull :global(.ant-select) {
+    flex: 1 1 auto;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+
+.keywordField {
+  width: 220px;
+  max-width: 100%;
+}
+
+.statusField {
+  width: 320px;
+  max-width: 100%;
+}
+
 .statCards {
   margin-bottom: 16px;
 }

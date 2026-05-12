@@ -5,6 +5,7 @@ import {
   Card,
   Col,
   DatePicker,
+  Grid,
   Input,
   Row,
   Select,
@@ -221,7 +222,7 @@ const SUBSCRIPTION_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "10", label: "10 订阅失败（不再执行订阅了）" },
 ];
 
-function subscriptionStatusMeta(status: unknown): { label: string; color?: string } | null {
+function subscriptionStatusMeta(status: unknown): { label: string; shortLabel?: string; color?: string } | null {
   if (status == null || status === "") {
     return null;
   }
@@ -237,13 +238,29 @@ function subscriptionStatusMeta(status: unknown): { label: string; color?: strin
     case 2:
       return { label: "取消订阅", color: "processing" };
     case 3:
-      return { label: "订阅异常（二次扣款第一次失败）", color: "error" };
+      return {
+        label: "订阅异常（二次扣款第一次失败）",
+        shortLabel: "首扣失败",
+        color: "error",
+      };
     case 4:
-      return { label: "订阅异常（二次扣款第二次失败）", color: "error" };
+      return {
+        label: "订阅异常（二次扣款第二次失败）",
+        shortLabel: "二扣失败",
+        color: "error",
+      };
     case 5:
-      return { label: "订阅异常（二次扣款第三次失败）", color: "error" };
+      return {
+        label: "订阅异常（二次扣款第三次失败）",
+        shortLabel: "三扣失败",
+        color: "error",
+      };
     case 10:
-      return { label: "订阅失败（不再执行订阅了）", color: "magenta" };
+      return {
+        label: "订阅失败（不再执行订阅了）",
+        shortLabel: "失败终止",
+        color: "magenta",
+      };
     default:
       return { label: String(n) };
   }
@@ -254,10 +271,19 @@ function statusTag(status: unknown): ReactNode {
   if (meta == null) {
     return EMPTY;
   }
-  return (
-    <Tag color={meta.color} style={{ marginInlineEnd: 0, whiteSpace: "normal", lineHeight: 1.45 }}>
-      {meta.label}
+  const text = meta.shortLabel ?? meta.label;
+  const needTip = meta.shortLabel != null && meta.shortLabel !== meta.label;
+  const tag = (
+    <Tag color={meta.color} style={{ marginInlineEnd: 0, whiteSpace: "nowrap", lineHeight: 1.45 }}>
+      {text}
     </Tag>
+  );
+  return needTip ? (
+    <Tooltip title={meta.label} placement="topLeft">
+      {tag}
+    </Tooltip>
+  ) : (
+    tag
   );
 }
 
@@ -338,19 +364,15 @@ export function SubscriptionUsers() {
     return { expectedPay, successPay, successRatioPct, unpaidCount };
   }, [rows]);
 
+  const screens = Grid.useBreakpoint();
+
   const columns: ColumnsType<AdminUserSubscriptionRow> = useMemo(
     () => [
-      {
-        title: "订阅 id",
-        key: "id",
-        width: 96,
-        fixed: "left",
-        render: (_: unknown, record: AdminUserSubscriptionRow) => cellStr(record.id),
-      },
       {
         title: "用户 id",
         key: "user_id",
         width: 120,
+        fixed: screens.md ? "left" : undefined,
         render: (_: unknown, record: AdminUserSubscriptionRow) => {
           const v = pickUserId(record);
           return (
@@ -380,7 +402,7 @@ export function SubscriptionUsers() {
       {
         title: "状态",
         key: "status",
-        width: 260,
+        width: 112,
         render: (_: unknown, record: AdminUserSubscriptionRow) => statusTag(record.status),
       },
       {
@@ -434,32 +456,32 @@ export function SubscriptionUsers() {
         },
       },
     ],
-    [],
+    [screens.md],
   );
 
   const rowKey = (row: AdminUserSubscriptionRow) =>
     String(row.id ?? `${row.user_id ?? ""}_${row.platform_sn ?? ""}_${row.order_id ?? ""}`);
 
   return (
-    <div>
+    <div className={styles.page}>
       <Typography.Title level={4} style={{ marginTop: 0 }}>
         订阅用户
       </Typography.Title>
 
       <div className={orderStyles.filterWrap}>
-        <div className={orderStyles.filterBar}>
-          <div className={orderStyles.filterItem}>
+        <div className={`${orderStyles.filterBar} ${styles.filterBarSubscription}`}>
+          <div className={`${orderStyles.filterItem} ${styles.filterFieldFull}`}>
             <span className={orderStyles.filterLabel}>关键词：</span>
             <Input
               allowClear
+              className={styles.keywordField}
               placeholder="用户 id / 订单号等"
               value={keywordInput}
               onChange={(e) => onKeywordChange(e.target.value)}
-              style={{ width: 220 }}
               maxLength={64}
             />
           </div>
-          <div className={orderStyles.filterItem}>
+          <div className={`${orderStyles.filterItem} ${styles.filterFieldFull}`}>
             <span className={orderStyles.filterLabel}>日期：</span>
             <DatePicker.RangePicker
               className={orderStyles.dateRange}
@@ -480,14 +502,14 @@ export function SubscriptionUsers() {
               }}
             />
           </div>
-          <div className={orderStyles.filterItem}>
+          <div className={`${orderStyles.filterItem} ${styles.filterFieldFull}`}>
             <span className={orderStyles.filterLabel}>状态：</span>
             <Select
+              className={styles.statusField}
               value={orderStatus}
               onChange={(v) => {
                 setOrderStatus(v ?? "");
               }}
-              style={{ width: 320 }}
               popupMatchSelectWidth={false}
               options={[{ label: "全部", value: "" }, ...SUBSCRIPTION_STATUS_OPTIONS]}
             />
@@ -542,16 +564,18 @@ export function SubscriptionUsers() {
         </Row>
       </Card>
 
-      <Table<AdminUserSubscriptionRow>
-        rowKey={rowKey}
-        loading={loading}
-        columns={columns}
-        dataSource={rows}
-        pagination={false}
-        scroll={{ x: 1660 }}
-        size="middle"
-        locale={{ emptyText: loading ? "加载中…" : "暂无数据" }}
-      />
+      <div className={styles.tableScroll}>
+        <Table<AdminUserSubscriptionRow>
+          rowKey={rowKey}
+          loading={loading}
+          columns={columns}
+          dataSource={rows}
+          pagination={false}
+          scroll={{ x: 1320 }}
+          size="middle"
+          locale={{ emptyText: loading ? "加载中…" : "暂无数据" }}
+        />
+      </div>
     </div>
   );
 }
