@@ -82,7 +82,7 @@ export function UserList() {
   const [isAdmin, setIsAdmin] = useState<"yes" | "no">("no");
   const [isVip, setIsVip] = useState<"yes" | "no">("no");
   const [saving, setSaving] = useState(false);
-  const [cancelSubLoadingId, setCancelSubLoadingId] = useState<number | null>(null);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<number | null>(null);
   const searchTimer = useRef<number | null>(null);
 
   const fetchList = useCallback(
@@ -186,40 +186,52 @@ export function UserList() {
     [],
   );
 
-  const closeDetail = () => {
+  const closeDetail = useCallback(() => {
     setDetailId(null);
     setInfo(null);
     setIsAdmin("no");
     setIsVip("no");
-  };
+  }, []);
 
-  const handleCancelSubscription = useCallback(
-    (userId: number) => {
+  const confirmDeleteUserByUid = useCallback(
+    (uid: number) => {
       Modal.confirm({
-        title: "确认取消订阅",
-        content: "确定要取消该用户的订阅吗？",
-        okText: "确定",
+        title: "确认删除用户？",
+        content: `将删除 uid 为 ${uid} 的用户，此操作不可恢复。`,
+        okText: "确认删除",
         cancelText: "返回",
+        okButtonProps: { danger: true },
         onOk: async () => {
-          setCancelSubLoadingId(userId);
+          setDeleteLoadingId(uid);
           try {
-            const res = await apiPostJson<unknown>("subscription/cancel", { id: userId });
+            const res = await apiPostJson<unknown>("admin/user/del", { uid });
             if (res.c !== 0) {
-              message.error(res.m || "取消订阅失败");
-              return;
+              message.error(res.m || "删除失败");
+              return Promise.reject(new Error(String(res.m ?? "fail")));
             }
-            message.success("已取消订阅");
+            message.success(res.m || "已删除");
+            if (detailId === uid) {
+              closeDetail();
+            }
             void fetchList(page, keyword, type, dateRange, adminSearch);
           } catch {
             message.error("网络异常");
+            return Promise.reject(new Error("network"));
           } finally {
-            setCancelSubLoadingId(null);
+            setDeleteLoadingId(null);
           }
         },
       });
     },
-    [fetchList, page, keyword, type, dateRange, adminSearch],
+    [detailId, fetchList, page, keyword, type, dateRange, adminSearch, closeDetail],
   );
+
+  const confirmDeleteUser = useCallback(() => {
+    if (detailId == null) {
+      return;
+    }
+    confirmDeleteUserByUid(detailId);
+  }, [detailId, confirmDeleteUserByUid]);
 
   const handleSave = async () => {
     if (detailId == null) {
@@ -324,40 +336,37 @@ export function UserList() {
         key: "actions",
         width: 168,
         fixed: "right",
-        render: (_: unknown, record) => {
-          const isVipRow = Number(record.vip) > 0;
-          return (
-            <Space size={0} wrap>
-              <Button
-                type="link"
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDetailId(record.id);
-                }}
-              >
-                详情
-              </Button>
-              {isVipRow ? (
-                <Button
-                  type="link"
-                  size="small"
-                  danger
-                  loading={cancelSubLoadingId === record.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCancelSubscription(record.id);
-                  }}
-                >
-                  取消订阅
-                </Button>
-              ) : null}
-            </Space>
-          );
-        },
+        render: (_: unknown, record) => (
+          <Space size={0} wrap>
+            <Button
+              type="link"
+              size="small"
+              htmlType="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDetailId(record.id);
+              }}
+            >
+              详情
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              htmlType="button"
+              loading={deleteLoadingId === record.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                confirmDeleteUserByUid(record.id);
+              }}
+            >
+              删除
+            </Button>
+          </Space>
+        ),
       },
     ],
-    [cancelSubLoadingId, handleCancelSubscription],
+    [deleteLoadingId, confirmDeleteUserByUid],
   );
 
   return (
@@ -477,12 +486,17 @@ export function UserList() {
         open={detailId != null}
         onCancel={closeDetail}
         footer={
-          <Space>
-            <Button onClick={closeDetail}>取消</Button>
-            <Button type="primary" loading={saving} onClick={() => void handleSave()}>
-              保存
+          <div className={styles.modalFooter}>
+            <Space>
+              <Button onClick={closeDetail}>取消</Button>
+              <Button type="primary" loading={saving} onClick={() => void handleSave()}>
+                保存
+              </Button>
+            </Space>
+            <Button danger type="link" htmlType="button" onClick={confirmDeleteUser}>
+              删除
             </Button>
-          </Space>
+          </div>
         }
         width={640}
         destroyOnClose

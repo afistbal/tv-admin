@@ -7,6 +7,7 @@ import {
   DatePicker,
   Grid,
   Input,
+  Modal,
   Row,
   Select,
   Statistic,
@@ -19,10 +20,12 @@ import {
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
-import { apiPostJson } from "@/api/client";
+import { apiPostJson, getApiErrorMessage, isApiResultOk } from "@/api/client";
 import type { ApiResult } from "@/api/types";
 import type { AdminUserSubscriptionListPayload, AdminUserSubscriptionRow } from "@/types/adminUserSubscription";
 import type { SubscriptionPaymentMethodKey } from "@/types/adminStatSubscription";
+import { useAuth } from "@/auth/AuthContext";
+import { isAdminUser } from "@/auth/userInfo";
 import { formatDateTimeZh } from "@/lib/formatDateTime";
 import orderStyles from "./OrderList.module.css";
 import listStyles from "./UserList.module.css";
@@ -288,6 +291,8 @@ function statusTag(status: unknown): ReactNode {
 }
 
 export function SubscriptionUsers() {
+  const { user } = useAuth();
+  const canCancelSubscription = user != null && isAdminUser(user);
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(() => defaultDateRange());
   const [orderStatus, setOrderStatus] = useState<string>("");
@@ -341,6 +346,32 @@ export function SubscriptionUsers() {
       setKeyword(v.trim());
     }, 400);
   };
+
+  const requestCancelSubscription = useCallback(() => {
+    Modal.confirm({
+      title: "确认取消订阅？",
+      content: "将调用取消订阅接口，订阅状态会变为「取消订阅」。是否继续？",
+      okText: "确认",
+      cancelText: "返回",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          const res: ApiResult<unknown> = await apiPostJson("subscription/cancel", {});
+          if (!isApiResultOk(res)) {
+            message.error(getApiErrorMessage(res, "操作失败"));
+            return Promise.reject(new Error("fail"));
+          }
+          message.success(
+            typeof res.m === "string" && res.m.trim() ? res.m.trim() : "已取消订阅",
+          );
+          void fetchList(keyword, dateRange, orderStatus);
+        } catch {
+          message.error("网络异常");
+          return Promise.reject(new Error("network"));
+        }
+      },
+    });
+  }, [fetchList, keyword, dateRange, orderStatus]);
 
   useEffect(
     () => () => {
@@ -524,7 +555,14 @@ export function SubscriptionUsers() {
           >
             搜索
           </Button>
-          <span className={orderStyles.totalHint}>共 {rows.length} 条</span>
+          <div className={styles.filterBarTail}>
+            {canCancelSubscription ? (
+              <Button danger onClick={requestCancelSubscription}>
+                取消订阅
+              </Button>
+            ) : null}
+            <span className={`${orderStyles.totalHint} ${styles.totalHintInTail}`}>共 {rows.length} 条</span>
+          </div>
         </div>
       </div>
 

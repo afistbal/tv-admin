@@ -41,6 +41,16 @@
   justify-content: flex-end;
 }
 
+/* 用户详情弹窗底部：左侧保存区，右侧删除 */
+.modalFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
 /* 用户详情弹窗：浅色分区，与 Ant Design 默认主题一致 */
 .detailSectionTitle {
   margin: 16px 0 8px;

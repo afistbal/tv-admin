@@ -47,6 +47,28 @@
   max-width: 100%;
 }
 
+/* 筛选条右侧：取消订阅 + 条数（整块 margin-left: auto 靠右） */
+.filterBarTail {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.totalHintInTail {
+  margin-left: 0;
+}
+
+@media (max-width: 768px) {
+  .filterBarTail {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+    padding-top: 4px;
+  }
+}
+
 .statCards {
   margin-bottom: 16px;
 }

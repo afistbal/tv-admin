@@ -1,6 +1,26 @@
 import { apiBaseURL } from "./baseURL";
 import type { ApiResult } from "./types";
 
+/** 从接口 JSON 取可读错误（兼容 slot 的 `m` 与 Laravel 的 `message`） */
+export function getApiErrorMessage(res: unknown, fallback = "操作失败"): string {
+  if (res == null || typeof res !== "object") {
+    return fallback;
+  }
+  const o = res as Record<string, unknown>;
+  if (typeof o.m === "string" && o.m.trim()) {
+    return o.m.trim();
+  }
+  if (typeof o.message === "string" && o.message.trim()) {
+    return o.message.trim();
+  }
+  return fallback;
+}
+
+/** 与 slot 约定一致：`c === 0` 为成功；无 `c` 字段视为失败 */
+export function isApiResultOk(res: unknown): boolean {
+  return typeof res === "object" && res != null && (res as { c?: unknown }).c === 0;
+}
+
 function clientHeaders(): Record<string, string> {
   return {
     Accept: "application/json",
