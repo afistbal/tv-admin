@@ -23,6 +23,18 @@
   font-weight: 600;
 }
 
+/* 名称列：缩窄、表体允许换行；单元格内垂直居中 */
+.titleColumnCell {
+  white-space: normal !important;
+  vertical-align: middle !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.titleColumn {
+  white-space: normal !important;
+}
+
 .footer {
   flex-shrink: 0;
   display: flex;
@@ -50,7 +62,7 @@
 
 .titleCell {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
   min-width: 0;
 }
@@ -65,19 +77,55 @@
   line-height: 1.5;
 }
 
-.addrCell {
+.coverCell {
   display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
 }
 
-.addrText {
-  margin-bottom: 0 !important;
+.coverThumb {
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.addrCell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.addrEllipsis {
   flex: 1 1 auto;
   min-width: 0;
-  white-space: normal !important;
-  word-break: break-all;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   line-height: 1.45;
+}
+
+.addrLinkInner,
+.addrPlain {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.addrLinkInner {
+  color: #1677ff;
+}
+
+.addrLinkInner:hover {
+  color: #4096ff;
+}
+
+.addrCopy {
+  flex-shrink: 0;
+  margin-bottom: 0 !important;
+  line-height: 1;
 }

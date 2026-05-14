@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, Input, Space, Table, Typography, message } from "antd";
+import { Button, DatePicker, Image, Input, Space, Table, Tooltip, Typography, message } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
@@ -107,6 +107,8 @@ function toFallbackAddress(row: TRow) {
 type EpisodeRow = {
   key: string;
   title: string;
+  /** 剧封图完整 URL，同一剧多集行共用，与名称列同步 rowSpan 合并 */
+  coverUrl: string;
   time: string;
   episode: string;
   address: string;
@@ -231,11 +233,14 @@ export function DramaLatestUpdate() {
       );
       const raw = row["list"];
       const rowId = row["id"] != null ? String(row["id"]) : String(groupIndex);
+      const coverPath = pickText(row, ["image", "poster", "cover", "thumb", "cover_image"], "");
+      const coverUrl = coverPath ? joinUrl(staticBase, coverPath) : "";
       if (!Array.isArray(raw) || raw.length === 0) {
         return [
           {
             key: `g${rowId}-0`,
             title,
+            coverUrl,
             time: formatDisplayTime(outerTime || "—"),
             episode: pickText(row, ["episode", "episodes", "currentEp", "current_ep", "videos"]),
             address: toFallbackAddress(row),
@@ -257,6 +262,7 @@ export function DramaLatestUpdate() {
         return {
           key: `g${rowId}-${index}`,
           title,
+          coverUrl,
           time: formatDisplayTime(outerTime || innerTime || "—"),
           episode:
             Number.isFinite(normalizedEpisode) && normalizedEpisode > 0
@@ -292,9 +298,12 @@ export function DramaLatestUpdate() {
         title: "名称",
         dataIndex: "title",
         key: "title",
-        width: 260,
+        className: styles.titleColumn,
+        width: 200,
+        ellipsis: false,
         onCell: (_: EpisodeRow, index?: number) => ({
           rowSpan: index === undefined ? 1 : (titleRowSpans[index] ?? 1),
+          className: styles.titleColumnCell,
         }),
         render: (title: string) => (
           <div className={styles.titleCell}>
@@ -306,6 +315,33 @@ export function DramaLatestUpdate() {
             </Typography.Text>
           </div>
         ),
+      },
+      {
+        title: "封面",
+        key: "cover",
+        width: 140,
+        align: "center",
+        onCell: (_: EpisodeRow, index?: number) => ({
+          rowSpan: index === undefined ? 1 : (titleRowSpans[index] ?? 1),
+        }),
+        render: (_: unknown, record: EpisodeRow) => {
+          const url = record.coverUrl?.trim();
+          if (!url) {
+            return <Typography.Text type="secondary">—</Typography.Text>;
+          }
+          return (
+            <div className={styles.coverCell}>
+              <Image
+                src={url}
+                alt=""
+                width={112}
+                height={148}
+                className={styles.coverThumb}
+                preview={{ mask: "查看大图" }}
+              />
+            </div>
+          );
+        },
       },
       {
         title: "时间",
@@ -324,23 +360,37 @@ export function DramaLatestUpdate() {
         title: "地址",
         dataIndex: "address",
         key: "address",
-        ellipsis: false,
-        minWidth: 280,
+        ellipsis: true,
+        width: 320,
         render: (addr: string) => {
           const a = String(addr ?? "");
-          const isLink = /^https?:\/\//.test(a) || a.startsWith("/");
+          const isHttp = /^https?:\/\//.test(a);
+          const isPath = a.startsWith("/");
           const copyable = a && a !== "—" ? { text: a } : false;
+          const tip = a && a !== "—" ? a : undefined;
+          const body =
+            isHttp && tip ? (
+              <a
+                className={styles.addrLinkInner}
+                href={a}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {a}
+              </a>
+            ) : isPath && tip ? (
+              <a className={styles.addrLinkInner} href={a}>
+                {a}
+              </a>
+            ) : (
+              <span className={styles.addrPlain}>{a}</span>
+            );
           return (
             <div className={styles.addrCell}>
-              <Typography.Text className={styles.addrText} copyable={copyable}>
-                {isLink ? (
-                  <a href={a} target={a.startsWith("http") ? "_blank" : undefined} rel={a.startsWith("http") ? "noreferrer" : undefined}>
-                    {a}
-                  </a>
-                ) : (
-                  a
-                )}
-              </Typography.Text>
+              <Tooltip title={tip} placement="topLeft">
+                <div className={styles.addrEllipsis}>{body}</div>
+              </Tooltip>
+              {copyable ? <Typography.Text className={styles.addrCopy} copyable={copyable} /> : null}
             </div>
           );
         },
@@ -412,7 +462,7 @@ export function DramaLatestUpdate() {
           pagination={false}
           size="middle"
           tableLayout="fixed"
-          scroll={{ x: 960 }}
+          scroll={{ x: 1120 }}
           locale={{
             emptyText: loading ? "加载中…" : hasFetched ? "暂无数据" : "请点击「更新列表」拉取数据",
           }}
