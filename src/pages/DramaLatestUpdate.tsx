@@ -1,3 +1,4 @@
+import { DownloadOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, DatePicker, Image, Input, Space, Table, Tooltip, Typography, message } from "antd";
 import type { Dayjs } from "dayjs";
@@ -88,6 +89,136 @@ function joinUrl(base: string, path: string) {
   return `${b}/${p}`;
 }
 
+/** 取封面相对路径的文件名，用于下载名 `{id}_{image}` */
+function imageBasename(path: string): string {
+  const s = String(path ?? "").replace(/\\/g, "/").trim();
+  if (!s) {
+    return "";
+  }
+  const i = s.lastIndexOf("/");
+  return i >= 0 ? s.slice(i + 1) : s;
+}
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const safeName = filename.replace(/[/\\?%*:|"<>]/g, "_");
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = safeName;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  requestAnimationFrame(() => {
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  });
+}
+
+/**
+ * 与 `vite.config` 中 `/__cos` 代理一致：把 COS 绝对地址换成本站路径，便于同源 fetch 得到 Blob 并触发本地下载。
+ * 生产环境需在 nginx 等配置同等反代，并设置 `VITE_STATIC_DOWNLOAD_PROXY=1`。
+ */
+function tryCosSameOriginFetchUrl(imageUrl: string): string | null {
+  const proxyOn =
+    import.meta.env.DEV || String(import.meta.env.VITE_STATIC_DOWNLOAD_PROXY ?? "").trim() === "1";
+  if (!proxyOn || typeof window === "undefined") {
+    return null;
+  }
+  const rawTarget = String(import.meta.env.VITE_COS_PROXY_TARGET ?? "").trim() || "https://cos.yogoshort.com";
+  try {
+    const img = new URL(imageUrl);
+    const base = new URL(rawTarget.match(/^https?:\/\//i) ? rawTarget : `https://${rawTarget}`);
+    if (img.origin !== base.origin) {
+      return null;
+    }
+    return `${window.location.origin}/__cos${img.pathname}${img.search}`;
+  } catch {
+    return null;
+  }
+}
+
+async function downloadImageViaCanvas(imageUrl: string, filename: string): Promise<boolean> {
+  const safeName = filename.replace(/[/\\?%*:|"<>]/g, "_");
+  return new Promise((resolve) => {
+    const img = document.createElement("img");
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        if (!w || !h) {
+          resolve(false);
+          return;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(false);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const lower = safeName.toLowerCase();
+        const mime = lower.endsWith(".png")
+          ? "image/png"
+          : lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+            ? "image/jpeg"
+            : "image/webp";
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(false);
+              return;
+            }
+            triggerBlobDownload(blob, safeName);
+            resolve(true);
+          },
+          mime,
+          0.92,
+        );
+      } catch {
+        resolve(false);
+      }
+    };
+    img.onerror = () => resolve(false);
+    img.src = imageUrl;
+  });
+}
+
+async function downloadImageAsFile(url: string, filename: string) {
+  const safeName = filename.replace(/[/\\?%*:|"<>]/g, "_");
+  const proxied = tryCosSameOriginFetchUrl(url);
+  const fetchUrls = Array.from(new Set([url, proxied].filter((u): u is string => Boolean(u))));
+
+  for (const fetchUrl of fetchUrls) {
+    try {
+      const res = await fetch(fetchUrl, { mode: "cors", credentials: "omit", cache: "no-store" });
+      if (!res.ok) {
+        continue;
+      }
+      const blob = await res.blob();
+      if (!blob || blob.size === 0) {
+        continue;
+      }
+      triggerBlobDownload(blob, safeName);
+      message.success("已开始下载");
+      return;
+    } catch {
+      /* 试下一 URL */
+    }
+  }
+
+  if (await downloadImageViaCanvas(url, safeName)) {
+    message.success("已开始下载");
+    return;
+  }
+
+  message.error(
+    "无法直接保存到本地（跨域限制）。开发环境已走 /__cos 代理；生产请配置同源反代并设置 VITE_STATIC_DOWNLOAD_PROXY=1，或在大图预览里右键另存为。",
+  );
+}
+
 function toFallbackAddress(row: TRow) {
   const direct = pickText(row, ["address", "url", "href", "link", "episode_url", "episode_href"], "");
   if (direct) {
@@ -109,6 +240,10 @@ type EpisodeRow = {
   title: string;
   /** 剧封图完整 URL，同一剧多集行共用，与名称列同步 rowSpan 合并 */
   coverUrl: string;
+  /** 剧目 id，用于展示与下载文件名 */
+  dramaId: string;
+  /** 封面原文件名（接口 image 字段 basename），下载名 `{dramaId}_{coverImageFile}` */
+  coverImageFile: string;
   time: string;
   episode: string;
   address: string;
@@ -235,12 +370,16 @@ export function DramaLatestUpdate() {
       const rowId = row["id"] != null ? String(row["id"]) : String(groupIndex);
       const coverPath = pickText(row, ["image", "poster", "cover", "thumb", "cover_image"], "");
       const coverUrl = coverPath ? joinUrl(staticBase, coverPath) : "";
+      const dramaId = row["id"] != null ? String(row["id"]) : "";
+      const coverImageFile = coverPath ? imageBasename(coverPath) : "";
       if (!Array.isArray(raw) || raw.length === 0) {
         return [
           {
             key: `g${rowId}-0`,
             title,
             coverUrl,
+            dramaId,
+            coverImageFile,
             time: formatDisplayTime(outerTime || "—"),
             episode: pickText(row, ["episode", "episodes", "currentEp", "current_ep", "videos"]),
             address: toFallbackAddress(row),
@@ -263,6 +402,8 @@ export function DramaLatestUpdate() {
           key: `g${rowId}-${index}`,
           title,
           coverUrl,
+          dramaId,
+          coverImageFile,
           time: formatDisplayTime(outerTime || innerTime || "—"),
           episode:
             Number.isFinite(normalizedEpisode) && normalizedEpisode > 0
@@ -319,18 +460,62 @@ export function DramaLatestUpdate() {
       {
         title: "封面",
         key: "cover",
-        width: 140,
+        width: 160,
         align: "center",
         onCell: (_: EpisodeRow, index?: number) => ({
           rowSpan: index === undefined ? 1 : (titleRowSpans[index] ?? 1),
         }),
         render: (_: unknown, record: EpisodeRow) => {
           const url = record.coverUrl?.trim();
+          const idLine = record.dramaId ? `id: ${record.dramaId}` : "id: —";
+          const canDownload = Boolean(url && record.dramaId && record.coverImageFile);
+          const downloadFilename =
+            record.dramaId && record.coverImageFile ? `${record.dramaId}_${record.coverImageFile}` : "";
+
+          const downloadTip = !url
+            ? "无封面可下载"
+            : canDownload
+              ? `下载 ${downloadFilename}`
+              : !record.dramaId
+                ? "缺少剧目 id，无法按规范命名下载"
+                : "缺少封面文件名";
+
+          const meta = (
+            <div className={styles.coverMeta}>
+              <Typography.Text type="secondary" className={styles.coverIdLine}>
+                {idLine}
+              </Typography.Text>
+              <Tooltip title={downloadTip}>
+                <Button
+                  type="text"
+                  size="small"
+                  className={styles.coverDownloadBtn}
+                  icon={<DownloadOutlined />}
+                  aria-label="下载封面"
+                  disabled={!canDownload}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (canDownload && url) {
+                      void downloadImageAsFile(url, downloadFilename);
+                    }
+                  }}
+                />
+              </Tooltip>
+            </div>
+          );
+
           if (!url) {
-            return <Typography.Text type="secondary">—</Typography.Text>;
+            return (
+              <div className={styles.coverCell}>
+                {meta}
+                <Typography.Text type="secondary">—</Typography.Text>
+              </div>
+            );
           }
+
           return (
             <div className={styles.coverCell}>
+              {meta}
               <Image
                 src={url}
                 alt=""
@@ -462,7 +647,7 @@ export function DramaLatestUpdate() {
           pagination={false}
           size="middle"
           tableLayout="fixed"
-          scroll={{ x: 1120 }}
+          scroll={{ x: 1140 }}
           locale={{
             emptyText: loading ? "加载中…" : hasFetched ? "暂无数据" : "请点击「更新列表」拉取数据",
           }}
