@@ -114,29 +114,6 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   });
 }
 
-/**
- * 与 `vite.config` 中 `/__cos` 代理一致：把 COS 绝对地址换成本站路径，便于同源 fetch 得到 Blob 并触发本地下载。
- * 生产环境需在 nginx 等配置同等反代，并设置 `VITE_STATIC_DOWNLOAD_PROXY=1`。
- */
-function tryCosSameOriginFetchUrl(imageUrl: string): string | null {
-  const proxyOn =
-    import.meta.env.DEV || String(import.meta.env.VITE_STATIC_DOWNLOAD_PROXY ?? "").trim() === "1";
-  if (!proxyOn || typeof window === "undefined") {
-    return null;
-  }
-  const rawTarget = String(import.meta.env.VITE_COS_PROXY_TARGET ?? "").trim() || "https://cos.yogoshort.com";
-  try {
-    const img = new URL(imageUrl);
-    const base = new URL(rawTarget.match(/^https?:\/\//i) ? rawTarget : `https://${rawTarget}`);
-    if (img.origin !== base.origin) {
-      return null;
-    }
-    return `${window.location.origin}/__cos${img.pathname}${img.search}`;
-  } catch {
-    return null;
-  }
-}
-
 async function downloadImageViaCanvas(imageUrl: string, filename: string): Promise<boolean> {
   const safeName = filename.replace(/[/\\?%*:|"<>]/g, "_");
   return new Promise((resolve) => {
@@ -188,25 +165,19 @@ async function downloadImageViaCanvas(imageUrl: string, filename: string): Promi
 
 async function downloadImageAsFile(url: string, filename: string) {
   const safeName = filename.replace(/[/\\?%*:|"<>]/g, "_");
-  const proxied = tryCosSameOriginFetchUrl(url);
-  const fetchUrls = Array.from(new Set([url, proxied].filter((u): u is string => Boolean(u))));
 
-  for (const fetchUrl of fetchUrls) {
-    try {
-      const res = await fetch(fetchUrl, { mode: "cors", credentials: "omit", cache: "no-store" });
-      if (!res.ok) {
-        continue;
-      }
+  try {
+    const res = await fetch(url, { mode: "cors", credentials: "omit", cache: "no-store" });
+    if (res.ok) {
       const blob = await res.blob();
-      if (!blob || blob.size === 0) {
-        continue;
+      if (blob && blob.size > 0) {
+        triggerBlobDownload(blob, safeName);
+        message.success("已开始下载");
+        return;
       }
-      triggerBlobDownload(blob, safeName);
-      message.success("已开始下载");
-      return;
-    } catch {
-      /* 试下一 URL */
     }
+  } catch {
+    /* 继续尝试 canvas */
   }
 
   if (await downloadImageViaCanvas(url, safeName)) {
@@ -214,9 +185,7 @@ async function downloadImageAsFile(url: string, filename: string) {
     return;
   }
 
-  message.error(
-    "无法直接保存到本地（跨域限制）。开发环境已走 /__cos 代理；生产请配置同源反代并设置 VITE_STATIC_DOWNLOAD_PROXY=1，或在大图预览里右键另存为。",
-  );
+  message.error("无法直接保存到本地（跨域限制）。请在大图预览里右键「图片另存为」，或由静态资源域名开放 CORS。");
 }
 
 function toFallbackAddress(row: TRow) {

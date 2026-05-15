@@ -9,6 +9,7 @@ import {
   MenuUnfoldOutlined,
   PieChartOutlined,
   PlaySquareOutlined,
+  SettingOutlined,
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -20,7 +21,7 @@ import styles from "./BasicLayout.module.css";
 const { Header, Sider, Content } = Layout;
 
 /** 展开侧栏时保持三个分组常开；用常量避免每次路由变化都 new 数组触发菜单无意义重绘 */
-const DEFAULT_SUBMENU_OPEN_KEYS = ["sub-users", "sub-data", "sub-drama", "sub-stats"] as const;
+const DEFAULT_SUBMENU_OPEN_KEYS = ["sub-users", "sub-data", "sub-drama", "sub-stats", "sub-config"] as const;
 
 const menuItems: MenuProps["items"] = [
   { key: "/dashboard", icon: <DashboardOutlined />, label: <Link to="/dashboard">仪表盘</Link> },
@@ -69,6 +70,12 @@ const menuItems: MenuProps["items"] = [
       },
     ],
   },
+  {
+    key: "sub-config",
+    icon: <SettingOutlined />,
+    label: "配置管理",
+    children: [{ key: "/config/products", label: <Link to="/config/products">产品管理</Link> }],
+  },
 ];
 
 /** 折叠侧栏专用：Popover 内用 Link，避免 hover 浮层提前关掉时 Button 的 click 丢失；与 HashRouter 一致 */
@@ -106,6 +113,7 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
   const dataActive = pathname.startsWith("/data");
   const dramaActive = pathname.startsWith("/drama");
   const statsActive = pathname.startsWith("/stats");
+  const configActive = pathname.startsWith("/config");
 
   /**
    * color=#001529：面板与小箭头同色（antd 会给箭头设 --antd-arrow-background-color）
@@ -214,6 +222,20 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
           <PieChartOutlined />
         </div>
       </Popover>
+
+      <Popover
+        {...popCommon}
+        content={<CollapsedPopoverLinks links={[{ to: "/config/products", label: "产品管理" }]} />}
+      >
+        <div
+          className={`${styles.collapsedIconBtn} ${configActive ? styles.collapsedIconBtnActive : ""}`}
+          role="button"
+          tabIndex={0}
+          aria-label="配置管理"
+        >
+          <SettingOutlined />
+        </div>
+      </Popover>
     </nav>
   );
 }
@@ -280,6 +302,9 @@ export function BasicLayout() {
     }
     if (location.pathname.startsWith("/stats/summary")) {
       return ["/stats/summary"];
+    }
+    if (location.pathname.startsWith("/config/products")) {
+      return ["/config/products"];
     }
     return [];
   }, [location.pathname]);

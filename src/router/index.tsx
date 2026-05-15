@@ -6,6 +6,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { DramaLatestUpdate } from "@/pages/DramaLatestUpdate";
 import { MovieList } from "@/pages/MovieList";
 import { OrderList } from "@/pages/OrderList";
+import { ProductList } from "@/pages/ProductList";
 import { PromotionSources } from "@/pages/PromotionSources";
 import { SubscriptionUsers } from "@/pages/SubscriptionUsers";
 import { SummaryStatistics } from "@/pages/SummaryStatistics";
@@ -40,6 +41,7 @@ export function AppRouter() {
           <Route path="data/orders" element={<OrderList />} />
           <Route path="drama/latest-update" element={<DramaLatestUpdate />} />
           <Route path="drama/movies" element={<MovieList />} />
+          <Route path="config/products" element={<ProductList />} />
         </Route>
       </Route>
       <Route
