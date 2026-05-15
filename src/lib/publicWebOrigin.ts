@@ -9,3 +9,18 @@ export function publicWebOrigin(): string {
   }
   return "https://yogoshort.com";
 }
+
+/** 播放页等分享链接：主域 `yogoshort.com` 统一为 `www.yogoshort.com` */
+export function publicWebOriginForVideo(): string {
+  const o = publicWebOrigin();
+  try {
+    const u = new URL(o);
+    if (u.hostname === "yogoshort.com") {
+      u.hostname = "www.yogoshort.com";
+      return u.origin;
+    }
+  } catch {
+    /* ignore */
+  }
+  return o;
+}

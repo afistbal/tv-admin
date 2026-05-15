@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button, Dropdown, Image, Input, Modal, Pagination, Select, Space, Switch, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { MenuProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -101,6 +102,7 @@ function shelfStatusTag(status: unknown): ReactNode {
 }
 
 export function MovieList() {
+  const [searchParams] = useSearchParams();
   const appStatic = useAppStaticBase();
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<AdminMovieRow[]>([]);
@@ -173,6 +175,17 @@ export function MovieList() {
   useEffect(() => {
     void fetchList(page, keyword, language);
   }, [page, keyword, language, fetchList]);
+
+  /** 仪表盘播放排行等入口：`/drama/movies?id=` 预填搜索 */
+  useEffect(() => {
+    const id = searchParams.get("id")?.trim();
+    if (!id) {
+      return;
+    }
+    setKeywordInput(id);
+    setKeyword(id);
+    setPage(1);
+  }, [searchParams]);
 
   const onKeywordChange = (v: string) => {
     setKeywordInput(v);

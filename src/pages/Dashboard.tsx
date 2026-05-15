@@ -1,9 +1,16 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FileTextOutlined } from "@ant-design/icons";
 import { Alert, Card, Col, List, Row, Spin, Statistic, Typography } from "antd";
+import { Link } from "react-router-dom";
 import { apiGet } from "@/api/client";
 import type { ApiResult } from "@/api/types";
-import type { AdminHomeData } from "@/types/adminHome";
+import type { AdminHomeData, AdminHomePlayRankItem } from "@/types/adminHome";
+import { useAppStaticBase } from "@/config/AppConfigContext";
+import { adminMovieListPath } from "@/lib/adminMovieListUrl";
 import { legacyAdminOrigin } from "@/lib/legacyAdminUrl";
+import { publicWebOriginForVideo } from "@/lib/publicWebOrigin";
+import { MovieEditModal } from "./MovieEditModal";
+import styles from "./Dashboard.module.css";
 
 function num(v: unknown): number {
   const n = Number(v);
@@ -15,44 +22,127 @@ function strFixed(v: unknown, digits: number): string {
   return Number.isFinite(n) ? n.toFixed(digits) : "0.00";
 }
 
+function playMovieUrl(id: string | number): string {
+  return `${publicWebOriginForVideo()}/video/${id}`;
+}
+
+function PlayRankItem({
+  item,
+  index,
+  onOpenMovie,
+}: {
+  item: AdminHomePlayRankItem;
+  index: number;
+  onOpenMovie: (movieId: number) => void;
+}) {
+  const movieId = Number(item.target);
+  const hasId = Number.isFinite(movieId) && movieId > 0;
+  const playUrl = hasId ? playMovieUrl(movieId) : "";
+
+  return (
+    <List.Item>
+      <div className={styles.playRankHead}>
+        <div className={styles.playRankTitleRow}>
+          <Typography.Text strong className={styles.playRankIndex}>
+            {index + 1}.
+          </Typography.Text>
+          {hasId ? (
+            <Typography.Link className={styles.playRankTitleLink} onClick={() => onOpenMovie(movieId)}>
+              {String(item.title ?? "—")}
+            </Typography.Link>
+          ) : (
+            <span className={styles.playRankTitlePlain}>{String(item.title ?? "—")}</span>
+          )}
+          {hasId ? (
+            <Link
+              to={adminMovieListPath(movieId)}
+              className={styles.playRankMoreIcon}
+              title="在影片列表中查看"
+              aria-label="在影片列表中查看"
+            >
+              <FileTextOutlined />
+            </Link>
+          ) : null}
+        </div>
+        <Typography.Text type="secondary" className={styles.playRankMeta}>
+          {num(item.count)} 次
+        </Typography.Text>
+      </div>
+
+      {hasId ? (
+        <div className={styles.playRankPlayRow}>
+          <span className={styles.playUrlInline}>
+            <Typography.Link className={styles.playRankPlayLink} href={playUrl} target="_blank" rel="noreferrer">
+              {playUrl}
+            </Typography.Link>
+            <Typography.Text className={styles.playRankCopy} copyable={{ text: playUrl }} />
+          </span>
+        </div>
+      ) : null}
+    </List.Item>
+  );
+}
+
 export function Dashboard() {
+  const appStatic = useAppStaticBase();
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [data, setData] = useState<AdminHomeData | null>(null);
+  const [editMovieId, setEditMovieId] = useState<number | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setErr(null);
-    void (async () => {
-      try {
-        const res: ApiResult<AdminHomeData> = await apiGet<AdminHomeData>("admin/home");
-        if (cancelled) {
-          return;
-        }
-        if (res.c !== 0) {
+  const loadHome = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setErr(null);
+    }
+    try {
+      const res: ApiResult<AdminHomeData> = await apiGet<AdminHomeData>("admin/home");
+      if (res.c !== 0) {
+        if (!silent) {
           setErr(res.m || "加载失败");
           setData(null);
-        } else {
-          setData(res.d ?? null);
         }
-      } catch {
-        if (!cancelled) {
-          setErr("网络异常");
-          setData(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+      setData(res.d ?? null);
+      if (silent) {
+        setErr(null);
+      }
+    } catch {
+      if (!silent) {
+        setErr("网络异常");
+        setData(null);
+      }
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
   }, []);
 
-  const origin = legacyAdminOrigin();
+  useEffect(() => {
+    void loadHome();
+  }, [loadHome]);
+
+  const legacyOrigin = legacyAdminOrigin();
+
+  const statItems = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+    return [
+      { title: "今日独立访客", value: num(data.uv) },
+      { title: "今日页面浏览量", value: num(data.pv) },
+      { title: "今日解锁", value: num(data.unlock) },
+      { title: "今日播放", value: num(data.play) },
+      { title: "注册用户", value: num(data.registered_user) },
+      { title: "未付款订单", value: num(data.unpaid_order) },
+      { title: "已付款订单", value: num(data.paid_order) },
+      { title: "订阅", value: num(data.subscription) },
+      { title: "留存时长（小时）", value: strFixed(data.total_alive_time, 2) },
+      { title: "平均留存（分钟）", value: strFixed(data.average_alive_time, 2) },
+    ];
+  }, [data]);
 
   if (loading) {
     return (
@@ -82,58 +172,13 @@ export function Dashboard() {
         </Typography.Text>
       </Card>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic title="今日独立访客" value={num(data.uv)} />
+      <div className={styles.statGrid}>
+        {statItems.map((s) => (
+          <Card key={s.title} size="small" className={styles.statCard}>
+            <Statistic title={s.title} value={s.value} />
           </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic title="今日页面浏览量" value={num(data.pv)} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic title="今日解锁" value={num(data.unlock)} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic title="今日播放" value={num(data.play)} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic title="注册用户" value={num(data.registered_user)} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic title="未付款订单" value={num(data.unpaid_order)} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic title="已付款订单" value={num(data.paid_order)} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic title="订阅" value={num(data.subscription)} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic title="留存时长（小时）" value={strFixed(data.total_alive_time, 2)} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Statistic title="平均留存（分钟）" value={strFixed(data.average_alive_time, 2)} />
-          </Card>
-        </Col>
-      </Row>
+        ))}
+      </div>
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={12}>
@@ -142,26 +187,12 @@ export function Dashboard() {
               <Typography.Text type="secondary">暂无更多</Typography.Text>
             ) : (
               <List
+                className={styles.playRankList}
                 size="small"
                 dataSource={playRank}
-                renderItem={(item, index) => {
-                  const id = item.target;
-                  const href = origin && id != null ? `${origin}/z/page/movie/detail/${id}` : undefined;
-                  return (
-                    <List.Item>
-                      <Typography.Text strong style={{ width: 28 }}>
-                        {index + 1}
-                      </Typography.Text>
-                      {href ? (
-                        <Typography.Link href={href} target="_blank" rel="noreferrer">
-                          {String(item.title ?? "—")}
-                        </Typography.Link>
-                      ) : (
-                        <span>{String(item.title ?? "—")}</span>
-                      )}
-                    </List.Item>
-                  );
-                }}
+                renderItem={(item, index) => (
+                  <PlayRankItem item={item} index={index} onOpenMovie={setEditMovieId} />
+                )}
               />
             )}
           </Card>
@@ -176,7 +207,7 @@ export function Dashboard() {
                 dataSource={aliveRank}
                 renderItem={(item, index) => {
                   const uid = item.user_id;
-                  const href = origin && uid != null ? `${origin}/z/page/user/${uid}` : undefined;
+                  const href = legacyOrigin && uid != null ? `${legacyOrigin}/z/page/user/${uid}` : undefined;
                   return (
                     <List.Item
                       actions={[
@@ -203,6 +234,19 @@ export function Dashboard() {
           </Card>
         </Col>
       </Row>
+
+      {editMovieId != null ? (
+        <MovieEditModal
+          key={editMovieId}
+          movieId={editMovieId}
+          staticBase={appStatic}
+          onClose={() => setEditMovieId(null)}
+          onSaved={() => {
+            setEditMovieId(null);
+            void loadHome(true);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

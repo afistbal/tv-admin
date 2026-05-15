@@ -1,0 +1,134 @@
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 992px) {
+  .statGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.statCard :global(.ant-card-body) {
+  padding: 10px 12px !important;
+}
+
+.statCard :global(.ant-statistic-title) {
+  font-size: 12px;
+  margin-bottom: 2px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statCard :global(.ant-statistic-content) {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.playRankList :global(.ant-list-item) {
+  display: block;
+  padding: 10px 0;
+  border-block-end: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.playRankHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.playRankTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.playRankIndex {
+  flex-shrink: 0;
+  font-size: 15px;
+}
+
+.playRankTitleLink {
+  font-size: 15px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playRankTitlePlain {
+  font-size: 15px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playRankMoreIcon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 2px;
+  color: rgba(0, 0, 0, 0.45);
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.playRankMoreIcon:hover {
+  color: #1677ff;
+  background: rgba(22, 119, 255, 0.08);
+}
+
+.playRankMeta {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.playRankPlayRow {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.playUrlInline {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.playRankPlayLink {
+  flex: 0 1 auto;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.playRankPlayLink:global(.ant-typography) {
+  margin-bottom: 0;
+}
+
+.playRankCopy {
+  flex: 0 0 auto;
+  margin-bottom: 0 !important;
+  line-height: 1;
+}
+
+.playRankCopy :global(.ant-typography-copy) {
+  margin-inline-start: 0;
+  vertical-align: middle;
+}
