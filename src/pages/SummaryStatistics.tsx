@@ -16,6 +16,7 @@ import type { ColumnsType } from "antd/es/table";
 import { apiPostJson } from "@/api/client";
 import type { ApiResult } from "@/api/types";
 import type { AdminStatSummaryRow, AdminStatTotalPayload } from "@/types/adminStatSummary";
+import { mainContentTableSticky } from "@/lib/tableSticky";
 import stylesToolbar from "./UserList.module.css";
 import styles from "./SummaryStatistics.module.css";
 
@@ -597,6 +598,7 @@ export function SummaryStatistics() {
           columns={columns}
           dataSource={rows}
           pagination={false}
+          sticky={mainContentTableSticky}
           scroll={{ x: 1180 }}
           size="middle"
           indentSize={20}

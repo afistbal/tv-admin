@@ -1,0 +1,134 @@
+.wrap {
+  border: 1px solid rgba(55, 53, 47, 0.09);
+  border-radius: 4px;
+  background: #fff;
+  overflow: hidden;
+  padding: 4px 8px 12px;
+}
+
+.wrap :global(.fc) {
+  --fc-border-color: rgba(55, 53, 47, 0.09);
+  --fc-today-bg-color: transparent;
+  --fc-page-bg-color: #fff;
+  --fc-neutral-bg-color: rgba(55, 53, 47, 0.02);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.wrap :global(.fc .fc-toolbar-title) {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(55, 53, 47, 0.9);
+}
+
+.wrap :global(.fc .fc-button) {
+  background: transparent;
+  border: none;
+  color: rgba(55, 53, 47, 0.65);
+  box-shadow: none;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.wrap :global(.fc .fc-button:hover),
+.wrap :global(.fc .fc-button:focus) {
+  background: rgba(55, 53, 47, 0.06);
+  color: rgba(55, 53, 47, 0.9);
+  box-shadow: none;
+}
+
+.wrap :global(.fc .fc-button-primary:not(:disabled).fc-button-active),
+.wrap :global(.fc .fc-button-primary:not(:disabled):active) {
+  background: rgba(55, 53, 47, 0.08);
+  border: none;
+}
+
+.wrap :global(.fc .fc-col-header-cell-cushion) {
+  padding: 6px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(55, 53, 47, 0.65);
+}
+
+.wrap :global(.fc .fc-daygrid-day-number) {
+  float: right;
+  padding: 4px 6px 2px;
+  font-size: 12px;
+  color: rgba(55, 53, 47, 0.65);
+  text-decoration: none;
+}
+
+.wrap :global(.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 2px 4px 0 0;
+  padding: 0;
+  border-radius: 50%;
+  background: #eb5757;
+  color: #fff;
+  font-weight: 600;
+}
+
+.wrap :global(.fc .fc-daygrid-day-frame) {
+  min-height: 96px;
+}
+
+.wrap :global(.fc .fc-daygrid-day-events) {
+  margin: 0 4px 4px;
+}
+
+.wrap :global(.fc .fc-daygrid-event) {
+  margin: 0 0 4px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.wrap :global(.fc .fc-daygrid-event .fc-event-main) {
+  padding: 0;
+}
+
+.wrap :global(.fc .fc-day-other .fc-daygrid-day-number) {
+  color: rgba(55, 53, 47, 0.35);
+}
+
+.eventCard {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 4px 6px;
+  border: 1px solid rgba(55, 53, 47, 0.09);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  color: rgba(55, 53, 47, 0.9);
+}
+
+.eventCard:hover {
+  background: rgba(55, 53, 47, 0.04);
+}
+
+.eventIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: rgba(55, 53, 47, 0.75);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.eventTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

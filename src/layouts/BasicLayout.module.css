@@ -55,6 +55,11 @@
   max-width: 100%;
 }
 
+/* 主内容区纵向滚动时，antd 表头 sticky 置于卡片内容之上 */
+.content :global(.ant-table-sticky-holder) {
+  z-index: 4;
+}
+
 /* 折叠侧栏：图标条 + Dropdown，与 antd 深色菜单选中态接近 */
 .collapsedNav {
   display: flex;

@@ -9,6 +9,7 @@ import type { AdminMovieListPayload, AdminMovieRow, AdminTagAreaRow } from "@/ty
 import { useAppStaticBase } from "@/config/AppConfigContext";
 import { moviePosterUrl } from "@/lib/staticAssetOrigin";
 import { publicWebOrigin } from "@/lib/publicWebOrigin";
+import { mainContentTableSticky } from "@/lib/tableSticky";
 import stylesToolbar from "./UserList.module.css";
 import styles from "./MovieList.module.css";
 import { MovieEditModal } from "./MovieEditModal";
@@ -618,6 +619,7 @@ export function MovieList() {
         columns={columns}
         dataSource={rows}
         pagination={false}
+        sticky={mainContentTableSticky}
         size="middle"
         tableLayout="fixed"
         locale={{ emptyText: loading ? "加载中…" : "暂无影片" }}

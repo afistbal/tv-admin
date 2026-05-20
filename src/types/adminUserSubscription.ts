@@ -1,12 +1,32 @@
 /** POST `admin/user/subscription`：订阅用户列表 */
 
+export type AdminUserSubscriptionStat = {
+  pay_count2?: number;
+  wait_count2?: number;
+  pay_count3?: number;
+  wait_count3?: number;
+  pay_count4?: number;
+  wait_count4?: number;
+  pay_count5?: number;
+  wait_count5?: number;
+  pay_count6?: number;
+  wait_count6?: number;
+  pay_count7?: number;
+  wait_count7?: number;
+  pay_count8?: number;
+  wait_count8?: number;
+  pay_count1?: number;
+  wait_count1?: number;
+  [key: string]: unknown;
+};
+
 export type AdminUserSubscriptionRow = {
   id?: number;
   user_id?: string | number;
   /** 关联订单 id（字符串或数字） */
   order_id?: string | number;
   status?: number;
-  /** 仅 `status === 1` 时参与展示：`1` 续订，`0`/缺省 首次，其余值 待定 */
+  /** `status === 1`：`0`/缺省 首次订阅，`≥1` 续订成功，`-1` 待定 */
   is_renewal?: boolean | number | string | null;
   billing_amount?: string | number | null;
   /** 付款方式；无字段时列表显示 `-`，枚举见 `SubscriptionPaymentMethodKey` */
@@ -16,7 +36,12 @@ export type AdminUserSubscriptionRow = {
   paid_at?: string | null;
   pay_time?: string | null;
   payment_at?: string | null;
+  product_id?: number | string | null;
   product_name?: string | null;
+  /** 投放渠道 */
+  source?: string | null;
+  channel?: string | null;
+  country?: string | null;
   platform_sn?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -28,4 +53,14 @@ export type AdminUserSubscriptionListPayload = {
   current_page: number;
   per_page: number;
   count: number;
+  stat?: AdminUserSubscriptionStat | null;
+};
+
+export type SubscriptionRenewalStatRow = {
+  cycle: number;
+  label: string;
+  pay: number | null;
+  wait: number | null;
+  total: number;
+  ratePct: number | null;
 };

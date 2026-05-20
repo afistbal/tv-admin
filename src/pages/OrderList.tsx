@@ -23,6 +23,7 @@ import type { ApiGetQueryValue } from "@/api/client";
 import type { ApiResult } from "@/api/types";
 import type { AdminOrderInfo, AdminOrderListPayload, AdminOrderRow } from "@/types/adminOrder";
 import { formatDateTimeZh } from "@/lib/formatDateTime";
+import { mainContentTableSticky } from "@/lib/tableSticky";
 import orderStyles from "./OrderList.module.css";
 import styles from "./UserList.module.css";
 
@@ -208,15 +209,13 @@ export function OrderList() {
       {
         title: "订单ID",
         dataIndex: "id",
-        width: 100,
+        width: 76,
         fixed: "left",
       },
       {
         title: "用户id",
         dataIndex: "user_id",
-        /** 略宽于订单 ID 列；不与 `ellipsis`+`copyable` 同用，避免 WebKit（macOS Safari）把正文挤成极窄 */
-        width: 132,
-        minWidth: 132,
+        width: 96,
         fixed: "left",
         render: (v: unknown) => (
           <div className={orderStyles.userIdCell}>
@@ -230,9 +229,20 @@ export function OrderList() {
         ),
       },
       {
+        title: "来源",
+        dataIndex: "source",
+        width: 100,
+        ellipsis: true,
+        render: (v: unknown) => (
+          <Typography.Text ellipsis={v != null && String(v).trim() !== "" ? { tooltip: String(v) } : false}>
+            {v != null && String(v).trim() !== "" ? String(v) : "—"}
+          </Typography.Text>
+        ),
+      },
+      {
         title: "商品",
         key: "product_amount",
-        width: 140,
+        width: 108,
         render: (_: unknown, record) => {
           const amt = record.amount;
           const amtStr = amt != null && amt !== "" ? `$${String(amt)}` : "—";
@@ -256,8 +266,8 @@ export function OrderList() {
       {
         title: "平台订单号",
         dataIndex: "platform_sn",
-        width: 260,
-        minWidth: 260,
+        width: 180,
+        minWidth: 180,
         render: (v: unknown) => (
           <div className={orderStyles.platformSnCell}>
             <Typography.Text copyable={String(v ?? "").trim() ? { text: String(v) } : false}>
@@ -401,7 +411,8 @@ export function OrderList() {
         columns={columns}
         dataSource={rows}
         pagination={false}
-        scroll={{ x: 1220 }}
+        sticky={mainContentTableSticky}
+        scroll={{ x: 1050 }}
         size="middle"
       />
 

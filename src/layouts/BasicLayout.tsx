@@ -16,6 +16,7 @@ import {
 import { Dropdown, Layout, Menu, Popover, Space, Tag, Tooltip, theme, Typography } from "antd";
 import type { MenuProps } from "antd";
 import { useAuth } from "@/auth/AuthContext";
+import { MAIN_CONTENT_SCROLL_ID } from "@/lib/tableSticky";
 import styles from "./BasicLayout.module.css";
 
 const { Header, Sider, Content } = Layout;
@@ -376,7 +377,7 @@ export function BasicLayout() {
             </Dropdown>
           </Space>
         </Header>
-        <Content className={styles.content}>
+        <Content id={MAIN_CONTENT_SCROLL_ID} className={styles.content}>
           <div
             className={styles.contentInner}
             style={{

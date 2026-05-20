@@ -63,6 +63,11 @@
 
 .userIdText {
   font-variant-numeric: tabular-nums;
+  display: block;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /** 平台订单号：长串可换行，避免与 `copyable` 同用 `ellipsis` 在 WebKit 下被截成「int_…」 */

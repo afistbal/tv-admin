@@ -1,6 +1,7 @@
 export type AdminOrderRow = {
   id: number;
   user_id?: string | number;
+  source?: string | null;
   product_name?: string;
   /** 与 slot 一致：`2` 表示订阅续订订单；列表里可能是 number 或 string */
   type?: number | string;

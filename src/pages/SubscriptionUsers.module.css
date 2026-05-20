@@ -3,18 +3,24 @@
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
 }
 
-/* 表格横向滚动：表头与 body 同步在容器内滚动 */
 .tableScroll {
   width: 100%;
   max-width: 100%;
   min-width: 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  /* 表头略灰于表体 + 网格边框 */
+  --mac-header-bg: #fafafa;
+  --mac-border: #e8e8e8;
+  --mac-text: rgb(55, 53, 47);
+  --mac-text-muted: rgba(55, 53, 47, 0.65);
+  --mac-hover: #f5f5f5;
 }
 
-/* 与 OrderList 筛选条组合：窄屏纵向铺满、控件不溢出视口 */
 @media (max-width: 768px) {
   .filterBarSubscription {
     flex-direction: column;
@@ -37,17 +43,31 @@
   }
 }
 
-.keywordField {
-  width: 220px;
+.userIdField {
+  width: 140px;
+  max-width: 100%;
+}
+
+.timeTypeField {
+  width: 120px;
+  max-width: 100%;
+}
+
+.productField {
+  width: 140px;
   max-width: 100%;
 }
 
 .statusField {
-  width: 320px;
+  width: 280px;
   max-width: 100%;
 }
 
-/* 筛选条右侧：取消订阅 + 条数（整块 margin-left: auto 靠右） */
+.channelField {
+  width: min(160px, 100%);
+  max-width: 100%;
+}
+
 .filterBarTail {
   margin-left: auto;
   display: inline-flex;
@@ -69,51 +89,227 @@
   }
 }
 
-.statCards {
-  margin-bottom: 16px;
-}
-
-.statCards :global(.ant-card-body) {
-  padding-bottom: 12px;
-}
-
-/* 支付方式：仅品牌图（public/payment/*.svg） */
-.payMethodCell {
+.pageHead {
   display: flex;
   align-items: center;
-  min-width: 0;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
-.payMethodChips {
+.pageTitle {
+  margin: 0 !important;
+  font-weight: 600 !important;
+  font-size: 20px !important;
+  color: rgb(55, 53, 47) !important;
+}
+
+.pageHeadRight {
   display: inline-flex;
   align-items: center;
+  gap: 12px;
+}
+
+.totalHint {
+  color: rgba(55, 53, 47, 0.45);
+  font-size: 12px;
+}
+
+.viewBar {
+  margin-bottom: 12px;
+}
+
+.statSection {
+  margin-bottom: 16px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.statSectionTitle {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(55, 53, 47, 0.65);
+}
+
+.filterBar {
+  flex-wrap: wrap;
+}
+
+.chipRow {
+  display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 8px;
+  padding-bottom: 4px;
 }
 
-.payIcon {
-  display: block;
-  height: 22px;
-  width: auto;
-  max-width: 100%;
-  object-fit: contain;
-  vertical-align: middle;
+.filterChip {
+  margin: 0;
+  border-radius: 4px;
+  background: rgba(55, 53, 47, 0.08);
+  border: none;
+  color: rgba(55, 53, 47, 0.85);
+  font-size: 12px;
 }
 
-.statTitleInline {
+.filterHelp {
+  color: rgba(55, 53, 47, 0.35);
+  font-size: 13px;
+}
+
+.colTitle {
   display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 8px;
+  gap: 5px;
+  font-weight: 500;
+  font-size: 12px;
+  color: rgba(55, 53, 47, 0.65);
 }
 
-.statTitleRatio {
-  font-size: 14px;
+.colIcon {
+  font-size: 12px;
+  color: rgba(55, 53, 47, 0.4);
+}
+
+.sigmaIcon {
+  display: inline-flex;
+  width: 13px;
+  justify-content: center;
+  font-size: 12px;
   font-weight: 600;
+  color: rgba(55, 53, 47, 0.4);
 }
 
-.statTitleHintIcon {
-  color: rgba(0, 0, 0, 0.45);
-  font-size: 14px;
-  cursor: help;
+.notionCell {
+  vertical-align: middle !important;
+}
+
+.statusCell {
+  word-break: break-word;
+}
+
+.channelCell {
+  word-break: break-word;
+}
+
+.plainText {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgb(55, 53, 47);
+}
+
+.plainText :global(.ant-typography-copy) {
+  color: rgba(55, 53, 47, 0.35);
+}
+
+/* —— 表头/表体同色 + 单元格网格线 —— */
+.notionTable:global(.ant-table-wrapper) {
+  font-size: 13px;
+  color: var(--mac-text);
+}
+
+.notionTable :global(.ant-table),
+.notionTable :global(.ant-table-container),
+.notionTable :global(.ant-table-content),
+.notionTable :global(.ant-table-body) {
+  background: #fff !important;
+  border-radius: 0 !important;
+}
+
+.notionTable :global(.ant-table-container) {
+  border: 1px solid var(--mac-border) !important;
+  border-radius: 0 !important;
+}
+
+.notionTable :global(.ant-table-content table),
+.notionTable :global(.ant-table-header table),
+.notionTable :global(.ant-table-body table) {
+  border-collapse: collapse;
+  table-layout: fixed !important;
+}
+
+.notionTable :global(.ant-table-header),
+.notionTable :global(.ant-table-body) {
+  overflow: hidden;
+}
+
+/* 列宽拖拽分隔线隐藏，保留单元格边框 */
+.notionTable :global(.ant-table-thead > tr > th::before),
+.notionTable :global(.ant-table-thead > tr > td::before) {
+  display: none !important;
+}
+
+/* 每个单元格：右 + 下边框（antd bordered 网格） */
+.notionTable :global(.ant-table-cell) {
+  box-sizing: border-box !important;
+  border-color: var(--mac-border) !important;
+  border-inline-end: 1px solid var(--mac-border) !important;
+  border-bottom: 1px solid var(--mac-border) !important;
+  box-shadow: none !important;
+}
+
+/* 表头：略灰；与表体相同 padding / box-sizing，避免列错位 */
+.notionTable :global(.ant-table-thead > tr > th),
+.notionTable :global(.ant-table-thead > tr > td) {
+  background: var(--mac-header-bg) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  color: var(--mac-text-muted) !important;
+  padding: 8px 10px !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+}
+
+.notionTable :global(.ant-table-sticky-holder) {
+  background: var(--mac-header-bg) !important;
+}
+
+.notionTable :global(.ant-table-sticky-holder .ant-table-thead > tr > th),
+.notionTable :global(.ant-table-sticky-holder .ant-table-thead > tr > td) {
+  background: var(--mac-header-bg) !important;
+}
+
+/* 表体：白底 */
+.notionTable :global(.ant-table-tbody > tr > td) {
+  background: #fff !important;
+  padding: 8px 10px !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  color: var(--mac-text) !important;
+  box-sizing: border-box !important;
+  transition: background 0.1s ease;
+}
+
+.notionTable :global(.ant-table-tbody > tr:hover > td) {
+  background: var(--mac-hover) !important;
+}
+
+.notionTable :global(.ant-table-thead .ant-table-cell-fix-left),
+.notionTable :global(.ant-table-thead .ant-table-cell-fix-right) {
+  background: var(--mac-header-bg) !important;
+}
+
+.notionTable :global(.ant-table-tbody .ant-table-cell-fix-left),
+.notionTable :global(.ant-table-tbody .ant-table-cell-fix-right) {
+  background: #fff !important;
+}
+
+.notionTable :global(.ant-table-tbody > tr:hover .ant-table-cell-fix-left),
+.notionTable :global(.ant-table-tbody > tr:hover .ant-table-cell-fix-right) {
+  background: var(--mac-hover) !important;
+}
+
+.notionTable :global(.ant-table-cell-fix-left-last::after),
+.notionTable :global(.ant-table-cell-fix-right-first::after) {
+  box-shadow: none !important;
+}
+
+.calendarLoading {
+  padding: 48px 16px;
+  text-align: center;
+  color: rgba(55, 53, 47, 0.45);
+  font-size: 13px;
 }
