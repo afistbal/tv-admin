@@ -4,10 +4,12 @@ import { rangeToDaterangeStrings, SUBSCRIPTION_PRODUCT_FILTER_OPTIONS } from "@/
 
 export const SUBSCRIPTION_LIST_PAGE_SIZE = 24;
 
+export const SUBSCRIPTION_DEFAULT_ORDER_BY = "created_at|DESC";
+
 export type SubscriptionTimeType = "created_at" | "updated_at";
 
 export const SUBSCRIPTION_TIME_TYPE_OPTIONS: { value: SubscriptionTimeType; label: string }[] = [
-  { value: "created_at", label: "续费时间" },
+  { value: "created_at", label: "开始订阅时间" },
   { value: "updated_at", label: "更新时间" },
 ];
 

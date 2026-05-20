@@ -39,6 +39,15 @@ export function pickBillingAt(row: AdminUserSubscriptionRow): Dayjs | null {
   return d.isValid() ? d : null;
 }
 
+export function pickCreatedAt(row: AdminUserSubscriptionRow): Dayjs | null {
+  const raw = row.created_at;
+  if (raw == null || String(raw).trim() === "") {
+    return null;
+  }
+  const d = dayjs(String(raw).trim());
+  return d.isValid() ? d : null;
+}
+
 export function billingRemainingDays(row: AdminUserSubscriptionRow): number | null {
   const end = pickBillingAt(row);
   if (!end) {
@@ -151,19 +160,28 @@ export function subscriptionKindTone(row: AdminUserSubscriptionRow): NotionTagTo
   return { label: "待定", dot: tone.dot, bg: tone.bg };
 }
 
+/**
+ * 与 Notion 一致：周 = floor(天数/7)，月 = 月差，年 = 年差，其它（含日）= 0
+ * `dateBetween(当前周期结束时间, 开始订阅时间)`
+ */
 export function cycleCount(row: AdminUserSubscriptionRow): string {
-  const status = Number(row.status);
-  if (status !== 1) {
+  const end = pickBillingAt(row);
+  const start = pickCreatedAt(row);
+  if (!end || !start) {
     return EMPTY;
   }
-  const raw = pickIsRenewal(row);
-  if (raw == null || raw < 0) {
-    return EMPTY;
+  const productId = Number(row.product_id);
+  const daySpan = end.diff(start, "day");
+  if (productId === 1) {
+    return String(Math.floor(daySpan / 7));
   }
-  if (raw === 0) {
-    return "1";
+  if (productId === 2) {
+    return String(end.diff(start, "month"));
   }
-  return String(raw + 1);
+  if (productId === 3) {
+    return String(end.diff(start, "year"));
+  }
+  return "0";
 }
 
 export function channelTone(row: AdminUserSubscriptionRow): NotionTagTone | null {

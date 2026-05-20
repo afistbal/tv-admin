@@ -44,6 +44,7 @@ import { buildSubscriptionRenewalStatRows } from "@/lib/subscriptionRenewalStat"
 import {
   SUBSCRIPTION_PRODUCT_OPTIONS,
   SUBSCRIPTION_TIME_TYPE_OPTIONS,
+  SUBSCRIPTION_DEFAULT_ORDER_BY,
   SUBSCRIPTION_LIST_PAGE_SIZE,
   buildSubscriptionListBody,
   channelFilterLabel,
@@ -95,7 +96,7 @@ export function SubscriptionUsers() {
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
-  const [orderBy, setOrderBy] = useState("");
+  const [orderBy, setOrderBy] = useState(SUBSCRIPTION_DEFAULT_ORDER_BY);
   const [calendarMonth, setCalendarMonth] = useState(() => dayjs().startOf("month"));
   const [orderStatus, setOrderStatus] = useState<string>("");
   const [apiRows, setApiRows] = useState<AdminUserSubscriptionRow[]>([]);
@@ -276,7 +277,7 @@ export function SubscriptionUsers() {
         title: (
           <span className={styles.colTitle}>
             <CalendarOutlined className={styles.colIcon} />
-            续费时间
+            开始订阅时间
           </span>
         ),
         key: "created_at",
@@ -297,7 +298,10 @@ export function SubscriptionUsers() {
           </span>
         ),
         key: "billing_at",
+        dataIndex: "billing_at",
         width: 196,
+        sorter: true,
+        sortOrder: orderByToSortOrder(orderBy, "billing_at"),
         className: styles.notionCell,
         render: (_: unknown, record) => (
           <span className={styles.plainText}>{formatCnDateTime(record.billing_at)}</span>
@@ -615,7 +619,13 @@ export function SubscriptionUsers() {
             sticky={mainContentTableSticky}
             locale={{ emptyText: loading ? "加载中…" : "暂无数据" }}
             onChange={(_pagination, _filters, sorter) => {
-              setOrderBy(tableSorterToOrderBy(sorter, "created_at"));
+              const s = Array.isArray(sorter) ? sorter[0] : sorter;
+              const field = String(s?.columnKey ?? s?.field ?? "");
+              if (field === "created_at" || field === "billing_at") {
+                setOrderBy(tableSorterToOrderBy(sorter, field));
+              } else {
+                setOrderBy("");
+              }
               setPage(1);
             }}
           />
