@@ -78,7 +78,7 @@ type ViewMode = "calendar" | "table";
 
 /** 各列 width 之和，与 columns 保持一致，避免表头/表体横向错位 */
 const SUBSCRIPTION_TABLE_SCROLL_X =
-  108 + 176 + 196 + 108 + 148 + 112 + 108 + 128 + 88 + 128;
+  108 + 176 + 220 + 108 + 148 + 112 + 108 + 88 + 128;
 
 function cellStr(v: unknown): string {
   if (v == null) {
@@ -298,13 +298,22 @@ export function SubscriptionUsers() {
         ),
         key: "billing_at",
         dataIndex: "billing_at",
-        width: 196,
+        width: 220,
         sorter: true,
         sortOrder: orderByToSortOrder(orderBy, "billing_at"),
         className: styles.notionCell,
-        render: (_: unknown, record) => (
-          <span className={styles.plainText}>{formatCnDateTime(record.billing_at)}</span>
-        ),
+        render: (_: unknown, record) => {
+          const time = formatCnDateTime(record.billing_at);
+          const remaining = billingRemainingDays(record);
+          return (
+            <span className={styles.plainText}>
+              {time}
+              {remaining != null ? (
+                <span className={styles.billingRemaining}> · 剩余{remaining}天</span>
+              ) : null}
+            </span>
+          );
+        },
       },
       {
         title: (
@@ -344,13 +353,13 @@ export function SubscriptionUsers() {
         className: styles.notionCell,
         render: (_: unknown, record) => (
           <div className={styles.subscriptionCountCell}>
-            <div className={styles.subscriptionCountLine}>
+            <div className={styles.subscriptionCountLineSuccess}>
               <span className={styles.subscriptionCountLabel}>成功次数：</span>
-              {subscriptionPaySuccessCount(record)}
+              <span className={styles.subscriptionCountValue}>{subscriptionPaySuccessCount(record)}</span>
             </div>
-            <div className={styles.subscriptionCountLine}>
+            <div className={styles.subscriptionCountLineCycle}>
               <span className={styles.subscriptionCountLabel}>周期次数：</span>
-              {cycleCount(record)}
+              <span className={styles.subscriptionCountValue}>{cycleCount(record)}</span>
             </div>
           </div>
         ),
@@ -368,22 +377,6 @@ export function SubscriptionUsers() {
         render: (_: unknown, record) => {
           const tone = channelTone(record);
           return tone ? <NotionTag wrap tone={tone} /> : <span className={styles.plainText}>{EMPTY}</span>;
-        },
-      },
-      {
-        title: (
-          <span className={styles.colTitle}>
-            <span className={styles.sigmaIcon}>Σ</span>
-            扣费剩余天数
-          </span>
-        ),
-        key: "remaining",
-        width: 128,
-        align: "right",
-        className: styles.notionCell,
-        render: (_: unknown, record) => {
-          const n = billingRemainingDays(record);
-          return <span className={styles.plainText}>{n == null ? EMPTY : String(n)}</span>;
         },
       },
       {
@@ -561,9 +554,12 @@ export function SubscriptionUsers() {
         <div className={styles.statSectionHead}>
           <Typography.Text className={styles.statSectionTitle}>续订统计</Typography.Text>
           <span className={styles.statPageSummary}>
-            本页成功：<strong>{pageStatusCounts.success}</strong>
-            <span className={styles.statPageSep}>失败：</span>
-            <strong>{pageStatusCounts.fail}</strong>
+            <span className={styles.statPageSuccess}>
+              本页成功：<strong>{pageStatusCounts.success}</strong>
+            </span>
+            <span className={styles.statPageFail}>
+              失败：<strong>{pageStatusCounts.fail}</strong>
+            </span>
           </span>
         </div>
         <SubscriptionRenewalStatCards rows={renewalStatRows} loading={loading} />

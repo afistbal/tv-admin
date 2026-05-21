@@ -19,7 +19,7 @@ export const SUBSCRIPTION_PRODUCT_OPTIONS: { value: string; label: string }[] = 
   ...SUBSCRIPTION_PRODUCT_FILTER_OPTIONS,
 ];
 
-/** 订阅成功次数筛选：展示一次～九次，接口传 `pay_count` 0–8 */
+/** 订阅成功次数筛选：展示一次～九次，接口传 `payCount` 0–8 */
 const SUBSCRIPTION_PAY_COUNT_LABELS = ["一次", "二次", "三次", "四次", "五次", "六次", "七次", "八次", "九次"];
 
 export const SUBSCRIPTION_PAY_COUNT_OPTIONS: { value: string; label: string }[] =
@@ -43,7 +43,7 @@ export type SubscriptionListQuery = {
   timeType: SubscriptionTimeType;
   productId: string;
   channel: string;
-  /** 订阅成功次数 `pay_count`，0–8 */
+  /** 订阅成功次数 `payCount`，0–8 */
   payCount: string;
   /** 如 created_at|DESC、created_at|ASC */
   orderBy: string;
@@ -75,7 +75,7 @@ export function buildSubscriptionListBody(q: SubscriptionListQuery): Record<stri
   if (q.payCount !== "") {
     const n = Number(q.payCount);
     if (Number.isFinite(n) && n >= 0 && n <= 8) {
-      body.pay_count = n;
+      body.payCount = n;
     }
   }
   if (q.orderBy) {
