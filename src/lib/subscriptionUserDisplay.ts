@@ -72,18 +72,27 @@ export function productTypeTone(row: AdminUserSubscriptionRow): NotionTagTone {
 
 /** 与搜索「状态」下拉、列表展示、接口 `status` 字段共用 */
 const SUBSCRIPTION_ORDER_STATUS_OPTIONS: (NotionTagTone & { value: string })[] = [
-  { value: "0", label: "0 待定", dot: "#8c8c8c", bg: "rgba(0,0,0,0.08)" },
-  { value: "1", label: "1 成功", dot: "#2fa84f", bg: "rgba(47, 168, 79, 0.12)" },
-  { value: "2", label: "2 取消订阅", dot: "#9b59b6", bg: "rgba(155, 89, 182, 0.12)" },
-  { value: "3", label: "3 订阅异常（二次扣款第一次失败）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
-  { value: "4", label: "4 订阅异常（二次扣款第二次失败）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
-  { value: "5", label: "5 订阅异常（二次扣款第三次失败）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
-  { value: "10", label: "10 订阅失败（不再执行订阅了）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
+  { value: "0", label: "待定", dot: "#8c8c8c", bg: "rgba(0,0,0,0.08)" },
+  { value: "1", label: "成功", dot: "#2fa84f", bg: "rgba(47, 168, 79, 0.12)" },
+  { value: "2", label: "取消订阅", dot: "#9b59b6", bg: "rgba(155, 89, 182, 0.12)" },
+  { value: "3", label: "订阅异常（二次扣款第一次失败）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
+  { value: "4", label: "订阅异常（二次扣款第二次失败）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
+  { value: "5", label: "订阅异常（二次扣款第三次失败）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
+  { value: "10", label: "订阅失败（不再执行订阅了）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
 ];
 
 export const SUBSCRIPTION_ORDER_STATUS_FILTER_OPTIONS = SUBSCRIPTION_ORDER_STATUS_OPTIONS.map(
   ({ value, label }) => ({ value, label }),
 );
+
+export function pickPayCount(row: AdminUserSubscriptionRow): number | null {
+  const raw = row.pay_count;
+  if (raw == null || String(raw).trim() === "") {
+    return null;
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
 
 export function pickIsRenewal(row: AdminUserSubscriptionRow): number | null {
   const raw = row.is_renewal ?? row["isRenewal"];
@@ -100,16 +109,27 @@ export function pickIsRenewal(row: AdminUserSubscriptionRow): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** `status === 1` 时按 `is_renewal` 细分：0 首次订阅、≥1 续订成功、-1 待定 */
+/** `status === 1`：pay_count 0 → 首次订阅；1 → 2次订阅；2 → 3次订阅… */
+export function subscriptionSuccessStatusLabel(row: AdminUserSubscriptionRow): string {
+  const n = pickPayCount(row);
+  if (n == null || n < 0) {
+    return "待定";
+  }
+  if (n === 0) {
+    return "首次订阅";
+  }
+  return `${n + 1}次订阅`;
+}
+
 function subscriptionSuccessStatusTone(row: AdminUserSubscriptionRow): NotionTagTone {
-  const renewal = pickIsRenewal(row);
-  if (renewal === -1) {
-    return { label: "1 待定", dot: "#8c8c8c", bg: "rgba(0,0,0,0.08)" };
+  const n = pickPayCount(row);
+  if (n == null || n < 0) {
+    return { label: "待定", dot: "#8c8c8c", bg: "rgba(0,0,0,0.08)" };
   }
-  if (renewal != null && renewal >= 1) {
-    return { label: "1 续订成功", dot: "#2f6feb", bg: "rgba(47, 111, 235, 0.12)" };
+  if (n === 0) {
+    return { label: "首次订阅", dot: "#2fa84f", bg: "rgba(47, 168, 79, 0.12)" };
   }
-  return { label: "1 首次订阅", dot: "#2fa84f", bg: "rgba(47, 168, 79, 0.12)" };
+  return { label: `${n + 1}次订阅`, dot: "#2f6feb", bg: "rgba(47, 111, 235, 0.12)" };
 }
 
 export function subscriptionOrderStatusTone(row: AdminUserSubscriptionRow): NotionTagTone {
@@ -127,6 +147,23 @@ export function subscriptionOrderStatusTone(row: AdminUserSubscriptionRow): Noti
   return { label: String(status), dot: "#8c8c8c", bg: "rgba(0,0,0,0.06)" };
 }
 
+/** 当前页列表：status === 1 为成功，其余为失败 */
+export function countSubscriptionPageStatus(rows: AdminUserSubscriptionRow[]): {
+  success: number;
+  fail: number;
+} {
+  let success = 0;
+  let fail = 0;
+  for (const row of rows) {
+    if (Number(row.status) === 1) {
+      success += 1;
+    } else {
+      fail += 1;
+    }
+  }
+  return { success, fail };
+}
+
 export function subscriptionOrderStatusFilterLabel(value: string): string {
   if (value === "") {
     return "全部";
@@ -141,27 +178,34 @@ export function subscriptionKindTone(row: AdminUserSubscriptionRow): NotionTagTo
   if (status !== 1) {
     return { label: "失败", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" };
   }
-  const tone = subscriptionSuccessStatusTone(row);
-  if (tone.label === "1 续订成功") {
-    return { label: "续订成功", dot: tone.dot, bg: tone.bg };
-  }
-  if (tone.label === "1 首次订阅") {
-    return { label: "首次订阅", dot: tone.dot, bg: tone.bg };
-  }
-  return { label: "待定", dot: tone.dot, bg: tone.bg };
+  return subscriptionSuccessStatusTone(row);
 }
 
-/** 周期次数 = pay_count + 1（如 pay_count 为 0 则展示 1） */
+/** 成功次数：pay_count + 1（如 pay_count 为 0 展示 1） */
+export function subscriptionPaySuccessCount(row: AdminUserSubscriptionRow): string {
+  const n = pickPayCount(row);
+  return n == null ? EMPTY : String(n + 1);
+}
+
+/** 成功、取消订阅：周期次数与成功次数一致 */
+function subscriptionCycleMatchesSuccessCount(row: AdminUserSubscriptionRow): boolean {
+  const status = Number(row.status);
+  return status === 1 || status === 2;
+}
+
+/**
+ * 周期次数：成功 / 取消订阅与成功次数相同（pay_count + 1）；其它状态再 +1
+ */
 export function cycleCount(row: AdminUserSubscriptionRow): string {
-  const raw = row.pay_count;
-  if (raw == null || String(raw).trim() === "") {
+  const n = pickPayCount(row);
+  if (n == null) {
     return EMPTY;
   }
-  const n = Number(raw);
-  if (!Number.isFinite(n)) {
-    return EMPTY;
+  const successTimes = n + 1;
+  if (subscriptionCycleMatchesSuccessCount(row)) {
+    return String(successTimes);
   }
-  return String(n + 1);
+  return String(successTimes + 1);
 }
 
 export function channelTone(row: AdminUserSubscriptionRow): NotionTagTone | null {

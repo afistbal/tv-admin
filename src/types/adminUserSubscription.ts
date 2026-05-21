@@ -28,7 +28,7 @@ export type AdminUserSubscriptionRow = {
   status?: number;
   /** `status === 1`：`0`/缺省 首次订阅，`≥1` 续订成功，`-1` 待定 */
   is_renewal?: boolean | number | string | null;
-  /** 已支付次数；列表「周期次数」展示为 pay_count + 1 */
+  /** 已支付次数；筛选传 0–8；列表成功次数展示 pay_count + 1 */
   pay_count?: number | string | null;
   billing_amount?: string | number | null;
   /** 付款方式；无字段时列表显示 `-`，枚举见 `SubscriptionPaymentMethodKey` */

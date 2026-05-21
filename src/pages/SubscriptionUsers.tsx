@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BellOutlined,
   CalendarOutlined,
@@ -19,7 +19,6 @@ import {
   Pagination,
   Spin,
   Table,
-  Tag,
   Tooltip,
   Typography,
   message,
@@ -42,17 +41,15 @@ import type {
 } from "@/types/adminUserSubscription";
 import { buildSubscriptionRenewalStatRows } from "@/lib/subscriptionRenewalStat";
 import {
-  SUBSCRIPTION_PRODUCT_OPTIONS,
-  SUBSCRIPTION_TIME_TYPE_OPTIONS,
   SUBSCRIPTION_DEFAULT_ORDER_BY,
   SUBSCRIPTION_LIST_PAGE_SIZE,
+  SUBSCRIPTION_PAY_COUNT_OPTIONS,
+  SUBSCRIPTION_PRODUCT_OPTIONS,
+  SUBSCRIPTION_TIME_TYPE_OPTIONS,
   buildSubscriptionListBody,
-  channelFilterLabel,
   orderByToSortOrder,
-  productFilterLabel,
   subscriptionDateRangePresets,
   tableSorterToOrderBy,
-  timeTypeFilterLabel,
   type SubscriptionListQuery,
   type SubscriptionTimeType,
 } from "@/lib/subscriptionListFilters";
@@ -62,13 +59,14 @@ import {
   EMPTY,
   billingRemainingDays,
   channelTone,
+  countSubscriptionPageStatus,
   cycleCount,
   formatCnDateTime,
+  subscriptionPaySuccessCount,
   paymentMethodTone,
   productTypeTone,
   rowStableKey,
   SUBSCRIPTION_ORDER_STATUS_FILTER_OPTIONS,
-  subscriptionOrderStatusFilterLabel,
   subscriptionOrderStatusTone,
 } from "@/lib/subscriptionUserDisplay";
 import { mainContentTableSticky } from "@/lib/tableSticky";
@@ -80,7 +78,7 @@ type ViewMode = "calendar" | "table";
 
 /** 各列 width 之和，与 columns 保持一致，避免表头/表体横向错位 */
 const SUBSCRIPTION_TABLE_SCROLL_X =
-  108 + 176 + 196 + 108 + 148 + 96 + 108 + 128 + 88 + 128;
+  108 + 176 + 196 + 108 + 148 + 112 + 108 + 128 + 88 + 128;
 
 function cellStr(v: unknown): string {
   if (v == null) {
@@ -110,6 +108,7 @@ export function SubscriptionUsers() {
   const [productId, setProductId] = useState<string>("");
   const [channelInput, setChannelInput] = useState("");
   const [channel, setChannel] = useState("");
+  const [payCount, setPayCount] = useState<string>("");
   const searchTimer = useRef<number | null>(null);
   const channelSearchTimer = useRef<number | null>(null);
 
@@ -121,10 +120,11 @@ export function SubscriptionUsers() {
       timeType,
       productId,
       channel,
+      payCount,
       orderBy,
       page,
     }),
-    [userId, dateRange, orderStatus, timeType, productId, channel, orderBy, page],
+    [userId, dateRange, orderStatus, timeType, productId, channel, payCount, orderBy, page],
   );
 
   const fetchList = useCallback(async (q: SubscriptionListQuery) => {
@@ -201,10 +201,11 @@ export function SubscriptionUsers() {
       timeType,
       productId,
       channel: ch,
+      payCount,
       orderBy,
       page: 1,
     });
-  }, [userIdInput, channelInput, dateRange, orderStatus, timeType, productId, orderBy, fetchList]);
+  }, [userIdInput, channelInput, dateRange, orderStatus, timeType, productId, payCount, orderBy, fetchList]);
 
   const requestCancelSubscription = useCallback(() => {
     Modal.confirm({
@@ -247,9 +248,7 @@ export function SubscriptionUsers() {
     [listCount, subscriptionStat],
   );
 
-  const dateChipLabel = dateRange
-    ? `${dateRange[0].format("YYYY/M/D")} – ${dateRange[1].format("YYYY/M/D")}`
-    : "";
+  const pageStatusCounts = useMemo(() => countSubscriptionPageStatus(apiRows), [apiRows]);
 
   const columns: ColumnsType<AdminUserSubscriptionRow> = useMemo(
     () => [
@@ -337,14 +336,24 @@ export function SubscriptionUsers() {
         title: (
           <span className={styles.colTitle}>
             <ClockCircleOutlined className={styles.colIcon} />
-            周期次数
+            订阅次数
           </span>
         ),
-        key: "cycle",
-        width: 96,
-        align: "center",
+        key: "subscription_count",
+        width: 112,
         className: styles.notionCell,
-        render: (_: unknown, record) => <span className={styles.plainText}>{cycleCount(record)}</span>,
+        render: (_: unknown, record) => (
+          <div className={styles.subscriptionCountCell}>
+            <div className={styles.subscriptionCountLine}>
+              <span className={styles.subscriptionCountLabel}>成功次数：</span>
+              {subscriptionPaySuccessCount(record)}
+            </div>
+            <div className={styles.subscriptionCountLine}>
+              <span className={styles.subscriptionCountLabel}>周期次数：</span>
+              {cycleCount(record)}
+            </div>
+          </div>
+        ),
       },
       {
         title: (
@@ -408,63 +417,6 @@ export function SubscriptionUsers() {
     [orderBy],
   );
 
-  const filterBarExtra: ReactNode = (
-    <div className={styles.chipRow}>
-      {dateRange ? (
-        <Tag
-          className={styles.filterChip}
-          closable
-          onClose={() => {
-            setDateRange(null);
-            setPage(1);
-          }}
-        >
-          日期: {dateChipLabel}
-        </Tag>
-      ) : null}
-      <Tag className={styles.filterChip} closable={false}>
-        时间字段: {timeTypeFilterLabel(timeType)}
-      </Tag>
-      {productId !== "" ? (
-        <Tag
-          className={styles.filterChip}
-          closable
-          onClose={() => {
-            setProductId("");
-            setPage(1);
-          }}
-        >
-          产品: {productFilterLabel(productId)}
-        </Tag>
-      ) : null}
-      {orderStatus !== "" ? (
-        <Tag
-          className={styles.filterChip}
-          closable
-          onClose={() => {
-            setOrderStatus("");
-            setPage(1);
-          }}
-        >
-          状态: {subscriptionOrderStatusFilterLabel(orderStatus)}
-        </Tag>
-      ) : null}
-      {channel !== "" ? (
-        <Tag
-          className={styles.filterChip}
-          closable
-          onClose={() => {
-            setChannel("");
-            setChannelInput("");
-            setPage(1);
-          }}
-        >
-          投放渠道: {channelFilterLabel(channel)}
-        </Tag>
-      ) : null}
-    </div>
-  );
-
   return (
     <div className={styles.page}>
       <div className={styles.pageHead}>
@@ -493,7 +445,7 @@ export function SubscriptionUsers() {
       </div>
 
       <div className={orderStyles.filterWrap}>
-        <div className={`${orderStyles.filterBar} ${styles.filterBar}`}>
+        <div className={orderStyles.filterBar}>
           <div className={orderStyles.filterItem}>
             <span className={orderStyles.filterLabel}>时间字段</span>
             <Select<SubscriptionTimeType>
@@ -560,6 +512,21 @@ export function SubscriptionUsers() {
             />
           </div>
           <div className={orderStyles.filterItem}>
+            <span className={orderStyles.filterLabel}>订阅成功次数</span>
+            <Select
+              allowClear
+              className={styles.payCountField}
+              placeholder="请选择"
+              value={payCount === "" ? undefined : payCount}
+              onChange={(v) => {
+                setPayCount(v ?? "");
+                setPage(1);
+              }}
+              popupMatchSelectWidth={false}
+              options={SUBSCRIPTION_PAY_COUNT_OPTIONS}
+            />
+          </div>
+          <div className={orderStyles.filterItem}>
             <span className={orderStyles.filterLabel}>投放渠道</span>
             <Input
               allowClear
@@ -588,11 +555,17 @@ export function SubscriptionUsers() {
             <QuestionCircleOutlined className={styles.filterHelp} />
           </Tooltip>
         </div>
-        {filterBarExtra}
       </div>
 
       <section className={styles.statSection}>
-        <Typography.Text className={styles.statSectionTitle}>续订统计</Typography.Text>
+        <div className={styles.statSectionHead}>
+          <Typography.Text className={styles.statSectionTitle}>续订统计</Typography.Text>
+          <span className={styles.statPageSummary}>
+            本页成功：<strong>{pageStatusCounts.success}</strong>
+            <span className={styles.statPageSep}>失败：</span>
+            <strong>{pageStatusCounts.fail}</strong>
+          </span>
+        </div>
         <SubscriptionRenewalStatCards rows={renewalStatRows} loading={loading} />
       </section>
 
@@ -603,33 +576,31 @@ export function SubscriptionUsers() {
           </Suspense>
         </Spin>
       ) : (
-        <div className={styles.tableScroll}>
-          <Table<AdminUserSubscriptionRow>
-            rowKey={rowStableKey}
-            loading={loading}
-            columns={columns}
-            dataSource={apiRows}
-            pagination={false}
-            scroll={{ x: SUBSCRIPTION_TABLE_SCROLL_X }}
-            size="middle"
-            tableLayout="fixed"
-            className={styles.notionTable}
-            bordered
-            showHeader
-            sticky={mainContentTableSticky}
-            locale={{ emptyText: loading ? "加载中…" : "暂无数据" }}
-            onChange={(_pagination, _filters, sorter) => {
-              const s = Array.isArray(sorter) ? sorter[0] : sorter;
-              const field = String(s?.columnKey ?? s?.field ?? "");
-              if (field === "created_at" || field === "billing_at") {
-                setOrderBy(tableSorterToOrderBy(sorter, field));
-              } else {
-                setOrderBy("");
-              }
-              setPage(1);
-            }}
-          />
-        </div>
+        <Table<AdminUserSubscriptionRow>
+          rowKey={rowStableKey}
+          loading={loading}
+          columns={columns}
+          dataSource={apiRows}
+          pagination={false}
+          scroll={{ x: SUBSCRIPTION_TABLE_SCROLL_X }}
+          size="middle"
+          tableLayout="fixed"
+          className={styles.notionTable}
+          bordered
+          showHeader
+          sticky={mainContentTableSticky}
+          locale={{ emptyText: loading ? "加载中…" : "暂无数据" }}
+          onChange={(_pagination, _filters, sorter) => {
+            const s = Array.isArray(sorter) ? sorter[0] : sorter;
+            const field = String(s?.columnKey ?? s?.field ?? "");
+            if (field === "created_at" || field === "billing_at") {
+              setOrderBy(tableSorterToOrderBy(sorter, field));
+            } else {
+              setOrderBy("");
+            }
+            setPage(1);
+          }}
+        />
       )}
 
       {listCount > SUBSCRIPTION_LIST_PAGE_SIZE ? (

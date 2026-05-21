@@ -19,6 +19,12 @@ export const SUBSCRIPTION_PRODUCT_OPTIONS: { value: string; label: string }[] = 
   ...SUBSCRIPTION_PRODUCT_FILTER_OPTIONS,
 ];
 
+/** 订阅成功次数筛选：展示一次～九次，接口传 `pay_count` 0–8 */
+const SUBSCRIPTION_PAY_COUNT_LABELS = ["一次", "二次", "三次", "四次", "五次", "六次", "七次", "八次", "九次"];
+
+export const SUBSCRIPTION_PAY_COUNT_OPTIONS: { value: string; label: string }[] =
+  SUBSCRIPTION_PAY_COUNT_LABELS.map((label, i) => ({ value: String(i), label }));
+
 /** 日期快捷：今天 / 近 3、7 天 / 近 1 个月（含今天） */
 export function subscriptionDateRangePresets(): { label: string; value: [Dayjs, Dayjs] }[] {
   const end = dayjs().startOf("day");
@@ -37,6 +43,8 @@ export type SubscriptionListQuery = {
   timeType: SubscriptionTimeType;
   productId: string;
   channel: string;
+  /** 订阅成功次数 `pay_count`，0–8 */
+  payCount: string;
   /** 如 created_at|DESC、created_at|ASC */
   orderBy: string;
   page: number;
@@ -63,6 +71,12 @@ export function buildSubscriptionListBody(q: SubscriptionListQuery): Record<stri
   const channel = q.channel.trim();
   if (channel !== "") {
     body.source = channel;
+  }
+  if (q.payCount !== "") {
+    const n = Number(q.payCount);
+    if (Number.isFinite(n) && n >= 0 && n <= 8) {
+      body.pay_count = n;
+    }
   }
   if (q.orderBy) {
     body.orderBy = q.orderBy;
@@ -102,4 +116,8 @@ export function productFilterLabel(productId: string): string {
 
 export function channelFilterLabel(channel: string): string {
   return channel.trim() === "" ? "全部" : channel.trim();
+}
+
+export function payCountFilterLabel(payCount: string): string {
+  return SUBSCRIPTION_PAY_COUNT_OPTIONS.find((o) => o.value === payCount)?.label ?? payCount;
 }

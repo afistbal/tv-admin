@@ -5,15 +5,7 @@
   box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
     "Microsoft YaHei", sans-serif;
-}
-
-.tableScroll {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  /* 表头略灰于表体 + 网格边框 */
+  /* 表头略灰于表体 + 网格边框（勿在表格外层加 overflow，否则会阻断 sticky 吸顶） */
   --mac-header-bg: #fafafa;
   --mac-border: #e8e8e8;
   --mac-text: rgb(55, 53, 47);
@@ -43,50 +35,34 @@
   }
 }
 
-.userIdField {
-  width: 140px;
-  max-width: 100%;
-}
-
 .timeTypeField {
   width: 120px;
   max-width: 100%;
 }
 
 .productField {
-  width: 140px;
+  width: 120px;
   max-width: 100%;
 }
 
 .statusField {
-  width: 280px;
+  width: 220px;
+  max-width: 100%;
+}
+
+.payCountField {
+  width: 110px;
   max-width: 100%;
 }
 
 .channelField {
-  width: min(160px, 100%);
+  width: 160px;
   max-width: 100%;
 }
 
-.filterBarTail {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.totalHintInTail {
-  margin-left: 0;
-}
-
-@media (max-width: 768px) {
-  .filterBarTail {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-end;
-    padding-top: 4px;
-  }
+.userIdField {
+  width: 140px;
+  max-width: 100%;
 }
 
 .pageHead {
@@ -125,33 +101,36 @@
   max-width: 100%;
 }
 
+.statSectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
 .statSectionTitle {
-  display: block;
-  margin-bottom: 8px;
+  margin: 0 !important;
   font-size: 13px;
   font-weight: 500;
   color: rgba(55, 53, 47, 0.65);
 }
 
-.filterBar {
-  flex-wrap: wrap;
-}
-
-.chipRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-  padding-bottom: 4px;
-}
-
-.filterChip {
-  margin: 0;
-  border-radius: 4px;
-  background: rgba(55, 53, 47, 0.08);
-  border: none;
-  color: rgba(55, 53, 47, 0.85);
+.statPageSummary {
   font-size: 12px;
+  color: rgba(55, 53, 47, 0.55);
+  white-space: nowrap;
+}
+
+.statPageSummary strong {
+  font-weight: 600;
+  color: rgb(55, 53, 47);
+}
+
+.statPageSep {
+  margin-left: 12px;
 }
 
 .filterHelp {
@@ -194,6 +173,23 @@
   word-break: break-word;
 }
 
+.subscriptionCountCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgb(55, 53, 47);
+}
+
+.subscriptionCountLine {
+  white-space: nowrap;
+}
+
+.subscriptionCountLabel {
+  color: rgba(55, 53, 47, 0.55);
+}
+
 .plainText {
   font-size: 13px;
   line-height: 1.5;
@@ -223,13 +219,7 @@
   border-radius: 0 !important;
 }
 
-.notionTable :global(.ant-table-content table),
-.notionTable :global(.ant-table-header table),
-.notionTable :global(.ant-table-body table) {
-  border-collapse: collapse;
-  table-layout: fixed !important;
-}
-
+/* 横向 scroll.x 时表头/表体须 overflow:hidden，才能与 sticky 表头同步滚动 */
 .notionTable :global(.ant-table-header),
 .notionTable :global(.ant-table-body) {
   overflow: hidden;
@@ -264,6 +254,7 @@
 }
 
 .notionTable :global(.ant-table-sticky-holder) {
+  overflow: hidden !important;
   background: var(--mac-header-bg) !important;
 }
 
