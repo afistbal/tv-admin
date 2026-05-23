@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Button, Input, Select, Space, Table, Tag, Typography, message } from "antd";
+import { Button, Input, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { apiGet } from "@/api/client";
 import type { ApiResult } from "@/api/types";
@@ -35,6 +35,50 @@ function statusTag(status: number): ReactNode {
     return <Tag>停用</Tag>;
   }
   return String(status);
+}
+
+function copyableSingleLineCell(text: unknown): ReactNode {
+  const s = text != null ? String(text).trim() : "";
+  if (!s) {
+    return "—";
+  }
+  return (
+    <Tooltip title={s} placement="topLeft">
+      <div className={styles.copySingleCell}>
+        <Typography.Text className={styles.sourceSingleText} copyable={{ text: s }}>
+          {s}
+        </Typography.Text>
+      </div>
+    </Tooltip>
+  );
+}
+
+function copyableTokenCell(text: unknown): ReactNode {
+  const s = text != null ? String(text).trim() : "";
+  if (!s) {
+    return "—";
+  }
+  return (
+    <Tooltip title={s} placement="topLeft" overlayStyle={{ maxWidth: 520 }}>
+      <div className={styles.copyTokenCell}>
+        <Typography.Text className={styles.tokenTwoLinesText} copyable={{ text: s }}>
+          {s}
+        </Typography.Text>
+      </div>
+    </Tooltip>
+  );
+}
+
+function copyableWrapCell(text: unknown): ReactNode {
+  const s = text != null ? String(text).trim() : "";
+  if (!s) {
+    return "—";
+  }
+  return (
+    <div className={styles.copyCell}>
+      <Typography.Text copyable={{ text: s }}>{s}</Typography.Text>
+    </div>
+  );
 }
 
 export function PromotionList() {
@@ -136,9 +180,8 @@ export function PromotionList() {
         title: "来源",
         dataIndex: "source",
         key: "source",
-        width: 180,
-        ellipsis: true,
-        render: (v: string) => v || "—",
+        width: 140,
+        render: (v: string) => copyableSingleLineCell(v),
       },
       {
         title: "类型",
@@ -157,11 +200,17 @@ export function PromotionList() {
         render: (status: number) => statusTag(status),
       },
       {
-        title: "像素id",
+        title: "像素",
         dataIndex: "source_id",
         key: "source_id",
-        ellipsis: { showTitle: true },
-        render: (v: string) => v || "—",
+        width: 120,
+        render: (v: string) => copyableWrapCell(v),
+      },
+      {
+        title: "Access Token",
+        dataIndex: "access_token",
+        key: "access_token",
+        render: (v: string | undefined) => copyableTokenCell(v),
       },
       {
         title: "操作",

@@ -3,8 +3,80 @@
   padding: 14px 20px;
 }
 
+.table :global(.ant-table-tbody > tr > td) {
+  vertical-align: top;
+}
+
 .table :global(.ant-table-thead > tr > th) {
   font-weight: 600;
+}
+
+.copyCell {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+/** 来源：单行省略 + 复制，不用 Typography ellipsis（Safari / WebKit 兼容） */
+.copySingleCell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.copySingleCell :global(.ant-typography) {
+  margin-bottom: 0 !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sourceSingleText {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/** Token：最多 2 行 + hover 全文 + 复制完整内容（Safari 不用 Typography ellipsis） */
+.copyTokenCell {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.copyTokenCell :global(.ant-typography) {
+  margin-bottom: 0 !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.tokenTwoLinesText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.copyCell :global(.ant-typography) {
+  margin-bottom: 0 !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .opCol {

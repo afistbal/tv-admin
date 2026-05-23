@@ -5,6 +5,7 @@ export type AdminSourceRow = {
   type: string;
   status: number;
   source_id: string;
+  access_token?: string;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -16,4 +17,5 @@ export type AdminSourceFormRow = {
   type?: string;
   status?: number;
   source_id?: string;
+  access_token?: string;
 };

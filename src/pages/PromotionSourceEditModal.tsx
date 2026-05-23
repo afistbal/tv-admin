@@ -14,6 +14,7 @@ type FormValues = {
   type: string;
   status: 0 | 1;
   sourceId: string;
+  accessToken: string;
 };
 
 type Props = {
@@ -34,6 +35,7 @@ export function PromotionSourceEditModal({ mode, row, onClose, onSaved }: Props)
       type: row.type ?? "facebook",
       status: row.status === 0 ? 0 : 1,
       sourceId: row.source_id ?? "",
+      accessToken: row.access_token ?? "",
     });
   }, [row, form]);
 
@@ -46,6 +48,7 @@ export function PromotionSourceEditModal({ mode, row, onClose, onSaved }: Props)
         type: v.type,
         status: v.status,
         sourceId: v.sourceId.trim(),
+        accessToken: v.accessToken.trim(),
       };
       if (!isCreate && row.id != null && Number.isFinite(row.id)) {
         body.id = row.id;
@@ -93,6 +96,9 @@ export function PromotionSourceEditModal({ mode, row, onClose, onSaved }: Props)
         </Form.Item>
         <Form.Item name="sourceId" label="像素id" rules={[{ required: true, message: "请输入像素id" }]}>
           <Input placeholder="source_id" maxLength={128} />
+        </Form.Item>
+        <Form.Item name="accessToken" label="Access Token">
+          <Input.TextArea placeholder="accessToken" rows={3} maxLength={2048} />
         </Form.Item>
       </Form>
     </Modal>
