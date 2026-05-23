@@ -81,7 +81,7 @@ type ViewMode = "calendar" | "table";
 
 /** 各列 width 之和，与 columns 保持一致，避免表头/表体横向错位 */
 const SUBSCRIPTION_TABLE_SCROLL_X =
-  108 + 176 + 220 + 108 + 168 + 112 + 108 + 88 + 128;
+  108 + 176 + 220 + 108 + 168 + 100 + 112 + 108 + 88 + 128;
 
 function cellStr(v: unknown): string {
   if (v == null) {
@@ -235,7 +235,7 @@ export function SubscriptionUsers() {
     if (!statusEditRow) {
       return;
     }
-    const id = Number(statusEditRow.order_id);
+    const id = Number(statusEditRow.id);
     if (!Number.isFinite(id) || id <= 0) {
       message.warning("缺少记录 id，无法保存");
       return;
@@ -395,6 +395,29 @@ export function SubscriptionUsers() {
             ) : null}
           </div>
         ),
+      },
+      {
+        title: (
+          <span className={styles.colTitle}>
+            <PayCircleOutlined className={styles.colIcon} />
+            空中授权状态码
+          </span>
+        ),
+        key: "response_code",
+        width: 100,
+        className: styles.notionCell,
+        render: (_: unknown, record) => {
+          const v = cellStr(record.response_code);
+          return (
+            <Typography.Text
+              className={styles.plainText}
+              ellipsis={{ tooltip: v !== EMPTY ? v : false }}
+              copyable={v !== EMPTY ? { text: v } : false}
+            >
+              {v}
+            </Typography.Text>
+          );
+        },
       },
       {
         title: (
@@ -677,7 +700,7 @@ export function SubscriptionUsers() {
         {statusEditRow ? (
           <>
             <div className={styles.statusModalMeta}>
-              <span>记录 ID：{cellStr(statusEditRow.order_id)}</span>
+              <span>记录 ID：{cellStr(statusEditRow.id)}</span>
               <span>用户 ID：{cellStr(statusEditRow.user_id)}</span>
               <span>
                 当前状态：

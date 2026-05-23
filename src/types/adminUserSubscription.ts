@@ -26,6 +26,8 @@ export type AdminUserSubscriptionRow = {
   /** 关联订单 id（字符串或数字） */
   order_id?: string | number;
   status?: number;
+  /** 空中授权状态码；接口原样返回展示 */
+  response_code?: string | number | null;
   /** `status === 1`：`0`/缺省 首次订阅，`≥1` 续订成功，`-1` 待定 */
   is_renewal?: boolean | number | string | null;
   /** 已支付次数；筛选传 0–8；列表成功次数展示 pay_count + 1 */
@@ -50,7 +52,7 @@ export type AdminUserSubscriptionRow = {
   [key: string]: unknown;
 };
 
-/** `POST admin/subscription/save`：`id` 传列表行的 `order_id` */
+/** `POST admin/subscription/save`：`id` 传列表行的 `id` */
 export type AdminSubscriptionSaveBody = {
   id: number;
   status: number;
