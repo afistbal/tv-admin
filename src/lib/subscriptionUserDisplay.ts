@@ -85,6 +85,19 @@ export const SUBSCRIPTION_ORDER_STATUS_FILTER_OPTIONS = SUBSCRIPTION_ORDER_STATU
   ({ value, label }) => ({ value, label }),
 );
 
+/** 管理端可修改的订阅状态（`POST admin/subscription/save`） */
+export const SUBSCRIPTION_STATUS_EDIT_OPTIONS: { value: string; label: string }[] = [
+  { value: "2", label: "取消订阅" },
+  { value: "3", label: "第一次扣费失败" },
+  { value: "4", label: "第二次扣费失败" },
+  { value: "10", label: "终止扣费" },
+];
+
+export function subscriptionStatusEditLabel(status: number | string): string {
+  const opt = SUBSCRIPTION_STATUS_EDIT_OPTIONS.find((o) => o.value === String(status));
+  return opt?.label ?? String(status);
+}
+
 export function pickPayCount(row: AdminUserSubscriptionRow): number | null {
   const raw = row.pay_count;
   if (raw == null || String(raw).trim() === "") {

@@ -180,6 +180,42 @@
   word-break: break-word;
 }
 
+.statusCellInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+}
+
+.statusEditBtn {
+  flex-shrink: 0;
+  color: rgba(55, 53, 47, 0.45) !important;
+}
+
+.statusEditBtn:hover {
+  color: #1677ff !important;
+}
+
+.statusModalMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: rgba(55, 53, 47, 0.75);
+}
+
+.statusModalMeta > span {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.statusModalForm {
+  margin-bottom: 0;
+}
+
 .channelCell {
   word-break: break-word;
 }

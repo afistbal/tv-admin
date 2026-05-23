@@ -3,6 +3,7 @@ import {
   BellOutlined,
   CalendarOutlined,
   ClockCircleOutlined,
+  EditOutlined,
   FilterOutlined,
   MenuOutlined,
   PayCircleOutlined,
@@ -12,6 +13,7 @@ import {
 import {
   Button,
   DatePicker,
+  Form,
   Input,
   Modal,
   Segmented,
@@ -67,6 +69,7 @@ import {
   productTypeTone,
   rowStableKey,
   SUBSCRIPTION_ORDER_STATUS_FILTER_OPTIONS,
+  SUBSCRIPTION_STATUS_EDIT_OPTIONS,
   subscriptionOrderStatusTone,
 } from "@/lib/subscriptionUserDisplay";
 import { mainContentTableSticky } from "@/lib/tableSticky";
@@ -78,7 +81,7 @@ type ViewMode = "calendar" | "table";
 
 /** 各列 width 之和，与 columns 保持一致，避免表头/表体横向错位 */
 const SUBSCRIPTION_TABLE_SCROLL_X =
-  108 + 176 + 220 + 108 + 148 + 112 + 108 + 88 + 128;
+  108 + 176 + 220 + 108 + 168 + 112 + 108 + 88 + 128;
 
 function cellStr(v: unknown): string {
   if (v == null) {
@@ -90,8 +93,11 @@ function cellStr(v: unknown): string {
 
 export function SubscriptionUsers() {
   const { user } = useAuth();
-  const canCancelSubscription = user != null && isAdminUser(user);
+  const canEditSubscriptionStatus = user != null && isAdminUser(user);
   const [loading, setLoading] = useState(false);
+  const [statusEditRow, setStatusEditRow] = useState<AdminUserSubscriptionRow | null>(null);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusEditForm] = Form.useForm<{ status: string }>();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [orderBy, setOrderBy] = useState(SUBSCRIPTION_DEFAULT_ORDER_BY);
@@ -207,29 +213,64 @@ export function SubscriptionUsers() {
     });
   }, [userIdInput, channelInput, dateRange, orderStatus, timeType, productId, payCount, orderBy, fetchList]);
 
-  const requestCancelSubscription = useCallback(() => {
-    Modal.confirm({
-      title: "确认取消订阅？",
-      content: "将调用取消订阅接口，订阅状态会变为「取消订阅」。是否继续？",
-      okText: "确认",
-      cancelText: "返回",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          const res: ApiResult<unknown> = await apiPostJson("subscription/cancel", {});
-          if (!isApiResultOk(res)) {
-            message.error(getApiErrorMessage(res, "操作失败"));
-            return Promise.reject(new Error("fail"));
-          }
-          message.success(typeof res.m === "string" && res.m.trim() ? res.m.trim() : "已取消订阅");
-          void fetchList(listQuery);
-        } catch {
-          message.error("网络异常");
-          return Promise.reject(new Error("network"));
-        }
-      },
-    });
-  }, [fetchList, listQuery]);
+  const openStatusEditModal = useCallback(
+    (record: AdminUserSubscriptionRow) => {
+      const current = String(record.status ?? "");
+      const initial = SUBSCRIPTION_STATUS_EDIT_OPTIONS.some((o) => o.value === current) ? current : "";
+      setStatusEditRow(record);
+      statusEditForm.setFieldsValue({ status: initial || undefined });
+    },
+    [statusEditForm],
+  );
+
+  const closeStatusEditModal = useCallback(() => {
+    if (statusSaving) {
+      return;
+    }
+    setStatusEditRow(null);
+    statusEditForm.resetFields();
+  }, [statusEditForm, statusSaving]);
+
+  const submitStatusEdit = useCallback(async () => {
+    if (!statusEditRow) {
+      return;
+    }
+    const id = Number(statusEditRow.order_id);
+    if (!Number.isFinite(id) || id <= 0) {
+      message.warning("缺少记录 id，无法保存");
+      return;
+    }
+    let statusStr: string;
+    try {
+      const v = await statusEditForm.validateFields();
+      statusStr = v.status;
+    } catch {
+      return;
+    }
+    const status = Number(statusStr);
+    if (!Number.isFinite(status)) {
+      return;
+    }
+    setStatusSaving(true);
+    try {
+      const res: ApiResult<unknown> = await apiPostJson("admin/subscription/save", {
+        id,
+        status,
+      });
+      if (!isApiResultOk(res)) {
+        message.error(getApiErrorMessage(res, "保存失败"));
+        return;
+      }
+      message.success(typeof res.m === "string" && res.m.trim() ? res.m.trim() : "已更新状态");
+      setStatusEditRow(null);
+      statusEditForm.resetFields();
+      void fetchList(listQuery);
+    } catch {
+      message.error("网络异常");
+    } finally {
+      setStatusSaving(false);
+    }
+  }, [statusEditRow, statusEditForm, fetchList, listQuery]);
 
   useEffect(
     () => () => {
@@ -335,10 +376,24 @@ export function SubscriptionUsers() {
           </span>
         ),
         key: "status",
-        width: 148,
+        width: 168,
         className: `${styles.notionCell} ${styles.statusCell}`,
         render: (_: unknown, record) => (
-          <NotionTag wrap tone={subscriptionOrderStatusTone(record)} />
+          <div className={styles.statusCellInner}>
+            <NotionTag wrap tone={subscriptionOrderStatusTone(record)} />
+            {canEditSubscriptionStatus ? (
+              <Tooltip title="修改状态">
+                <Button
+                  type="text"
+                  size="small"
+                  className={styles.statusEditBtn}
+                  icon={<EditOutlined />}
+                  aria-label="修改状态"
+                  onClick={() => openStatusEditModal(record)}
+                />
+              </Tooltip>
+            ) : null}
+          </div>
         ),
       },
       {
@@ -407,7 +462,7 @@ export function SubscriptionUsers() {
         },
       },
     ],
-    [orderBy],
+    [orderBy, canEditSubscriptionStatus, openStatusEditModal],
   );
 
   return (
@@ -417,11 +472,6 @@ export function SubscriptionUsers() {
           订阅用户
         </Typography.Title>
         <div className={styles.pageHeadRight}>
-          {canCancelSubscription ? (
-            <Button danger size="small" onClick={requestCancelSubscription}>
-              取消订阅
-            </Button>
-          ) : null}
           <span className={styles.totalHint}>共 {listCount} 条</span>
         </div>
       </div>
@@ -611,6 +661,41 @@ export function SubscriptionUsers() {
           />
         </div>
       ) : null}
+
+      <Modal
+        title="修改订阅状态"
+        open={statusEditRow != null}
+        onCancel={closeStatusEditModal}
+        onOk={() => void submitStatusEdit()}
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={statusSaving}
+        destroyOnHidden
+        maskClosable={!statusSaving}
+        width={440}
+      >
+        {statusEditRow ? (
+          <>
+            <div className={styles.statusModalMeta}>
+              <span>记录 ID：{cellStr(statusEditRow.order_id)}</span>
+              <span>用户 ID：{cellStr(statusEditRow.user_id)}</span>
+              <span>
+                当前状态：
+                <NotionTag wrap tone={subscriptionOrderStatusTone(statusEditRow)} />
+              </span>
+            </div>
+            <Form form={statusEditForm} layout="vertical" className={styles.statusModalForm}>
+              <Form.Item
+                name="status"
+                label="新状态"
+                rules={[{ required: true, message: "请选择状态" }]}
+              >
+                <Select placeholder="请选择" options={SUBSCRIPTION_STATUS_EDIT_OPTIONS} />
+              </Form.Item>
+            </Form>
+          </>
+        ) : null}
+      </Modal>
     </div>
   );
 }

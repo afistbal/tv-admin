@@ -50,6 +50,12 @@ export type AdminUserSubscriptionRow = {
   [key: string]: unknown;
 };
 
+/** `POST admin/subscription/save`：`id` 传列表行的 `order_id` */
+export type AdminSubscriptionSaveBody = {
+  id: number;
+  status: number;
+};
+
 export type AdminUserSubscriptionListPayload = {
   data: AdminUserSubscriptionRow[];
   current_page: number;
