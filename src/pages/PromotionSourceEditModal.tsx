@@ -10,7 +10,6 @@ const TYPE_OPTIONS = [
 ];
 
 type FormValues = {
-  id?: string;
   source: string;
   type: string;
   status: 0 | 1;
@@ -31,7 +30,6 @@ export function PromotionSourceEditModal({ mode, row, onClose, onSaved }: Props)
 
   useEffect(() => {
     form.setFieldsValue({
-      id: row.id != null ? String(row.id) : "",
       source: row.source ?? "",
       type: row.type ?? "facebook",
       status: row.status === 0 ? 0 : 1,
@@ -49,13 +47,8 @@ export function PromotionSourceEditModal({ mode, row, onClose, onSaved }: Props)
         status: v.status,
         sourceId: v.sourceId.trim(),
       };
-      if (isCreate) {
-        const id = Number(v.id?.trim());
-        if (!Number.isFinite(id)) {
-          message.warning("请输入有效 ID");
-          return;
-        }
-        body.id = id;
+      if (!isCreate && row.id != null && Number.isFinite(row.id)) {
+        body.id = row.id;
       }
       const res: ApiResult<unknown> = await apiPostJson("admin/source/save", body);
       if (res.c !== 0) {
@@ -86,11 +79,6 @@ export function PromotionSourceEditModal({ mode, row, onClose, onSaved }: Props)
       cancelText="取消"
     >
       <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
-        {isCreate ? (
-          <Form.Item name="id" label="ID" rules={[{ required: true, message: "请输入 ID" }]}>
-            <Input inputMode="numeric" placeholder="推广 ID" />
-          </Form.Item>
-        ) : null}
         <Form.Item name="source" label="来源" rules={[{ required: true, message: "请输入来源" }]}>
           <Input placeholder="如 A100A100" maxLength={64} />
         </Form.Item>
