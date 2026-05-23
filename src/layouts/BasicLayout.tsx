@@ -42,6 +42,10 @@ const menuItems: MenuProps["items"] = [
         label: <Link to="/data/promotion-sources">推广来源</Link>,
       },
       {
+        key: "/data/promotion-list",
+        label: <Link to="/data/promotion-list">推广列表</Link>,
+      },
+      {
         key: "/data/orders",
         label: <Link to="/data/orders">代收记录</Link>,
       },
@@ -52,7 +56,7 @@ const menuItems: MenuProps["items"] = [
     icon: <PlaySquareOutlined />,
     label: "短剧管理",
     children: [
-      { key: "/drama/movies", label: <Link to="/drama/movies">影片列表</Link> },
+      { key: "/drama/movies", label: <Link to="/drama/movies">剧集列表</Link> },
       { key: "/drama/latest-update", label: <Link to="/drama/latest-update">最新更新</Link> },
     ],
   },
@@ -75,7 +79,10 @@ const menuItems: MenuProps["items"] = [
     key: "sub-config",
     icon: <SettingOutlined />,
     label: "配置管理",
-    children: [{ key: "/config/products", label: <Link to="/config/products">产品管理</Link> }],
+    children: [
+      { key: "/config/products", label: <Link to="/config/products">产品管理</Link> },
+      { key: "/config/recommend-pool", label: <Link to="/config/recommend-pool">推荐池管理</Link> },
+    ],
   },
 ];
 
@@ -167,6 +174,7 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
           <CollapsedPopoverLinks
             links={[
               { to: "/data/promotion-sources", label: "推广来源" },
+              { to: "/data/promotion-list", label: "推广列表" },
               { to: "/data/orders", label: "代收记录" },
             ]}
           />
@@ -187,7 +195,7 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
         content={
           <CollapsedPopoverLinks
             links={[
-              { to: "/drama/movies", label: "影片列表" },
+              { to: "/drama/movies", label: "剧集列表" },
               { to: "/drama/latest-update", label: "最新更新" },
             ]}
           />
@@ -226,7 +234,14 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
 
       <Popover
         {...popCommon}
-        content={<CollapsedPopoverLinks links={[{ to: "/config/products", label: "产品管理" }]} />}
+        content={
+          <CollapsedPopoverLinks
+            links={[
+              { to: "/config/products", label: "产品管理" },
+              { to: "/config/recommend-pool", label: "推荐池管理" },
+            ]}
+          />
+        }
       >
         <div
           className={`${styles.collapsedIconBtn} ${configActive ? styles.collapsedIconBtnActive : ""}`}
@@ -289,6 +304,9 @@ export function BasicLayout() {
     if (location.pathname.startsWith("/data/orders")) {
       return ["/data/orders"];
     }
+    if (location.pathname.startsWith("/data/promotion-list")) {
+      return ["/data/promotion-list"];
+    }
     if (location.pathname.startsWith("/data/promotion-sources")) {
       return ["/data/promotion-sources"];
     }
@@ -303,6 +321,9 @@ export function BasicLayout() {
     }
     if (location.pathname.startsWith("/stats/summary")) {
       return ["/stats/summary"];
+    }
+    if (location.pathname.startsWith("/config/recommend-pool")) {
+      return ["/config/recommend-pool"];
     }
     if (location.pathname.startsWith("/config/products")) {
       return ["/config/products"];

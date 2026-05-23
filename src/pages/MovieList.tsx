@@ -9,6 +9,15 @@ import type { AdminMovieListPayload, AdminMovieRow, AdminTagAreaRow } from "@/ty
 import { useAppStaticBase } from "@/config/AppConfigContext";
 import { moviePosterUrl } from "@/lib/staticAssetOrigin";
 import { publicWebOrigin } from "@/lib/publicWebOrigin";
+import {
+  MOVIE_LEVEL_FILTER_OPTIONS,
+  formatCompactCount,
+  movieLevelFromRow,
+  movieLevelTag,
+  readFavoriteCount,
+  readViews7d,
+  type MovieLevelFilter,
+} from "@/lib/movieLevelDisplay";
 import { mainContentTableSticky } from "@/lib/tableSticky";
 import stylesToolbar from "./UserList.module.css";
 import styles from "./MovieList.module.css";
@@ -113,6 +122,8 @@ export function MovieList() {
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
   const [language, setLanguage] = useState("all");
+  const [levelFilter, setLevelFilter] = useState<MovieLevelFilter>("all");
+  const [listOrderBy, setListOrderBy] = useState<"" | "views" | "favorites">("");
   const [editId, setEditId] = useState<number | null>(null);
   const [recommendSavingId, setRecommendSavingId] = useState<number | null>(null);
   const [sortSavingId, setSortSavingId] = useState<number | null>(null);
@@ -145,14 +156,21 @@ export function MovieList() {
     };
   }, []);
 
-  const fetchList = useCallback(async (p: number, kw: string, lang: string) => {
+  const fetchList = useCallback(async (p: number, kw: string, lang: string, level: MovieLevelFilter, orderBy: "" | "views" | "favorites") => {
     setLoading(true);
     try {
-      const res: ApiResult<AdminMovieListPayload> = await apiGet<AdminMovieListPayload>("admin/movie/list", {
+      const query: Record<string, string | number> = {
         page: p,
         keyword: kw,
         language: lang,
-      });
+      };
+      if (level !== "all") {
+        query.level = level;
+      }
+      if (orderBy) {
+        query.order_by = orderBy;
+      }
+      const res: ApiResult<AdminMovieListPayload> = await apiGet<AdminMovieListPayload>("admin/movie/list", query);
       if (res.c !== 0) {
         message.error(res.m || "加载失败");
         setRows([]);
@@ -174,8 +192,8 @@ export function MovieList() {
   }, []);
 
   useEffect(() => {
-    void fetchList(page, keyword, language);
-  }, [page, keyword, language, fetchList]);
+    void fetchList(page, keyword, language, levelFilter, listOrderBy);
+  }, [page, keyword, language, levelFilter, listOrderBy, fetchList]);
 
   /** 仪表盘播放排行等入口：`/drama/movies?id=` 预填搜索 */
   useEffect(() => {
@@ -222,14 +240,14 @@ export function MovieList() {
           message.error(res.m || "更新失败");
           return;
         }
-        await fetchList(page, keyword, language);
+        await fetchList(page, keyword, language, levelFilter, listOrderBy);
       } catch {
         message.error("网络异常");
       } finally {
         setRecommendSavingId(null);
       }
     },
-    [fetchList, page, keyword, language],
+    [fetchList, page, keyword, language, levelFilter, listOrderBy],
   );
 
   const handleSortCommit = useCallback(
@@ -257,14 +275,14 @@ export function MovieList() {
           message.error(res.m || "更新失败");
           return;
         }
-        await fetchList(page, keyword, language);
+        await fetchList(page, keyword, language, levelFilter, listOrderBy);
       } catch {
         message.error("网络异常");
       } finally {
         setSortSavingId(null);
       }
     },
-    [fetchList, page, keyword, language],
+    [fetchList, page, keyword, language, levelFilter, listOrderBy],
   );
 
   const playMovieUrl = useCallback((id: number) => `${publicWebOrigin()}/video/${id}`, []);
@@ -313,7 +331,7 @@ export function MovieList() {
               return;
             }
             message.success("已更新");
-            await fetchList(page, keyword, language);
+            await fetchList(page, keyword, language, levelFilter, listOrderBy);
           } catch {
             message.error("网络异常");
           } finally {
@@ -322,7 +340,7 @@ export function MovieList() {
         },
       });
     },
-    [fetchList, page, keyword, language],
+    [fetchList, page, keyword, language, levelFilter, listOrderBy],
   );
 
   /** 与 slot_old `Movie.tsx` 长按菜单一致：`POST admin/movie/set-audio-track`，字段 `audio` */
@@ -339,14 +357,14 @@ export function MovieList() {
           return;
         }
         message.success(audio === "en" ? "已设为英文音轨" : "已设为中文音轨");
-        await fetchList(page, keyword, language);
+        await fetchList(page, keyword, language, levelFilter, listOrderBy);
       } catch {
         message.error("网络异常");
       } finally {
         setRowActionBusyId(null);
       }
     },
-    [fetchList, page, keyword, language],
+    [fetchList, page, keyword, language, levelFilter, listOrderBy],
   );
 
   const openPosterPreview = useCallback(
@@ -401,15 +419,42 @@ export function MovieList() {
         render: (_: unknown, row) => {
           const text = String(row.title ?? "—");
           return (
-            <Typography.Paragraph
-              className={styles.titleCell}
-              ellipsis={{ rows: 2, tooltip: true }}
-              style={{ marginBottom: 0 }}
+            <Button
+              type="link"
+              style={{ padding: 0, height: "auto", maxWidth: "100%", textAlign: "left" }}
+              onClick={() => setEditId(row.id)}
             >
-              {text}
-            </Typography.Paragraph>
+              <Typography.Paragraph
+                className={styles.titleCell}
+                ellipsis={{ rows: 2, tooltip: true }}
+                style={{ marginBottom: 0, color: "inherit" }}
+              >
+                {text}
+              </Typography.Paragraph>
+            </Button>
           );
         },
+      },
+      {
+        title: "级别",
+        key: "level",
+        width: 88,
+        align: "center",
+        render: (_: unknown, row) => movieLevelTag(movieLevelFromRow(row as Record<string, unknown>)),
+      },
+      {
+        title: "播放量",
+        key: "views_7d",
+        width: 112,
+        align: "right",
+        render: (_: unknown, row) => formatCompactCount(readViews7d(row as Record<string, unknown>)),
+      },
+      {
+        title: "收藏数",
+        key: "favorites",
+        width: 96,
+        align: "right",
+        render: (_: unknown, row) => formatCompactCount(readFavoriteCount(row as Record<string, unknown>)),
       },
       {
         title: "标签",
@@ -572,7 +617,7 @@ export function MovieList() {
   return (
     <div>
       <Typography.Title level={4} style={{ marginTop: 0 }}>
-        影片列表
+        剧集列表
       </Typography.Title>
 
       <div className={stylesToolbar.toolbar}>
@@ -589,9 +634,31 @@ export function MovieList() {
             }}
             options={LANGUAGES}
           />
+          <Select
+            value={levelFilter}
+            style={{ width: 120 }}
+            options={[...MOVIE_LEVEL_FILTER_OPTIONS]}
+            onChange={(v) => {
+              setLevelFilter(v);
+              setPage(1);
+            }}
+          />
+          <Select
+            value={listOrderBy || "default"}
+            style={{ width: 160 }}
+            onChange={(v) => {
+              setListOrderBy(v === "default" ? "" : (v as "views" | "favorites"));
+              setPage(1);
+            }}
+            options={[
+              { value: "default", label: "默认排序" },
+              { value: "views", label: "按播放量" },
+              { value: "favorites", label: "按收藏数" },
+            ]}
+          />
           <Input
             allowClear
-            placeholder="🔍检索"
+            placeholder="按剧名 / ID 搜索"
             value={keywordInput}
             onChange={(e) => onKeywordChange(e.target.value)}
             style={{ width: 220 }}
@@ -604,7 +671,7 @@ export function MovieList() {
               setKeyword(kw);
               setPage(1);
               if (page === 1) {
-                void fetchList(1, kw, language);
+                void fetchList(1, kw, language, levelFilter, listOrderBy);
               }
             }}
           >
@@ -622,9 +689,8 @@ export function MovieList() {
         sticky={mainContentTableSticky}
         size="middle"
         tableLayout="fixed"
-        locale={{ emptyText: loading ? "加载中…" : "暂无影片" }}
-        /** 固定数值避免 `max-content` 把固定列撑出过宽留白；短剧名称用 `minWidth` 吃剩余宽度 */
-        scroll={{ x: 1124 }}
+        locale={{ emptyText: loading ? "加载中…" : "暂无剧集" }}
+        scroll={{ x: 1320 }}
       />
 
       <div className={stylesToolbar.paginationWrap}>
@@ -670,7 +736,7 @@ export function MovieList() {
           movieId={editId}
           staticBase={appStatic}
           onClose={() => setEditId(null)}
-          onSaved={() => void fetchList(page, keyword, language)}
+          onSaved={() => void fetchList(page, keyword, language, levelFilter, listOrderBy)}
         />
       ) : null}
     </div>

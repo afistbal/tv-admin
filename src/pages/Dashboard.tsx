@@ -57,8 +57,8 @@ function PlayRankItem({
             <Link
               to={adminMovieListPath(movieId)}
               className={styles.playRankMoreIcon}
-              title="在影片列表中查看"
-              aria-label="在影片列表中查看"
+              title="在剧集列表中查看"
+              aria-label="在剧集列表中查看"
             >
               <FileTextOutlined />
             </Link>

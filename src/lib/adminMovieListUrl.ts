@@ -1,4 +1,4 @@
-/** HashRouter 内影片列表路径（带 id 筛选） */
+/** HashRouter 内剧集列表路径（带 id 筛选） */
 export function adminMovieListPath(id: string | number): string {
   return `/drama/movies?id=${encodeURIComponent(String(id))}`;
 }
