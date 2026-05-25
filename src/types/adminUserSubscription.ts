@@ -28,7 +28,7 @@ export type AdminUserSubscriptionRow = {
   status?: number;
   /** 空中授权状态码；接口原样返回展示 */
   response_code?: string | number | null;
-  /** `status === 1`：`0`/缺省 首次订阅，`≥1` 续订成功，`-1` 待定 */
+  /** `status === 1`：`0`/缺省 首次订阅，`≥1` 续订成功，`-1` 不参与日历展示 */
   is_renewal?: boolean | number | string | null;
   /** 已支付次数；筛选传 0–8；列表成功次数展示 pay_count + 1 */
   pay_count?: number | string | null;
@@ -52,11 +52,10 @@ export type AdminUserSubscriptionRow = {
   [key: string]: unknown;
 };
 
-/** `POST admin/subscription/save`：`id` 传列表行的 `id` */
-export type AdminSubscriptionSaveBody = {
-  id: number;
-  status: number;
-};
+/** `POST admin/subscription/save`：单条 `id`；批量 `ids` 英文逗号分隔 */
+export type AdminSubscriptionSaveBody =
+  | { id: number; status: number; ids?: never }
+  | { ids: string; status: number; id?: never };
 
 export type AdminUserSubscriptionListPayload = {
   data: AdminUserSubscriptionRow[];

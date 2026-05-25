@@ -65,6 +65,19 @@
   max-width: 100%;
 }
 
+.responseCodeField {
+  width: 140px;
+  max-width: 100%;
+}
+
+.filterBarActions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .pageHead {
   display: flex;
   align-items: center;

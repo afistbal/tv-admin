@@ -48,6 +48,8 @@ export type SubscriptionListQuery = {
   /** 如 created_at|DESC、created_at|ASC */
   orderBy: string;
   page: number;
+  /** 云中授权状态码 `responseCode` */
+  responseCode: string;
 };
 
 export function buildSubscriptionListBody(q: SubscriptionListQuery): Record<string, unknown> {
@@ -80,6 +82,10 @@ export function buildSubscriptionListBody(q: SubscriptionListQuery): Record<stri
   }
   if (q.orderBy) {
     body.orderBy = q.orderBy;
+  }
+  const responseCode = q.responseCode.trim();
+  if (responseCode !== "") {
+    body.responseCode = responseCode;
   }
   body.page = q.page;
   return body;

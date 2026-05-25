@@ -9,6 +9,7 @@ import {
   PayCircleOutlined,
   QuestionCircleOutlined,
   ReloadOutlined,
+  ThunderboltOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -79,9 +80,9 @@ import userListStyles from "./UserList.module.css";
 
 type ViewMode = "calendar" | "table";
 
-/** 各列 width 之和，与 columns 保持一致，避免表头/表体横向错位 */
+/** 各列 width 之和，与 columns 保持一致，避免表头/表体横向错位（含复选框列约 48px） */
 const SUBSCRIPTION_TABLE_SCROLL_X =
-  108 + 176 + 220 + 108 + 168 + 100 + 112 + 108 + 88 + 128;
+  48 + 88 + 108 + 176 + 220 + 108 + 168 + 100 + 112 + 108 + 88 + 128;
 
 function cellStr(v: unknown): string {
   if (v == null) {
@@ -115,8 +116,13 @@ export function SubscriptionUsers() {
   const [channelInput, setChannelInput] = useState("");
   const [channel, setChannel] = useState("");
   const [payCount, setPayCount] = useState<string>("");
+  const [responseCodeInput, setResponseCodeInput] = useState("");
+  const [responseCode, setResponseCode] = useState("");
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [batchSaving, setBatchSaving] = useState(false);
   const searchTimer = useRef<number | null>(null);
   const channelSearchTimer = useRef<number | null>(null);
+  const responseCodeSearchTimer = useRef<number | null>(null);
 
   const listQuery = useMemo<SubscriptionListQuery>(
     () => ({
@@ -129,8 +135,9 @@ export function SubscriptionUsers() {
       payCount,
       orderBy,
       page,
+      responseCode,
     }),
-    [userId, dateRange, orderStatus, timeType, productId, channel, payCount, orderBy, page],
+    [userId, dateRange, orderStatus, timeType, productId, channel, payCount, orderBy, page, responseCode],
   );
 
   const fetchList = useCallback(async (q: SubscriptionListQuery) => {
@@ -194,11 +201,24 @@ export function SubscriptionUsers() {
     }, 400);
   };
 
+  const onResponseCodeChange = (v: string) => {
+    setResponseCodeInput(v);
+    if (responseCodeSearchTimer.current) {
+      window.clearTimeout(responseCodeSearchTimer.current);
+    }
+    responseCodeSearchTimer.current = window.setTimeout(() => {
+      setResponseCode(v.trim());
+      setPage(1);
+    }, 400);
+  };
+
   const runSearch = useCallback(() => {
     const uid = userIdInput.trim();
     const ch = channelInput.trim();
+    const rc = responseCodeInput.trim();
     setUserId(uid);
     setChannel(ch);
+    setResponseCode(rc);
     setPage(1);
     void fetchList({
       userId: uid,
@@ -210,8 +230,20 @@ export function SubscriptionUsers() {
       payCount,
       orderBy,
       page: 1,
+      responseCode: rc,
     });
-  }, [userIdInput, channelInput, dateRange, orderStatus, timeType, productId, payCount, orderBy, fetchList]);
+  }, [
+    userIdInput,
+    channelInput,
+    responseCodeInput,
+    dateRange,
+    orderStatus,
+    timeType,
+    productId,
+    payCount,
+    orderBy,
+    fetchList,
+  ]);
 
   const openStatusEditModal = useCallback(
     (record: AdminUserSubscriptionRow) => {
@@ -272,6 +304,60 @@ export function SubscriptionUsers() {
     }
   }, [statusEditRow, statusEditForm, fetchList, listQuery]);
 
+  const resolveSelectedIds = useCallback((): number[] => {
+    const idSet = new Set<number>();
+    for (const key of selectedRowKeys) {
+      const row = apiRows.find((r) => rowStableKey(r) === key);
+      const id = Number(row?.id);
+      if (Number.isFinite(id) && id > 0) {
+        idSet.add(id);
+      }
+    }
+    return [...idSet];
+  }, [selectedRowKeys, apiRows]);
+
+  const confirmBatchExecute = useCallback(() => {
+    const ids = resolveSelectedIds();
+    if (ids.length === 0) {
+      message.warning(selectedRowKeys.length > 0 ? "所选记录缺少有效 id" : "请先勾选要执行的记录");
+      return;
+    }
+    Modal.confirm({
+      title: "确认批量立即执行？",
+      content: (
+        <div>
+          <p>将对以下 {ids.length} 条记录提交立即执行（status=11），接口：admin/subscription/save</p>
+          <p>
+            记录 ID：<strong>{ids.join(", ")}</strong>
+          </p>
+        </div>
+      ),
+      okText: "确认执行",
+      cancelText: "取消",
+      onOk: async () => {
+        setBatchSaving(true);
+        try {
+          const res: ApiResult<unknown> = await apiPostJson("admin/subscription/save", {
+            ids: ids.join(","),
+            status: 11,
+          });
+          if (!isApiResultOk(res)) {
+            message.error(getApiErrorMessage(res, "批量执行失败"));
+            return Promise.reject(new Error("batch-fail"));
+          }
+          message.success(typeof res.m === "string" && res.m.trim() ? res.m.trim() : "已提交批量立即执行");
+          setSelectedRowKeys([]);
+          void fetchList(listQuery);
+        } catch {
+          message.error("网络异常");
+          return Promise.reject(new Error("network"));
+        } finally {
+          setBatchSaving(false);
+        }
+      },
+    });
+  }, [resolveSelectedIds, selectedRowKeys.length, fetchList, listQuery]);
+
   useEffect(
     () => () => {
       if (searchTimer.current) {
@@ -280,9 +366,16 @@ export function SubscriptionUsers() {
       if (channelSearchTimer.current) {
         window.clearTimeout(channelSearchTimer.current);
       }
+      if (responseCodeSearchTimer.current) {
+        window.clearTimeout(responseCodeSearchTimer.current);
+      }
     },
     [],
   );
+
+  useEffect(() => {
+    setSelectedRowKeys([]);
+  }, [page, userId, dateRange, orderStatus, timeType, productId, channel, payCount, responseCode, orderBy]);
 
   const renewalStatRows = useMemo(
     () => buildSubscriptionRenewalStatRows(listCount, subscriptionStat),
@@ -293,6 +386,22 @@ export function SubscriptionUsers() {
 
   const columns: ColumnsType<AdminUserSubscriptionRow> = useMemo(
     () => [
+      {
+        title: <span className={styles.colTitle}>ID</span>,
+        key: "id",
+        dataIndex: "id",
+        width: 88,
+        fixed: "left",
+        className: styles.notionCell,
+        render: (_: unknown, record) => {
+          const v = cellStr(record.id);
+          return (
+            <Typography.Text className={styles.plainText} copyable={v !== EMPTY ? { text: v } : false}>
+              {v}
+            </Typography.Text>
+          );
+        },
+      },
       {
         title: (
           <span className={styles.colTitle}>
@@ -614,12 +723,35 @@ export function SubscriptionUsers() {
               maxLength={64}
             />
           </div>
+          <div className={orderStyles.filterItem}>
+            <span className={orderStyles.filterLabel}>云中授权状态</span>
+            <Input
+              allowClear
+              className={styles.responseCodeField}
+              placeholder="状态码"
+              value={responseCodeInput}
+              onChange={(e) => onResponseCodeChange(e.target.value)}
+              maxLength={64}
+            />
+          </div>
           <Button type="primary" onClick={runSearch}>
             搜索
           </Button>
           <Tooltip title="daterange 与 timeType 搭配；timeType 为 created_at 或 updated_at">
             <QuestionCircleOutlined className={styles.filterHelp} />
           </Tooltip>
+          {canEditSubscriptionStatus ? (
+            <div className={styles.filterBarActions}>
+              <Button
+                icon={<ThunderboltOutlined />}
+                loading={batchSaving}
+                disabled={selectedRowKeys.length === 0}
+                onClick={confirmBatchExecute}
+              >
+                批量立即执行
+              </Button>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -650,6 +782,15 @@ export function SubscriptionUsers() {
           loading={loading}
           columns={columns}
           dataSource={apiRows}
+          rowSelection={
+            canEditSubscriptionStatus
+              ? {
+                  selectedRowKeys,
+                  onChange: (keys) => setSelectedRowKeys(keys.map(String)),
+                  preserveSelectedRowKeys: false,
+                }
+              : undefined
+          }
           pagination={false}
           scroll={{ x: SUBSCRIPTION_TABLE_SCROLL_X }}
           size="middle"

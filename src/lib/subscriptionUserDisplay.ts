@@ -72,13 +72,13 @@ export function productTypeTone(row: AdminUserSubscriptionRow): NotionTagTone {
 
 /** 与搜索「状态」下拉、列表展示、接口 `status` 字段共用 */
 const SUBSCRIPTION_ORDER_STATUS_OPTIONS: (NotionTagTone & { value: string })[] = [
-  { value: "0", label: "待定", dot: "#8c8c8c", bg: "rgba(0,0,0,0.08)" },
   { value: "1", label: "成功", dot: "#2fa84f", bg: "rgba(47, 168, 79, 0.12)" },
   { value: "2", label: "取消订阅", dot: "#9b59b6", bg: "rgba(155, 89, 182, 0.12)" },
   { value: "3", label: "订阅异常（二次扣款第一次失败）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
   { value: "4", label: "订阅异常（二次扣款第二次失败）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
   { value: "5", label: "订阅异常（二次扣款第三次失败）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
   { value: "10", label: "订阅失败（不再执行订阅了）", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
+  { value: "11", label: "立即执行", dot: "#d48806", bg: "rgba(212, 136, 6, 0.12)" },
 ];
 
 export const SUBSCRIPTION_ORDER_STATUS_FILTER_OPTIONS = SUBSCRIPTION_ORDER_STATUS_OPTIONS.map(
@@ -91,6 +91,7 @@ export const SUBSCRIPTION_STATUS_EDIT_OPTIONS: { value: string; label: string }[
   { value: "3", label: "第一次扣费失败" },
   { value: "4", label: "第二次扣费失败" },
   { value: "10", label: "终止扣费" },
+  { value: "11", label: "立即执行" },
 ];
 
 export function subscriptionStatusEditLabel(status: number | string): string {
@@ -126,7 +127,7 @@ export function pickIsRenewal(row: AdminUserSubscriptionRow): number | null {
 export function subscriptionSuccessStatusLabel(row: AdminUserSubscriptionRow): string {
   const n = pickPayCount(row);
   if (n == null || n < 0) {
-    return "待定";
+    return EMPTY;
   }
   if (n === 0) {
     return "首次订阅";
@@ -137,7 +138,7 @@ export function subscriptionSuccessStatusLabel(row: AdminUserSubscriptionRow): s
 function subscriptionSuccessStatusTone(row: AdminUserSubscriptionRow): NotionTagTone {
   const n = pickPayCount(row);
   if (n == null || n < 0) {
-    return { label: "待定", dot: "#8c8c8c", bg: "rgba(0,0,0,0.08)" };
+    return { label: EMPTY, dot: "#8c8c8c", bg: "rgba(0,0,0,0.06)" };
   }
   if (n === 0) {
     return { label: "首次订阅", dot: "#2fa84f", bg: "rgba(47, 168, 79, 0.12)" };
