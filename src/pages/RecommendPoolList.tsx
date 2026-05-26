@@ -8,6 +8,7 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Typography,
   message,
 } from "antd";
@@ -15,7 +16,8 @@ import type { ColumnsType } from "antd/es/table";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { apiGet, apiPostJson } from "@/api/client";
 import type { ApiResult } from "@/api/types";
-import type { AdminPoolListPayload, AdminPoolRow } from "@/types/adminPool";
+import type { AdminPoolListPayload, AdminPoolRow, AdminPoolType } from "@/types/adminPool";
+import { ADMIN_POOL_TAB_ITEMS } from "@/types/adminPool";
 import { useAppStaticBase } from "@/config/AppConfigContext";
 import { moviePosterUrl } from "@/lib/staticAssetOrigin";
 import {
@@ -24,8 +26,8 @@ import {
   formatDateYmd,
   movieLevelFromRow,
   movieLevelTag,
+  MoviePlayCountCell,
   readFavoriteCount,
-  readViews7d,
   type MovieLevelFilter,
 } from "@/lib/movieLevelDisplay";
 import { mainContentTableSticky } from "@/lib/tableSticky";
@@ -36,7 +38,11 @@ import { RecommendPoolAddModal } from "./RecommendPoolAddModal";
 import { RecommendPoolSortModal } from "./RecommendPoolSortModal";
 import { RecommendSortConfigModal } from "./RecommendSortConfigModal";
 
-type SortMode = "default" | "views" | "favorites";
+const POOL_TAB_LABEL: Record<AdminPoolType, string> = {
+  recommend: "推荐页",
+  search_feed: "搜索页",
+  membership: "会员页",
+};
 
 function poolMovieRecord(row: AdminPoolRow): Record<string, unknown> | undefined {
   return row.movie as Record<string, unknown> | undefined;
@@ -58,26 +64,20 @@ function rowMatchesLevel(row: AdminPoolRow, level: MovieLevelFilter): boolean {
   return movieLevelFromRow(poolMovieRecord(row)) === level;
 }
 
-function compareRows(a: AdminPoolRow, b: AdminPoolRow, mode: SortMode): number {
-  if (mode === "views") {
-    return (readViews7d(poolMovieRecord(b)) ?? 0) - (readViews7d(poolMovieRecord(a)) ?? 0);
-  }
-  if (mode === "favorites") {
-    return (readFavoriteCount(poolMovieRecord(b)) ?? 0) - (readFavoriteCount(poolMovieRecord(a)) ?? 0);
-  }
+function compareRows(a: AdminPoolRow, b: AdminPoolRow): number {
   return Number(b.sort) - Number(a.sort);
 }
 
 export function RecommendPoolList() {
   const appStatic = useAppStaticBase();
+  const [poolType, setPoolType] = useState<AdminPoolType>("recommend");
   const [loading, setLoading] = useState(false);
   const [allRows, setAllRows] = useState<AdminPoolRow[]>([]);
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(24);
+  const [perPage] = useState(24);
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
   const [levelFilter, setLevelFilter] = useState<MovieLevelFilter>("all");
-  const [sortMode, setSortMode] = useState<SortMode>("default");
   const [addOpen, setAddOpen] = useState(false);
   const [sortConfigOpen, setSortConfigOpen] = useState(false);
   const [sortEditRow, setSortEditRow] = useState<AdminPoolRow | null>(null);
@@ -89,6 +89,7 @@ export function RecommendPoolList() {
     setLoading(true);
     try {
       const res: ApiResult<AdminPoolListPayload> = await apiGet<AdminPoolListPayload>("admin/pools", {
+        type: poolType,
         page: 1,
         pageSize: 200,
       });
@@ -100,7 +101,6 @@ export function RecommendPoolList() {
       const d = res.d;
       const list = Array.isArray(d?.data) ? d.data : [];
       setAllRows(list);
-      setPerPage(24);
       setPage(1);
     } catch {
       message.error("网络异常");
@@ -108,7 +108,7 @@ export function RecommendPoolList() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [poolType]);
 
   useEffect(() => {
     void fetchList();
@@ -116,7 +116,7 @@ export function RecommendPoolList() {
 
   useEffect(() => {
     setPage(1);
-  }, [keyword, levelFilter, sortMode]);
+  }, [keyword, levelFilter]);
 
   const onKeywordChange = (v: string) => {
     setKeywordInput(v);
@@ -135,12 +135,23 @@ export function RecommendPoolList() {
     [],
   );
 
+  const onTabChange = (key: string) => {
+    setPoolType(key as AdminPoolType);
+    setKeywordInput("");
+    setKeyword("");
+    setLevelFilter("all");
+    setPage(1);
+    setAddOpen(false);
+    setSortConfigOpen(false);
+    setSortEditRow(null);
+  };
+
   const filteredRows = useMemo(() => {
     const kw = keyword.toLowerCase();
     return allRows
       .filter((r) => rowMatchesKeyword(r, kw) && rowMatchesLevel(r, levelFilter))
-      .sort((a, b) => compareRows(a, b, sortMode));
-  }, [allRows, keyword, levelFilter, sortMode]);
+      .sort(compareRows);
+  }, [allRows, keyword, levelFilter]);
 
   const pagedRows = useMemo(() => {
     const start = (page - 1) * perPage;
@@ -166,13 +177,13 @@ export function RecommendPoolList() {
   }, [allRows]);
 
   const filteredTotal = filteredRows.length;
-  const estimatedTotal = Number.isFinite(filteredTotal) ? filteredTotal : allRows.length;
 
   const handleRemove = useCallback(
     (row: AdminPoolRow) => {
+      const tabLabel = POOL_TAB_LABEL[poolType];
       Modal.confirm({
-        title: "移出推荐池",
-        content: `确定将「${String(row.movie?.title ?? row.movie_id)}」从推荐池移除？`,
+        title: `移出${tabLabel}推荐`,
+        content: `确定将「${String(row.movie?.title ?? row.movie_id)}」从${tabLabel}推荐列表移除？`,
         okText: "删除",
         okType: "danger",
         cancelText: "取消",
@@ -184,7 +195,7 @@ export function RecommendPoolList() {
               message.error(res.m || "删除失败");
               return;
             }
-            message.success("已移出推荐池");
+            message.success("已移除");
             await fetchList();
           } catch {
             message.error("网络异常");
@@ -194,7 +205,7 @@ export function RecommendPoolList() {
         },
       });
     },
-    [fetchList],
+    [fetchList, poolType],
   );
 
   const columns: ColumnsType<AdminPoolRow & { _displayRank?: number }> = useMemo(
@@ -235,7 +246,7 @@ export function RecommendPoolList() {
         },
       },
       {
-        title: "剧集 ID",
+        title: "ID",
         dataIndex: "movie_id",
         key: "movie_id",
         width: 96,
@@ -250,9 +261,8 @@ export function RecommendPoolList() {
       {
         title: "播放量",
         key: "views",
-        width: 120,
-        align: "right",
-        render: (_: unknown, row) => formatCompactCount(readViews7d(poolMovieRecord(row))),
+        width: 148,
+        render: (_: unknown, row) => <MoviePlayCountCell row={poolMovieRecord(row)} />,
       },
       {
         title: "收藏数",
@@ -300,17 +310,16 @@ export function RecommendPoolList() {
   return (
     <div>
       <Typography.Title level={4} style={{ marginTop: 0 }}>
-        推荐池管理
+        推荐管理
       </Typography.Title>
-      <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
-        管理和监控当前上架推荐的精品短剧
-      </Typography.Paragraph>
 
-      <div className={stylesToolbar.toolbar}>
+      <Tabs activeKey={poolType} onChange={onTabChange} items={ADMIN_POOL_TAB_ITEMS.map(({ key, label }) => ({ key, label }))} />
+
+      <div className={stylesToolbar.toolbar} style={{ marginTop: 16 }}>
         <Space wrap className={stylesToolbar.toolbarLeft}>
           <Input
             allowClear
-            placeholder="输入剧名搜索推荐剧…"
+            placeholder="输入剧名搜索…"
             prefix={<span style={{ opacity: 0.45 }}>🔍</span>}
             value={keywordInput}
             onChange={(e) => onKeywordChange(e.target.value)}
@@ -322,19 +331,11 @@ export function RecommendPoolList() {
             options={[...MOVIE_LEVEL_FILTER_OPTIONS]}
             onChange={(v) => setLevelFilter(v)}
           />
-          <Select
-            value={sortMode}
-            style={{ width: 200 }}
-            onChange={setSortMode}
-            options={[
-              { value: "default", label: "默认排序（按推荐序号）" },
-              { value: "views", label: "按播放量排序" },
-              { value: "favorites", label: "按收藏数排序" },
-            ]}
-          />
         </Space>
         <Space wrap className={stylesToolbar.toolbarRight}>
-          <Button onClick={() => setSortConfigOpen(true)}>推荐排序配置</Button>
+          {poolType === "recommend" ? (
+            <Button onClick={() => setSortConfigOpen(true)}>推荐排序配置</Button>
+          ) : null}
           <Button type="primary" onClick={() => setAddOpen(true)}>
             添加推荐剧
           </Button>
@@ -358,9 +359,9 @@ export function RecommendPoolList() {
         <Pagination
           current={page}
           pageSize={perPage}
-          total={estimatedTotal}
+          total={filteredTotal}
           showSizeChanger={false}
-          showTotal={() => `本页 ${filteredRows.length} 条${keyword || levelFilter !== "all" ? "（已筛选）" : ""}`}
+          showTotal={() => `本页 ${displayRows.length} 条${keyword || levelFilter !== "all" ? "（已筛选）" : ""}`}
           onChange={(p) => setPage(p)}
           hideOnSinglePage
         />
@@ -368,6 +369,7 @@ export function RecommendPoolList() {
 
       <RecommendPoolAddModal
         open={addOpen}
+        poolType={poolType}
         existingMovieIds={existingMovieIds}
         minSortHint={minSortHint}
         onClose={() => setAddOpen(false)}

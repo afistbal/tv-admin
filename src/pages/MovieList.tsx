@@ -14,8 +14,8 @@ import {
   formatCompactCount,
   movieLevelFromRow,
   movieLevelTag,
+  MoviePlayCountCell,
   readFavoriteCount,
-  readViews7d,
   type MovieLevelFilter,
 } from "@/lib/movieLevelDisplay";
 import { mainContentTableSticky } from "@/lib/tableSticky";
@@ -444,10 +444,9 @@ export function MovieList() {
       },
       {
         title: "播放量",
-        key: "views_7d",
-        width: 112,
-        align: "right",
-        render: (_: unknown, row) => formatCompactCount(readViews7d(row as Record<string, unknown>)),
+        key: "views",
+        width: 148,
+        render: (_: unknown, row) => <MoviePlayCountCell row={row as Record<string, unknown>} />,
       },
       {
         title: "收藏数",

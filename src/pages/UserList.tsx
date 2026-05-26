@@ -303,6 +303,16 @@ export function UserList() {
         ),
       },
       {
+        title: "剩余金币",
+        dataIndex: "balance",
+        width: 100,
+        align: "right",
+        render: (v: unknown) => {
+          const n = Number(v);
+          return Number.isFinite(n) ? n.toLocaleString("zh-CN") : "—";
+        },
+      },
+      {
         title: "时间",
         key: "time_pair",
         width: 200,
@@ -537,6 +547,12 @@ export function UserList() {
                   >
                     {fmtSource(info.source)}
                   </Typography.Text>
+                </span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>剩余金币</span>
+                <span className={styles.detailValue}>
+                  {Number.isFinite(Number(info.balance)) ? Number(info.balance).toLocaleString("zh-CN") : "—"}
                 </span>
               </div>
               <div className={styles.detailRow}>

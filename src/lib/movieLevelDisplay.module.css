@@ -1,0 +1,21 @@
+.playCell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.playLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 4px;
+}
+
+.playLabel {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}

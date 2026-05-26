@@ -8,6 +8,8 @@ export type AdminUserInfo = {
   admin?: number;
   /** 注册/访问来源 */
   source?: string;
+  /** 剩余金币 */
+  balance?: number;
   created_at?: string | null;
   login_at?: string | null;
   active_at?: string | null;

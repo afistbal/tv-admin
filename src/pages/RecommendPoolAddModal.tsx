@@ -3,16 +3,18 @@ import { Button, Modal, Select, Space, Typography, message } from "antd";
 import { apiGet, apiPostJson } from "@/api/client";
 import type { ApiResult } from "@/api/types";
 import type { AdminMovieListPayload, AdminMovieRow } from "@/types/adminMovie";
+import type { AdminPoolType } from "@/types/adminPool";
 
 type Props = {
   open: boolean;
+  poolType: AdminPoolType;
   existingMovieIds: Set<number>;
   minSortHint: number;
   onClose: () => void;
   onAdded: () => void;
 };
 
-export function RecommendPoolAddModal({ open, existingMovieIds, minSortHint, onClose, onAdded }: Props) {
+export function RecommendPoolAddModal({ open, poolType, existingMovieIds, minSortHint, onClose, onAdded }: Props) {
   const [searching, setSearching] = useState(false);
   const [options, setOptions] = useState<{ value: number; label: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -94,6 +96,7 @@ export function RecommendPoolAddModal({ open, existingMovieIds, minSortHint, onC
         const res: ApiResult<unknown> = await apiPostJson("admin/pools/add", {
           movie_id: movieId,
           sort: nextSort,
+          type: poolType,
         });
         if (res.c !== 0) {
           message.error(res.m || `添加剧集 ${movieId} 失败`);

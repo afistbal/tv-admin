@@ -81,7 +81,7 @@ const menuItems: MenuProps["items"] = [
     label: "配置管理",
     children: [
       { key: "/config/products", label: <Link to="/config/products">产品管理</Link> },
-      { key: "/config/recommend-pool", label: <Link to="/config/recommend-pool">推荐池管理</Link> },
+      { key: "/config/recommend-pool", label: <Link to="/config/recommend-pool">推荐管理</Link> },
     ],
   },
 ];
@@ -238,7 +238,7 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
           <CollapsedPopoverLinks
             links={[
               { to: "/config/products", label: "产品管理" },
-              { to: "/config/recommend-pool", label: "推荐池管理" },
+              { to: "/config/recommend-pool", label: "推荐管理" },
             ]}
           />
         }

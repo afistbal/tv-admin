@@ -1,8 +1,19 @@
+/** 推荐池列表 `GET admin/pools` 的 type 参数 */
+export type AdminPoolType = "recommend" | "search_feed" | "membership";
+
+export const ADMIN_POOL_TAB_ITEMS: { key: AdminPoolType; label: string }[] = [
+  { key: "recommend", label: "推荐页配置" },
+  { key: "search_feed", label: "搜索页配置" },
+  { key: "membership", label: "会员页配置" },
+];
+
 export type AdminPoolMovie = {
   id: number;
   title?: string;
   image?: string;
   level?: string;
+  play?: number;
+  play_7days?: number;
   views_7d?: number;
   view_count_7d?: number;
   play_count_7d?: number;

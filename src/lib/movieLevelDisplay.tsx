@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Tag } from "antd";
 import type { NotionTagTone } from "@/lib/subscriptionUserDisplay";
 import { NotionTag } from "@/components/NotionTag";
+import playStyles from "./movieLevelDisplay.module.css";
 
 export type MovieLevelKey = "n" | "a" | "b";
 
@@ -77,13 +78,44 @@ export function formatCompactCount(n: unknown): string {
   return v.toLocaleString("zh-CN");
 }
 
+export function readTotalPlay(row: Record<string, unknown> | undefined): number | null {
+  if (!row) {
+    return null;
+  }
+  const n = Number(row.play);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function readViews7d(row: Record<string, unknown> | undefined): number | null {
   if (!row) {
     return null;
   }
-  const v = row.views_7d ?? row.view_count_7d ?? row.play_count_7d ?? row.views7d ?? row.play_count;
+  const v =
+    row.play_7days ??
+    row.views_7d ??
+    row.view_count_7d ??
+    row.play_count_7d ??
+    row.views7d ??
+    row.play_count;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+export function MoviePlayCountCell({ row }: { row: Record<string, unknown> | undefined }) {
+  const total = readTotalPlay(row);
+  const views7d = readViews7d(row);
+  return (
+    <div className={playStyles.playCell}>
+      <div className={playStyles.playLine}>
+        <span className={playStyles.playLabel}>总播放量：</span>
+        <span>{formatCompactCount(total)}</span>
+      </div>
+      <div className={playStyles.playLine}>
+        <span className={playStyles.playLabel}>7天播放量：</span>
+        <span>{formatCompactCount(views7d)}</span>
+      </div>
+    </div>
+  );
 }
 
 export function readFavoriteCount(row: Record<string, unknown> | undefined): number | null {

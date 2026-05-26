@@ -9,6 +9,8 @@ export type AdminMovieRow = {
   /** 列表里常见为标签 id 数组，与详情 `tag` 一致 */
   tag?: number[];
   level?: string;
+  play?: number;
+  play_7days?: number;
   views_7d?: number;
   favorites?: number;
   [key: string]: unknown;
