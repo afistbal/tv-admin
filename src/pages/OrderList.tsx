@@ -265,7 +265,7 @@ export function OrderList() {
       },
       {
         title: "平台订单号",
-        dataIndex: "platform_sn",
+        dataIndex: "sn",
         width: 180,
         minWidth: 180,
         render: (v: unknown) => (

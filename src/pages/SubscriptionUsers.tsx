@@ -61,6 +61,7 @@ import { isAdminUser } from "@/auth/userInfo";
 import {
   EMPTY,
   billingRemainingDays,
+  pickOpTime,
   channelTone,
   countSubscriptionPageStatus,
   cycleCount,
@@ -90,6 +91,21 @@ function cellStr(v: unknown): string {
   }
   const s = String(v).trim();
   return s === "" ? EMPTY : s;
+}
+
+function BillingRemainingLabel({ days }: { days: number }) {
+  if (days >= 0) {
+    return <span className={styles.billingRemaining}>剩余{days}天</span>;
+  }
+  const overdueDays = Math.abs(days);
+  return (
+    <span className={styles.billingOverdueWrap}>
+      <span className={styles.billingOverdueText}>已到期</span>
+      <Tooltip title={`-${overdueDays}天`}>
+        <QuestionCircleOutlined className={styles.billingOverdueIcon} aria-label={`已过期 ${overdueDays} 天`} />
+      </Tooltip>
+    </span>
+  );
 }
 
 export function SubscriptionUsers() {
@@ -455,13 +471,19 @@ export function SubscriptionUsers() {
         render: (_: unknown, record) => {
           const time = formatCnDateTime(record.billing_at);
           const remaining = billingRemainingDays(record);
+          const opTimeRaw = pickOpTime(record);
+          const hasOpTime = opTimeRaw != null;
+          const opTimeLabel = hasOpTime ? formatCnDateTime(opTimeRaw) : "—";
           return (
-            <span className={styles.plainText}>
-              {time}
-              {remaining != null ? (
-                <span className={styles.billingRemaining}> · 剩余{remaining}天</span>
-              ) : null}
-            </span>
+            <div className={styles.billingAtCell}>
+              <div className={styles.billingAtTopRow}>
+                <span className={styles.plainText}>{time}</span>
+                {remaining != null ? <BillingRemainingLabel days={remaining} /> : null}
+              </div>
+              <span className={hasOpTime ? styles.opTime : styles.opTimeEmpty}>
+                手动操作：{opTimeLabel}
+              </span>
+            </div>
           );
         },
       },
@@ -737,7 +759,7 @@ export function SubscriptionUsers() {
           <Button type="primary" onClick={runSearch}>
             搜索
           </Button>
-          <Tooltip title="daterange 与 timeType 搭配；timeType 为 created_at 或 updated_at">
+          <Tooltip title="日期与「时间字段」搭配：开始订阅时间、更新时间或结束时间（billing_at）">
             <QuestionCircleOutlined className={styles.filterHelp} />
           </Tooltip>
           {canEditSubscriptionStatus ? (

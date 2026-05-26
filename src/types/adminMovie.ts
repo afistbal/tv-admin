@@ -35,6 +35,8 @@ export type AdminMovieEpisodeRow = {
   id?: number;
   episode?: number;
   video?: string;
+  /** 字幕文件路径（常为 .vtt），与 `video` 同级 */
+  url?: string;
   vip?: number;
   subtitle?: { id?: number; url?: string } | null;
   [key: string]: unknown;

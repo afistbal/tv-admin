@@ -36,6 +36,8 @@ export type AdminUserSubscriptionRow = {
   /** 付款方式；无字段时列表显示 `-`，枚举见 `SubscriptionPaymentMethodKey` */
   payment_method?: string | null;
   billing_at?: string | null;
+  /** 手动操作时间 */
+  op_time?: string | null;
   /** 实际支付成功时间等，有则展示「支付时间」 */
   paid_at?: string | null;
   pay_time?: string | null;

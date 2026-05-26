@@ -1,43 +1,20 @@
 import { DownloadOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, Image, Input, Space, Table, Tooltip, Typography, message } from "antd";
-import type { Dayjs } from "dayjs";
-import dayjs from "dayjs";
+import { Button, Image, Input, Space, Table, Tooltip, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { apiGet } from "@/api/client";
-import type { ApiGetQueryValue } from "@/api/client";
-import type { ApiResult } from "@/api/types";
+import { useAuth } from "@/auth/AuthContext";
+import { isAdminUser } from "@/auth/userInfo";
 import { useAppStaticBase } from "@/config/AppConfigContext";
-import orderStyles from "./OrderList.module.css";
+import { LATEST_UPDATE_LIST_DEFAULT_PER_PAGE, fetchLatestUpdateList } from "@/lib/dramaLatestUpdateApi";
+import { downloadMovieExportTxt } from "@/lib/movieExport";
+import { mainContentTableSticky } from "@/lib/tableSticky";
+import { DramaLatestUpdateDetailModal } from "./DramaLatestUpdateDetailModal";
 import styles from "./DramaLatestUpdate.module.css";
 
 const COS_FALLBACK_BASE = "https://cos.yogoshort.com";
-const CLIENT_PAGE_SIZE = 200;
 
 function pad(num: number) {
   return String(num).padStart(2, "0");
-}
-
-function defaultDateRange(): [Dayjs, Dayjs] {
-  const end = dayjs().startOf("day");
-  const start = end.subtract(6, "day");
-  return [start, end];
-}
-
-/** 与 slot `movie/listnew` 一致：daterange JSON 二元组，起止含整天 */
-function rangeToApiStrings(range: [Dayjs, Dayjs]): [string, string] {
-  const [from, to] = range;
-  let a = from.startOf("day");
-  let b = to.startOf("day");
-  if (a.isAfter(b)) {
-    const t = a;
-    a = b;
-    b = t;
-  }
-  return [
-    a.format("YYYY-MM-DD HH:mm:ss"),
-    b.endOf("day").format("YYYY-MM-DD HH:mm:ss"),
-  ];
 }
 
 function formatDisplayTime(raw: string) {
@@ -51,7 +28,7 @@ function formatDisplayTime(raw: string) {
     .trim();
   const d = new Date(value);
   if (!Number.isNaN(d.getTime())) {
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
   return normalized;
 }
@@ -89,7 +66,6 @@ function joinUrl(base: string, path: string) {
   return `${b}/${p}`;
 }
 
-/** 取封面相对路径的文件名，用于下载名 `{id}_{image}` */
 function imageBasename(path: string): string {
   const s = String(path ?? "").replace(/\\/g, "/").trim();
   if (!s) {
@@ -188,88 +164,67 @@ async function downloadImageAsFile(url: string, filename: string) {
   message.error("无法直接保存到本地（跨域限制）。请在大图预览里右键「图片另存为」，或由静态资源域名开放 CORS。");
 }
 
-function toFallbackAddress(row: TRow) {
-  const direct = pickText(row, ["address", "url", "href", "link", "episode_url", "episode_href"], "");
-  if (direct) {
-    return direct;
-  }
-  const id = row["id"];
-  if (id !== undefined && id !== null && String(id).trim() !== "") {
-    return `/video/${id}`;
-  }
-  const slug = pickText(row, ["episode_slug", "slug"], "");
-  if (slug) {
-    return `/episodes/${slug}`;
-  }
-  return "—";
-}
-
-type EpisodeRow = {
+type DramaListRow = {
   key: string;
+  movieId: number;
   title: string;
-  /** 剧封图完整 URL，同一剧多集行共用，与名称列同步 rowSpan 合并 */
   coverUrl: string;
-  /** 剧目 id，用于展示与下载文件名 */
-  dramaId: string;
-  /** 封面原文件名（接口 image 字段 basename），下载名 `{dramaId}_{coverImageFile}` */
   coverImageFile: string;
   time: string;
-  episode: string;
-  address: string;
-  groupIndex: number;
 };
 
-type MovieListNewPayload = {
-  data?: TRow[];
-  count?: number;
-};
-
-function computeTitleRowSpans(rows: EpisodeRow[]): number[] {
-  const result = rows.map(() => 0);
-  const countByGroup = new Map<number, number>();
-  const firstIndexByGroup = new Map<number, number>();
-  rows.forEach((r, i) => {
-    countByGroup.set(r.groupIndex, (countByGroup.get(r.groupIndex) ?? 0) + 1);
-    if (!firstIndexByGroup.has(r.groupIndex)) {
-      firstIndexByGroup.set(r.groupIndex, i);
-    }
-  });
-  rows.forEach((r, i) => {
-    const first = firstIndexByGroup.get(r.groupIndex);
-    if (first === i) {
-      result[i] = countByGroup.get(r.groupIndex) ?? 1;
-    } else {
-      result[i] = 0;
-    }
-  });
-  return result;
+function movieIdFromRow(row: TRow): number | null {
+  const n = Number(row.id);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/**
- * 进入页面：默认近 7 日时间范围自动请求 `movie/listnew`（与点「更新列表」相同）。
- * 之后：点「更新列表」→ 仅按时间范围请求 → 成功后再用当前名称对本次结果做前端模糊匹配（`title`）。
- * 「查询」：不重复请求，仅按名称重筛当前已拉取的数据。
- */
+function buildDramaListRows(movies: TRow[], staticBase: string): DramaListRow[] {
+  return movies.flatMap((row) => {
+    const movieId = movieIdFromRow(row);
+    if (movieId == null) {
+      return [];
+    }
+    const title = rowTitle(row) || "—";
+    const outerTime = pickText(
+      row,
+      ["updated_at", "update_time", "time", "created_at", "publish_time", "publish_at"],
+      "",
+    );
+    const coverPath = pickText(row, ["image", "poster", "cover", "thumb", "cover_image"], "");
+    return [
+      {
+        key: String(movieId),
+        movieId,
+        title,
+        coverUrl: coverPath ? joinUrl(staticBase, coverPath) : "",
+        coverImageFile: coverPath ? imageBasename(coverPath) : "",
+        time: formatDisplayTime(outerTime || "—"),
+      },
+    ];
+  });
+}
+
 export function DramaLatestUpdate() {
   const staticBase = useAppStaticBase() ?? "";
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(() => defaultDateRange());
+  const { user } = useAuth();
+  const isAdmin = user != null && isAdminUser(user);
+
   const [titleKeyword, setTitleKeyword] = useState("");
-  /** 与接口返回同步快照：仅在「更新列表」成功返回后写入；「查询」只更新此项 */
   const [appliedTitle, setAppliedTitle] = useState("");
   const [apiList, setApiList] = useState<TRow[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [listPerPage, setListPerPage] = useState(LATEST_UPDATE_LIST_DEFAULT_PER_PAGE);
+  const [serverPage, setServerPage] = useState(1);
+  const [loadingList, setLoadingList] = useState(true);
   const [hasFetched, setHasFetched] = useState(false);
-  const [clientPage, setClientPage] = useState(1);
+  const [detailMovieId, setDetailMovieId] = useState<number | null>(null);
+  const [detailMovieTitle, setDetailMovieTitle] = useState("");
+  const [exportingId, setExportingId] = useState<number | null>(null);
 
-  const fetchByDateRange = useCallback(async (): Promise<boolean> => {
-    setLoading(true);
+  const fetchPage = useCallback(async (page: number): Promise<boolean> => {
+    setLoadingList(true);
     try {
-      const [s, e] = rangeToApiStrings(dateRange);
-      const q: Record<string, ApiGetQueryValue> = {
-        daterange: JSON.stringify([s, e]),
-      };
-      const res: ApiResult<MovieListNewPayload> = await apiGet<MovieListNewPayload>("movie/listnew", q);
+      const res = await fetchLatestUpdateList(page);
       if (res.c !== 0) {
         message.error(res.m || "加载失败");
         setApiList([]);
@@ -280,7 +235,9 @@ export function DramaLatestUpdate() {
       const d = res.d;
       const data = Array.isArray(d?.data) ? d.data : [];
       setApiList(data);
-      setTotal(Number(d?.count) || 0);
+      setTotal(Number(d?.count) || data.length);
+      setListPerPage(Number(d?.per_page) || LATEST_UPDATE_LIST_DEFAULT_PER_PAGE);
+      setServerPage(Number(d?.current_page) || page);
       setHasFetched(true);
       return true;
     } catch {
@@ -290,33 +247,27 @@ export function DramaLatestUpdate() {
       setHasFetched(false);
       return false;
     } finally {
-      setLoading(false);
+      setLoadingList(false);
     }
-  }, [dateRange]);
-
-  /** 更新列表：先接口，成功后再把当前名称框内容作为 appliedTitle（对本次数据筛选） */
-  const handleSearch = useCallback(async () => {
-    const ok = await fetchByDateRange();
-    if (ok) {
-      setAppliedTitle(titleKeyword.trim());
-      setClientPage(1);
-    }
-  }, [fetchByDateRange, titleKeyword]);
-
-  /** 进入页面：默认时间范围自动拉取（与点「更新列表」一致） */
-  useEffect(() => {
-    void handleSearch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载一次；改日期后请手动点「更新列表」
   }, []);
 
-  /** 仅名称：对已返回的数据再筛，不调接口 */
+  const handleRefresh = useCallback(async () => {
+    const ok = await fetchPage(serverPage);
+    if (ok) {
+      setAppliedTitle(titleKeyword.trim());
+    }
+  }, [fetchPage, serverPage, titleKeyword]);
+
+  useEffect(() => {
+    void fetchPage(serverPage);
+  }, [fetchPage, serverPage]);
+
   const handleFilterTitle = useCallback(() => {
     if (!hasFetched) {
-      message.warning("请先点击「更新列表」拉取时间范围内的数据");
+      message.warning("请先点击「更新列表」拉取数据");
       return;
     }
     setAppliedTitle(titleKeyword.trim());
-    setClientPage(1);
   }, [hasFetched, titleKeyword]);
 
   const filteredApiList = useMemo(() => {
@@ -327,156 +278,55 @@ export function DramaLatestUpdate() {
     return apiList.filter((row) => rowTitle(row).toLowerCase().includes(kw));
   }, [apiList, appliedTitle]);
 
-  const rows = useMemo<EpisodeRow[]>(() => {
-    return filteredApiList.flatMap((row, groupIndex) => {
-      const title = rowTitle(row);
-      const outerTime = pickText(
-        row,
-        ["updated_at", "update_time", "time", "created_at", "publish_time", "publish_at"],
-        "",
-      );
-      const raw = row["list"];
-      const rowId = row["id"] != null ? String(row["id"]) : String(groupIndex);
-      const coverPath = pickText(row, ["image", "poster", "cover", "thumb", "cover_image"], "");
-      const coverUrl = coverPath ? joinUrl(staticBase, coverPath) : "";
-      const dramaId = row["id"] != null ? String(row["id"]) : "";
-      const coverImageFile = coverPath ? imageBasename(coverPath) : "";
-      if (!Array.isArray(raw) || raw.length === 0) {
-        return [
-          {
-            key: `g${rowId}-0`,
-            title,
-            coverUrl,
-            dramaId,
-            coverImageFile,
-            time: formatDisplayTime(outerTime || "—"),
-            episode: pickText(row, ["episode", "episodes", "currentEp", "current_ep", "videos"]),
-            address: toFallbackAddress(row),
-            groupIndex,
-          },
-        ];
-      }
-      return raw.map((item, index) => {
-        const record = item as Record<string, unknown>;
-        const episodeValue = record["episode"];
-        const video = String(record["video"] ?? "").trim();
-        const address = video ? joinUrl(staticBase, video) : toFallbackAddress(row);
-        const normalizedEpisode = Number(episodeValue);
-        const innerTime = pickText(
-          record as TRow,
-          ["updated_at", "update_time", "time", "created_at", "publish_time", "publish_at"],
-          "",
-        );
-        return {
-          key: `g${rowId}-${index}`,
-          title,
-          coverUrl,
-          dramaId,
-          coverImageFile,
-          time: formatDisplayTime(outerTime || innerTime || "—"),
-          episode:
-            Number.isFinite(normalizedEpisode) && normalizedEpisode > 0
-              ? String(normalizedEpisode)
-              : String(index + 1),
-          address,
-          groupIndex,
-        };
-      });
-    });
-  }, [filteredApiList, staticBase]);
+  const listRows = useMemo(() => buildDramaListRows(filteredApiList, staticBase), [filteredApiList, staticBase]);
 
-  const clientTotalPage = Math.max(1, Math.ceil(rows.length / CLIENT_PAGE_SIZE));
-  const pagedRows = useMemo(() => {
-    const start = (clientPage - 1) * CLIENT_PAGE_SIZE;
-    return rows.slice(start, start + CLIENT_PAGE_SIZE);
-  }, [clientPage, rows]);
+  const serverTotalPage = Math.max(1, Math.ceil(total / listPerPage));
 
-  const titleRowSpans = useMemo(() => computeTitleRowSpans(pagedRows), [pagedRows]);
+  const openDetail = useCallback((row: DramaListRow) => {
+    setDetailMovieId(row.movieId);
+    setDetailMovieTitle(row.title);
+  }, []);
 
-  useEffect(() => {
-    setClientPage(1);
-  }, [rows.length]);
+  const handleExport = useCallback(async (movieId: number) => {
+    setExportingId(movieId);
+    try {
+      await downloadMovieExportTxt(movieId);
+    } finally {
+      setExportingId(null);
+    }
+  }, []);
 
-  const goPage = (next: number) => {
-    const target = Math.min(Math.max(1, next), clientTotalPage);
-    setClientPage(target);
-  };
-
-  const columns: ColumnsType<EpisodeRow> = useMemo(
+  const columns: ColumnsType<DramaListRow> = useMemo(
     () => [
       {
         title: "名称",
         dataIndex: "title",
         key: "title",
         className: styles.titleColumn,
-        width: 200,
-        ellipsis: false,
-        onCell: (_: EpisodeRow, index?: number) => ({
-          rowSpan: index === undefined ? 1 : (titleRowSpans[index] ?? 1),
-          className: styles.titleColumnCell,
-        }),
+        ellipsis: true,
+        width: 240,
         render: (title: string) => (
-          <div className={styles.titleCell}>
-            <Typography.Text
-              className={styles.titleText}
-              copyable={title && title !== "—" ? { text: title } : false}
-            >
-              {title}
-            </Typography.Text>
-          </div>
+          <Typography.Text ellipsis={{ tooltip: title }} copyable={title && title !== "—" ? { text: title } : false}>
+            {title}
+          </Typography.Text>
         ),
       },
       {
         title: "封面",
         key: "cover",
-        width: 160,
+        width: 140,
         align: "center",
-        onCell: (_: EpisodeRow, index?: number) => ({
-          rowSpan: index === undefined ? 1 : (titleRowSpans[index] ?? 1),
-        }),
-        render: (_: unknown, record: EpisodeRow) => {
+        render: (_: unknown, record: DramaListRow) => {
           const url = record.coverUrl?.trim();
-          const idLine = record.dramaId ? `id: ${record.dramaId}` : "id: —";
-          const canDownload = Boolean(url && record.dramaId && record.coverImageFile);
-          const downloadFilename =
-            record.dramaId && record.coverImageFile ? `${record.dramaId}_${record.coverImageFile}` : "";
-
-          const downloadTip = !url
-            ? "无封面可下载"
-            : canDownload
-              ? `下载 ${downloadFilename}`
-              : !record.dramaId
-                ? "缺少剧目 id，无法按规范命名下载"
-                : "缺少封面文件名";
-
-          const meta = (
-            <div className={styles.coverMeta}>
-              <Typography.Text type="secondary" className={styles.coverIdLine}>
-                {idLine}
-              </Typography.Text>
-              <Tooltip title={downloadTip}>
-                <Button
-                  type="text"
-                  size="small"
-                  className={styles.coverDownloadBtn}
-                  icon={<DownloadOutlined />}
-                  aria-label="下载封面"
-                  disabled={!canDownload}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (canDownload && url) {
-                      void downloadImageAsFile(url, downloadFilename);
-                    }
-                  }}
-                />
-              </Tooltip>
-            </div>
-          );
+          const canDownload = Boolean(url && record.coverImageFile);
+          const downloadFilename = canDownload ? `${record.movieId}_${record.coverImageFile}` : "";
 
           if (!url) {
             return (
               <div className={styles.coverCell}>
-                {meta}
+                <Typography.Text type="secondary" className={styles.coverIdLine}>
+                  id: {record.movieId}
+                </Typography.Text>
                 <Typography.Text type="secondary">—</Typography.Text>
               </div>
             );
@@ -484,161 +334,157 @@ export function DramaLatestUpdate() {
 
           return (
             <div className={styles.coverCell}>
-              {meta}
+              <div className={styles.coverMeta}>
+                <Typography.Text type="secondary" className={styles.coverIdLine}>
+                  id: {record.movieId}
+                </Typography.Text>
+                <Tooltip title={canDownload ? `下载封面 ${downloadFilename}` : "无封面文件名"}>
+                  <Button
+                    type="text"
+                    size="small"
+                    className={styles.coverDownloadBtn}
+                    icon={<DownloadOutlined />}
+                    aria-label="下载封面"
+                    disabled={!canDownload}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (canDownload && url) {
+                        void downloadImageAsFile(url, downloadFilename);
+                      }
+                    }}
+                  />
+                </Tooltip>
+              </div>
               <Image
                 src={url}
                 alt=""
-                width={112}
-                height={148}
+                width={96}
+                height={128}
                 className={styles.coverThumb}
-                preview={{ mask: "查看大图" }}
+                preview={{ mask: "预览" }}
               />
             </div>
           );
         },
       },
       {
-        title: "时间",
+        title: "更新时间",
         dataIndex: "time",
         key: "time",
-        width: 168,
-        render: (t: string) => <Typography.Text>{t}</Typography.Text>,
+        width: 160,
       },
       {
-        title: "集数",
-        dataIndex: "episode",
-        key: "episode",
-        width: 72,
-      },
-      {
-        title: "地址",
-        dataIndex: "address",
-        key: "address",
-        ellipsis: true,
-        width: 320,
-        render: (addr: string) => {
-          const a = String(addr ?? "");
-          const isHttp = /^https?:\/\//.test(a);
-          const isPath = a.startsWith("/");
-          const copyable = a && a !== "—" ? { text: a } : false;
-          const tip = a && a !== "—" ? a : undefined;
-          const body =
-            isHttp && tip ? (
-              <a
-                className={styles.addrLinkInner}
-                href={a}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {a}
-              </a>
-            ) : isPath && tip ? (
-              <a className={styles.addrLinkInner} href={a}>
-                {a}
-              </a>
-            ) : (
-              <span className={styles.addrPlain}>{a}</span>
-            );
+        title: "操作",
+        key: "actions",
+        width: 120,
+        fixed: "right",
+        render: (_: unknown, record: DramaListRow) => {
+          const busy = exportingId === record.movieId;
           return (
-            <div className={styles.addrCell}>
-              <Tooltip title={tip} placement="topLeft">
-                <div className={styles.addrEllipsis}>{body}</div>
-              </Tooltip>
-              {copyable ? <Typography.Text className={styles.addrCopy} copyable={copyable} /> : null}
+            <div className={styles.actionsCell}>
+              <Button type="link" size="small" className={styles.actionLink} onClick={() => openDetail(record)}>
+                详情
+              </Button>
+              <Button
+                type="link"
+                size="small"
+                className={styles.actionLink}
+                loading={busy}
+                disabled={busy}
+                onClick={() => void handleExport(record.movieId)}
+              >
+                导出
+              </Button>
             </div>
           );
         },
       },
     ],
-    [titleRowSpans],
+    [openDetail, handleExport, exportingId],
   );
 
   return (
     <div className={styles.page}>
-      <Typography.Title level={4} style={{ marginTop: 0 }}>
-        最新更新
-      </Typography.Title>
+      <div className={styles.pageHead}>
+        <div>
+          <Typography.Title level={4} className={styles.pageTitle}>
+            最新更新
+          </Typography.Title>
+          <p className={styles.pageHint}>近 7 日更新剧目；详情查看集数，导出与剧集列表相同（下载 txt）。</p>
+        </div>
+        <Typography.Text type="secondary">共 {total} 部</Typography.Text>
+      </div>
 
-      <div className={orderStyles.filterWrap}>
-        <div className={orderStyles.filterBar}>
-          <div className={orderStyles.filterItem}>
-            <span className={orderStyles.filterLabel}>时间范围：</span>
-            <DatePicker.RangePicker
-              className={orderStyles.dateRange}
-              format="YYYY-MM-DD"
-              allowClear={false}
-              value={dateRange}
-              onChange={(dates) => {
-                if (dates?.[0] && dates[1]) {
-                  let a = dates[0].startOf("day");
-                  let b = dates[1].startOf("day");
-                  if (a.isAfter(b)) {
-                    const t = a;
-                    a = b;
-                    b = t;
-                  }
-                  setDateRange([a, b]);
-                }
-              }}
-            />
-            <Button type="primary" loading={loading} onClick={() => void handleSearch()}>
-              更新列表
-            </Button>
-          </div>
-          <div className={orderStyles.filterItem}>
-            <span className={orderStyles.filterLabel}>名称：</span>
-            <Input
-              allowClear
-              placeholder={hasFetched ? "模糊匹配 title" : "拉取完成后可输入"}
-              disabled={!hasFetched}
-              value={titleKeyword}
-              onChange={(e) => setTitleKeyword(e.target.value)}
-              style={{ width: 220 }}
-              maxLength={128}
-            />
-            <Button disabled={!hasFetched || loading} onClick={handleFilterTitle}>
-              查询
-            </Button>
-          </div>
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarItem}>
+          <Button type="primary" loading={loadingList} onClick={() => void handleRefresh()}>
+            更新列表
+          </Button>
+        </div>
+        <div className={styles.toolbarItem}>
+          <span className={styles.toolbarLabel}>剧名</span>
+          <Input
+            allowClear
+            placeholder={hasFetched ? "模糊搜索" : "请先更新列表"}
+            disabled={!hasFetched}
+            value={titleKeyword}
+            onChange={(e) => setTitleKeyword(e.target.value)}
+            onPressEnter={() => handleFilterTitle()}
+            style={{ width: 200 }}
+            maxLength={128}
+          />
+          <Button disabled={!hasFetched || loadingList} onClick={handleFilterTitle}>
+            查询
+          </Button>
         </div>
       </div>
 
-      <Typography.Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
-        进入页面已按默认时间自动请求；修改时间后请点「更新列表」。名称在数据返回后可填，点「更新列表」会重新请求并带上名称筛选，点「查询」只筛当前结果。
-      </Typography.Text>
-
       <div className={styles.tableScroll}>
-        <Table<EpisodeRow>
+        <Table<DramaListRow>
           rowKey="key"
-          loading={loading}
+          loading={loadingList}
           columns={columns}
-          dataSource={pagedRows}
+          dataSource={listRows}
           pagination={false}
+          sticky={mainContentTableSticky}
           size="middle"
           tableLayout="fixed"
-          scroll={{ x: 1140 }}
+          scroll={{ x: 720 }}
           locale={{
-            emptyText: loading ? "加载中…" : hasFetched ? "暂无数据" : "请点击「更新列表」拉取数据",
+            emptyText: loadingList ? "加载中…" : hasFetched ? "暂无数据" : "请点击「更新列表」",
           }}
         />
       </div>
 
       <div className={styles.footer}>
         <div className={styles.footerStat}>
-          接口影剧数: {total} | 当前匹配剧: {filteredApiList.length} | 展示行数: {rows.length}
+          匹配 {listRows.length} 部
+          {appliedTitle ? "（已筛选）" : ""}
         </div>
         <Space className={styles.footerPager} wrap>
-          <Button type="default" disabled={clientPage <= 1} onClick={() => goPage(clientPage - 1)}>
+          <Button disabled={serverPage <= 1 || loadingList} onClick={() => setServerPage((p) => p - 1)}>
             上一页
           </Button>
-          <Typography.Text strong>
-            第 {clientPage} / {clientTotalPage} 页（每页 {CLIENT_PAGE_SIZE} 条）
+          <Typography.Text>
+            第 {serverPage} / {serverTotalPage} 页
           </Typography.Text>
-          <Button type="default" disabled={clientPage >= clientTotalPage} onClick={() => goPage(clientPage + 1)}>
+          <Button disabled={serverPage >= serverTotalPage || loadingList} onClick={() => setServerPage((p) => p + 1)}>
             下一页
           </Button>
         </Space>
       </div>
+
+      <DramaLatestUpdateDetailModal
+        open={detailMovieId != null}
+        movieId={detailMovieId}
+        movieTitle={detailMovieTitle}
+        staticBase={staticBase}
+        isAdmin={isAdmin}
+        onClose={() => {
+          setDetailMovieId(null);
+          setDetailMovieTitle("");
+        }}
+      />
     </div>
   );
 }

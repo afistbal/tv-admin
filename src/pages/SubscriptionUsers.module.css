@@ -265,7 +265,59 @@
   font-variant-numeric: tabular-nums;
 }
 
+.billingAtCell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.billingAtTopRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+}
+
 .billingRemaining {
+  color: rgba(55, 53, 47, 0.45);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.billingOverdueWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.billingOverdueText {
+  color: #cf1322;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.billingOverdueIcon {
+  color: rgba(55, 53, 47, 0.45);
+  font-size: 13px;
+  cursor: help;
+}
+
+.billingOverdueIcon:hover {
+  color: #1677ff;
+}
+
+.opTime {
+  display: block;
+  color: #cf1322;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.opTimeEmpty {
+  display: block;
   color: rgba(55, 53, 47, 0.45);
   font-variant-numeric: tabular-nums;
 }

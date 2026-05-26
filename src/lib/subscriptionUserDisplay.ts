@@ -47,6 +47,16 @@ export function billingRemainingDays(row: AdminUserSubscriptionRow): number | nu
   return end.startOf("day").diff(dayjs().startOf("day"), "day");
 }
 
+export function pickOpTime(row: AdminUserSubscriptionRow): string | null {
+  const r = row as Record<string, unknown>;
+  const raw = row.op_time ?? r.opTime ?? r.manual_op_time ?? r.manualOpTime;
+  if (raw == null) {
+    return null;
+  }
+  const s = String(raw).trim();
+  return s === "" ? null : s;
+}
+
 export type NotionTagTone = {
   label: string;
   dot: string;

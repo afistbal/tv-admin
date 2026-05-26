@@ -6,11 +6,12 @@ export const SUBSCRIPTION_LIST_PAGE_SIZE = 24;
 
 export const SUBSCRIPTION_DEFAULT_ORDER_BY = "created_at|DESC";
 
-export type SubscriptionTimeType = "created_at" | "updated_at";
+export type SubscriptionTimeType = "created_at" | "updated_at" | "billing_at";
 
 export const SUBSCRIPTION_TIME_TYPE_OPTIONS: { value: SubscriptionTimeType; label: string }[] = [
   { value: "created_at", label: "开始订阅时间" },
   { value: "updated_at", label: "更新时间" },
+  { value: "billing_at", label: "结束时间" },
 ];
 
 /** 与产品管理 id 一致：1 周 / 2 月 / 3 年 / 4 日 */

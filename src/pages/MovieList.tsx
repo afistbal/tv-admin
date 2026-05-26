@@ -4,6 +4,7 @@ import { Button, Dropdown, Image, Input, Modal, Pagination, Select, Space, Switc
 import type { MenuProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { apiGet, apiPostJson } from "@/api/client";
+import { downloadMovieExportTxt } from "@/lib/movieExport";
 import type { ApiResult } from "@/api/types";
 import type { AdminMovieListPayload, AdminMovieRow, AdminTagAreaRow } from "@/types/adminMovie";
 import { useAppStaticBase } from "@/config/AppConfigContext";
@@ -290,24 +291,7 @@ export function MovieList() {
   const handleExportMovie = useCallback(async (row: AdminMovieRow) => {
     setRowActionBusyId(row.id);
     try {
-      const res: ApiResult<string> = await apiGet<string>("admin/movie/export", { id: row.id });
-      if (res.c !== 0) {
-        message.error(res.m || "导出失败");
-        return;
-      }
-      const text = res.d != null ? String(res.d) : "";
-      const url = URL.createObjectURL(new Blob([text], { type: "text/plain; charset=utf-8" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${row.id}.txt`;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      message.success("已开始下载");
-    } catch {
-      message.error("网络异常");
+      await downloadMovieExportTxt(row.id);
     } finally {
       setRowActionBusyId(null);
     }

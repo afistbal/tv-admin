@@ -5,6 +5,8 @@ export type AdminOrderRow = {
   product_name?: string;
   /** 与 slot 一致：`2` 表示订阅续订订单；列表里可能是 number 或 string */
   type?: number | string;
+  /** 平台订单号 */
+  sn?: string;
   platform_sn?: string;
   created_at?: string;
   updated_at?: string;
