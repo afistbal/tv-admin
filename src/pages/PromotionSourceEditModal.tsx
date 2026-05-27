@@ -76,7 +76,7 @@ export function PromotionSourceEditModal({ mode, row, onClose, onSaved }: Props)
       onOk={() => void handleOk()}
       confirmLoading={saving}
       width={480}
-      destroyOnClose
+      destroyOnHidden
       maskClosable={!saving}
       okText={isCreate ? "确认新增" : "保存"}
       cancelText="取消"

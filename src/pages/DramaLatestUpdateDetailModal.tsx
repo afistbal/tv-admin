@@ -192,7 +192,7 @@ export function DramaLatestUpdateDetailModal({
       onCancel={onClose}
       footer={null}
       width={960}
-      destroyOnClose
+      destroyOnHidden
       maskClosable={!loading}
       className={styles.detailModal}
       styles={{ body: { maxHeight: "calc(100vh - 200px)", overflow: "auto" } }}

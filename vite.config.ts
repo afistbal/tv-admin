@@ -63,7 +63,8 @@ export default defineConfig(({ mode, command }) => {
     },
     server: {
       host: "0.0.0.0",
-      port: 5173,
+      /** 与 slot_old（5173 + PWA）错开端口，避免共用 origin 时 SW/manifest 串台 */
+      port: 5174,
       open: true,
       proxy: {
         "/api": {
@@ -75,7 +76,7 @@ export default defineConfig(({ mode, command }) => {
     },
     preview: {
       host: "0.0.0.0",
-      port: 5173,
+      port: 5174,
       proxy: {
         "/api": {
           target: apiProxyTarget,

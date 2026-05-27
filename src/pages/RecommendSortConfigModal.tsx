@@ -120,7 +120,7 @@ export function RecommendSortConfigModal({ open, onClose }: Props) {
       onCancel={onClose}
       footer={null}
       width={880}
-      destroyOnClose
+      destroyOnHidden
       className={styles.modal}
       closable
       maskClosable={!saving}

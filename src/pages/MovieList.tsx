@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button, Dropdown, Image, Input, Modal, Pagination, Select, Space, Switch, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { MenuProps } from "antd";
@@ -8,7 +8,7 @@ import { downloadMovieExportTxt } from "@/lib/movieExport";
 import type { ApiResult } from "@/api/types";
 import type { AdminMovieListPayload, AdminMovieRow, AdminTagAreaRow } from "@/types/adminMovie";
 import { useAppStaticBase } from "@/config/AppConfigContext";
-import { moviePosterUrl } from "@/lib/staticAssetOrigin";
+import { movieCoverUrl } from "@/lib/staticAssetOrigin";
 import { publicWebOrigin } from "@/lib/publicWebOrigin";
 import {
   MOVIE_LEVEL_FILTER_OPTIONS,
@@ -96,20 +96,6 @@ function resolveMovieTagLabels(row: AdminMovieRow, idToName: Map<number, string>
   }
   const ids = parseMovieTagIds(row);
   return ids.map((id) => idToName.get(id) ?? `#${id}`);
-}
-
-function shelfStatusTag(status: unknown): ReactNode {
-  const s = Number(status);
-  if (s === 1) {
-    return <Tag color="success">上架</Tag>;
-  }
-  if (s === 2) {
-    return <Tag>下架</Tag>;
-  }
-  if (s === 3) {
-    return <Tag color="error">已删除</Tag>;
-  }
-  return <Typography.Text type="secondary">—</Typography.Text>;
 }
 
 export function MovieList() {
@@ -351,9 +337,32 @@ export function MovieList() {
     [fetchList, page, keyword, language, levelFilter, listOrderBy],
   );
 
+  const handleSwitchWatermark = useCallback(
+    async (row: AdminMovieRow) => {
+      setRowActionBusyId(row.id);
+      try {
+        const res: ApiResult<unknown> = await apiPostJson("admin/language/save", {
+          id: row.id,
+          is_rename: 1,
+        });
+        if (res.c !== 0) {
+          message.error(res.m || "操作失败");
+          return;
+        }
+        message.success("已切换水印图");
+        await fetchList(page, keyword, language, levelFilter, listOrderBy);
+      } catch {
+        message.error("网络异常");
+      } finally {
+        setRowActionBusyId(null);
+      }
+    },
+    [fetchList, page, keyword, language, levelFilter, listOrderBy],
+  );
+
   const openPosterPreview = useCallback(
     (row: AdminMovieRow) => {
-      const url = moviePosterUrl(row.image as string | undefined, appStatic);
+      const url = movieCoverUrl(row, appStatic);
       if (!url) {
         message.warning("无封面或未配置静态资源");
         return;
@@ -403,19 +412,23 @@ export function MovieList() {
         render: (_: unknown, row) => {
           const text = String(row.title ?? "—");
           return (
-            <Button
-              type="link"
-              style={{ padding: 0, height: "auto", maxWidth: "100%", textAlign: "left" }}
-              onClick={() => setEditId(row.id)}
-            >
-              <Typography.Paragraph
-                className={styles.titleCell}
-                ellipsis={{ rows: 2, tooltip: true }}
-                style={{ marginBottom: 0, color: "inherit" }}
+            <span className={styles.titleCellWrap}>
+              <span
+                role="button"
+                tabIndex={0}
+                className={styles.titleLink}
+                onClick={() => setEditId(row.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setEditId(row.id);
+                  }
+                }}
               >
                 {text}
-              </Typography.Paragraph>
-            </Button>
+              </span>
+              <Typography.Text className={styles.titleCopy} copyable={{ text }} />
+            </span>
           );
         },
       },
@@ -466,14 +479,6 @@ export function MovieList() {
         },
       },
       {
-        title: "是否上架",
-        dataIndex: "status",
-        key: "status",
-        width: 100,
-        align: "center",
-        render: (status: unknown, row) => shelfStatusTag(row.status ?? status),
-      },
-      {
         title: "是否推荐",
         key: "recommend",
         width: 110,
@@ -490,7 +495,7 @@ export function MovieList() {
         key: "poster",
         width: 96,
         render: (_: unknown, row) => {
-          const poster = moviePosterUrl(row.image as string | undefined, appStatic);
+          const poster = movieCoverUrl(row, appStatic);
           return (
             <div
               className={`${styles.thumbCell}${poster ? ` ${styles.thumbClickable}` : ""}`}
@@ -520,7 +525,7 @@ export function MovieList() {
       {
         title: "操作",
         key: "actions",
-        width: 168,
+        width: 96,
         align: "left",
         fixed: "right",
         className: styles.opCol,
@@ -562,20 +567,53 @@ export function MovieList() {
           ];
           return (
             <div className={styles.actionsCell}>
-              <Button type="link" size="small" className={styles.actionLink} disabled={busy} href={playMovieUrl(row.id)} target="_blank" rel="noreferrer">
-                播放
-              </Button>
-              <Button type="link" size="small" className={styles.actionLink} disabled={busy} onClick={() => void handleExportMovie(row)}>
-                导出
-              </Button>
-              <Button type="link" size="small" className={styles.actionLink} disabled={busy} onClick={() => setEditId(row.id)}>
-                编辑
-              </Button>
-              <Dropdown menu={{ items: moreItems }} trigger={["click"]} disabled={busy}>
-                <Button type="link" size="small" className={styles.actionLink}>
-                  更多
+              <div className={styles.actionsRow}>
+                <Button
+                  type="link"
+                  size="small"
+                  className={styles.actionLink}
+                  disabled={busy}
+                  href={playMovieUrl(row.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  播放
                 </Button>
-              </Dropdown>
+                <Button
+                  type="link"
+                  size="small"
+                  className={styles.actionLink}
+                  disabled={busy}
+                  onClick={() => void handleExportMovie(row)}
+                >
+                  导出
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  className={styles.actionLink}
+                  disabled={busy}
+                  onClick={() => setEditId(row.id)}
+                >
+                  编辑
+                </Button>
+              </div>
+              <div className={styles.actionsRow}>
+                <Button
+                  type="link"
+                  size="small"
+                  className={styles.actionLink}
+                  disabled={busy}
+                  onClick={() => void handleSwitchWatermark(row)}
+                >
+                  切水印图
+                </Button>
+                <Dropdown menu={{ items: moreItems }} trigger={["click"]} disabled={busy}>
+                  <Button type="link" size="small" className={styles.actionLink}>
+                    更多
+                  </Button>
+                </Dropdown>
+              </div>
             </div>
           );
         },
@@ -590,6 +628,7 @@ export function MovieList() {
       handleSortCommit,
       playMovieUrl,
       handleExportMovie,
+      handleSwitchWatermark,
       handleMovieStatus,
       handleSetAudioTrack,
       openPosterPreview,
@@ -673,7 +712,7 @@ export function MovieList() {
         size="middle"
         tableLayout="fixed"
         locale={{ emptyText: loading ? "加载中…" : "暂无剧集" }}
-        scroll={{ x: 1320 }}
+        scroll={{ x: 1148 }}
       />
 
       <div className={stylesToolbar.paginationWrap}>
@@ -695,7 +734,7 @@ export function MovieList() {
         onCancel={() => setPosterPreviewUrl(null)}
         centered
         width="auto"
-        destroyOnClose
+        destroyOnHidden
         wrapClassName={styles.posterPreviewModalWrap}
         styles={{
           content: { padding: 0, margin: 0 },

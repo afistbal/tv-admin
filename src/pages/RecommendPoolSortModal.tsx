@@ -61,7 +61,7 @@ export function RecommendPoolSortModal({ row, onClose, onSaved }: Props) {
       onCancel={onClose}
       onOk={() => void handleOk()}
       confirmLoading={saving}
-      destroyOnClose
+      destroyOnHidden
       okText="保存"
       cancelText="取消"
     >

@@ -19,7 +19,7 @@ import type { ApiResult } from "@/api/types";
 import type { AdminPoolListPayload, AdminPoolRow, AdminPoolType } from "@/types/adminPool";
 import { ADMIN_POOL_TAB_ITEMS } from "@/types/adminPool";
 import { useAppStaticBase } from "@/config/AppConfigContext";
-import { moviePosterUrl } from "@/lib/staticAssetOrigin";
+import { movieCoverUrl } from "@/lib/staticAssetOrigin";
 import {
   MOVIE_LEVEL_FILTER_OPTIONS,
   formatCompactCount,
@@ -222,7 +222,10 @@ export function RecommendPoolList() {
         key: "poster",
         width: 88,
         render: (_: unknown, row) => {
-          const poster = moviePosterUrl(row.movie?.image as string | undefined, appStatic);
+          const poster = movieCoverUrl(
+            row.movie as Record<string, unknown> | undefined,
+            appStatic,
+          );
           return poster ? (
             <Image src={poster} alt="" width={48} height={64} className={styles.thumbImg} preview={false} />
           ) : (

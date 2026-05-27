@@ -6,6 +6,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { isAdminUser } from "@/auth/userInfo";
 import { useAppStaticBase } from "@/config/AppConfigContext";
 import { LATEST_UPDATE_LIST_DEFAULT_PER_PAGE, fetchLatestUpdateList } from "@/lib/dramaLatestUpdateApi";
+import { movieCoverImagePath, movieCoverUrl } from "@/lib/staticAssetOrigin";
 import { downloadMovieExportTxt } from "@/lib/movieExport";
 import { mainContentTableSticky } from "@/lib/tableSticky";
 import { DramaLatestUpdateDetailModal } from "./DramaLatestUpdateDetailModal";
@@ -47,23 +48,6 @@ function pickText(row: TRow, keys: string[], fallback = "—") {
 
 function rowTitle(row: TRow): string {
   return pickText(row, ["titile", "title", "name", "book_title"], "");
-}
-
-function joinUrl(base: string, path: string) {
-  if (!path) {
-    return "";
-  }
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
-  }
-  if (path.startsWith("//")) {
-    return `https:${path}`;
-  }
-  const root = base || COS_FALLBACK_BASE;
-  const normalizedRoot = root.startsWith("//") ? `https:${root}` : root;
-  const b = normalizedRoot.endsWith("/") ? normalizedRoot.slice(0, -1) : normalizedRoot;
-  const p = path.startsWith("/") ? path.slice(1) : path;
-  return `${b}/${p}`;
 }
 
 function imageBasename(path: string): string {
@@ -190,13 +174,15 @@ function buildDramaListRows(movies: TRow[], staticBase: string): DramaListRow[] 
       ["updated_at", "update_time", "time", "created_at", "publish_time", "publish_at"],
       "",
     );
-    const coverPath = pickText(row, ["image", "poster", "cover", "thumb", "cover_image"], "");
+    const staticForCover = staticBase || COS_FALLBACK_BASE;
+    const coverPath = movieCoverImagePath(row);
+    const coverUrl = movieCoverUrl(row, staticForCover) ?? "";
     return [
       {
         key: String(movieId),
         movieId,
         title,
-        coverUrl: coverPath ? joinUrl(staticBase, coverPath) : "",
+        coverUrl,
         coverImageFile: coverPath ? imageBasename(coverPath) : "",
         time: formatDisplayTime(outerTime || "—"),
       },

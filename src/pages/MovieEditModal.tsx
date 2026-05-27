@@ -22,7 +22,7 @@ import type {
   AdminMovieEpisodeRow,
   AdminTagAreaRow,
 } from "@/types/adminMovie";
-import { moviePosterUrl } from "@/lib/staticAssetOrigin";
+import { movieCoverUrlFromDetail, staticAssetUrl } from "@/lib/staticAssetOrigin";
 import { formatDateTimeZh } from "@/lib/formatDateTime";
 import styles from "./MovieEditModal.module.css";
 
@@ -119,7 +119,7 @@ function parseEpisodesFromDetail(d: AdminMovieDetailPayload): EpisodeEditState[]
 }
 
 function mediaUrl(path: string | null | undefined, staticBase: string | null): string | null {
-  return moviePosterUrl(path ?? undefined, staticBase);
+  return staticAssetUrl(path ?? undefined, staticBase);
 }
 
 function escapeRegExp(s: string): string {
@@ -219,8 +219,10 @@ export function MovieEditModal(props: {
     void load();
   }, [load]);
 
-  const imageName = detail?.info["image"] != null ? String(detail.info["image"]) : "";
-  const poster = moviePosterUrl(imageName || undefined, staticBase);
+  const poster = useMemo(
+    () => (detail ? movieCoverUrlFromDetail(movieId, detail, staticBase) : null),
+    [detail, movieId, staticBase],
+  );
 
   const filteredTags = useMemo(() => {
     const q = tagSearch.trim();

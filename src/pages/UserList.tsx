@@ -509,11 +509,13 @@ export function UserList() {
           </div>
         }
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         {detailId != null && detailLoading ? (
           <div style={{ padding: 48, textAlign: "center" }}>
-            <Spin size="large" tip="加载中" />
+            <Spin spinning size="large" tip="加载中">
+              <div style={{ minHeight: 80 }} />
+            </Spin>
           </div>
         ) : info ? (
           <>

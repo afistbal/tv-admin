@@ -8,6 +8,7 @@ export const LATEST_UPDATE_DETAIL_PAGE_SIZE = 200;
 /** 非管理员 detail 最多 14 集 */
 export const LATEST_UPDATE_GUEST_DETAIL_PAGE_SIZE = 14;
 
+/** 列表项与 `admin/movie/list` 行结构类似：`id` / `image` / `is_rename`（剧表） */
 export type LatestUpdateListPayload = {
   data?: Record<string, unknown>[];
   count?: number;

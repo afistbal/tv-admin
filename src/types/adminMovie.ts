@@ -2,6 +2,8 @@ export type AdminMovieRow = {
   id: number;
   title?: string;
   image?: string;
+  /** 剧表：无水印标记，`1` 时封面走 `movieCoverUrl` → `movie_images/{id}.webp` */
+  is_rename?: number | string;
   sort?: number;
   audio_track?: string;
   /** 与 slot 一致：`1` 上架、`2` 下架、`3` 已删除 */
@@ -23,7 +25,7 @@ export type AdminMovieListPayload = {
   count: number;
 };
 
-/** `GET admin/movie?id=` 与 slot_old `MovieDetail` 一致 */
+/** `GET admin/movie?id=`；封面与 `is_rename` 在 `info`（剧表） */
 export type AdminMovieDetailPayload = {
   info: Record<string, unknown>;
   episodes: AdminMovieEpisodeRow[];

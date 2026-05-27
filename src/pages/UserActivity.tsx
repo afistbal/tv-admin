@@ -86,7 +86,9 @@ export function UserActivity() {
 
       {loading ? (
         <div style={{ padding: 48, textAlign: "center" }}>
-          <Spin size="large" tip="加载中" />
+          <Spin spinning size="large" tip="加载中">
+            <div style={{ minHeight: 120 }} />
+          </Spin>
         </div>
       ) : stat ? (
         <UserActivityCards rows={stat.data} count={stat.count} />

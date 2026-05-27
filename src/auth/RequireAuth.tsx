@@ -18,7 +18,7 @@ export function RequireAuth() {
           background: "#ffffff",
         }}
       >
-        <Spin size="large" tip="校验登录态…" />
+        <Spin spinning size="large" tip="校验登录态…" fullscreen />
       </div>
     );
   }

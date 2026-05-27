@@ -147,7 +147,9 @@ export function Dashboard() {
   if (loading) {
     return (
       <div style={{ padding: 48, textAlign: "center" }}>
-        <Spin size="large" tip="加载中…" />
+        <Spin spinning size="large" tip="加载中…">
+          <div style={{ minHeight: 120 }} />
+        </Spin>
       </div>
     );
   }

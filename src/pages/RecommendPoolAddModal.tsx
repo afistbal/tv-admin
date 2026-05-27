@@ -137,7 +137,7 @@ export function RecommendPoolAddModal({ open, poolType, existingMovieIds, minSor
           </Button>
         </Space>
       }
-      destroyOnClose
+      destroyOnHidden
       width={520}
     >
       <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
