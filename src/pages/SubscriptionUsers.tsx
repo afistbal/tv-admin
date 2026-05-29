@@ -32,6 +32,7 @@ import type { ColumnsType } from "antd/es/table";
 import { apiPostJson, getApiErrorMessage, isApiResultOk } from "@/api/client";
 import type { ApiResult } from "@/api/types";
 import { NotionTag } from "@/components/NotionTag";
+import { OrderPaymentMethodDisplay } from "@/components/OrderPaymentMethodDisplay";
 import { SubscriptionRenewalStatCards } from "@/components/SubscriptionRenewalStatCards";
 
 const SubscriptionUsersCalendar = lazy(() =>
@@ -56,6 +57,7 @@ import {
   type SubscriptionListQuery,
   type SubscriptionTimeType,
 } from "@/lib/subscriptionListFilters";
+import { resolveSubscriptionPaymentMethodDisplay } from "@/lib/orderPaymentDetailDisplay";
 import { useAuth } from "@/auth/AuthContext";
 import { isAdminUser } from "@/auth/userInfo";
 import {
@@ -67,7 +69,6 @@ import {
   cycleCount,
   formatCnDateTime,
   subscriptionPaySuccessCount,
-  paymentMethodTone,
   productTypeTone,
   rowStableKey,
   SUBSCRIPTION_ORDER_STATUS_FILTER_OPTIONS,
@@ -83,7 +84,7 @@ type ViewMode = "calendar" | "table";
 
 /** 各列 width 之和，与 columns 保持一致，避免表头/表体横向错位（含复选框列约 48px） */
 const SUBSCRIPTION_TABLE_SCROLL_X =
-  48 + 88 + 108 + 176 + 220 + 108 + 168 + 100 + 112 + 108 + 88 + 128;
+  48 + 88 + 108 + 176 + 220 + 108 + 168 + 100 + 112 + 108 + 160;
 
 function cellStr(v: unknown): string {
   if (v == null) {
@@ -591,28 +592,19 @@ export function SubscriptionUsers() {
       {
         title: (
           <span className={styles.colTitle}>
-            <FilterOutlined className={styles.colIcon} />
-            国家
-          </span>
-        ),
-        key: "country",
-        width: 88,
-        className: styles.notionCell,
-        render: (_: unknown, record) => <span className={styles.plainText}>{cellStr(record.country)}</span>,
-      },
-      {
-        title: (
-          <span className={styles.colTitle}>
             <PayCircleOutlined className={styles.colIcon} />
             付费方式
           </span>
         ),
         key: "payment_method",
-        width: 128,
+        width: 160,
         className: styles.notionCell,
         render: (_: unknown, record) => {
-          const tone = paymentMethodTone(record);
-          return tone ? <NotionTag tone={tone} /> : <span className={styles.plainText}>{EMPTY}</span>;
+          const row = record as Record<string, unknown>;
+          if (!resolveSubscriptionPaymentMethodDisplay(row)) {
+            return <span className={styles.plainText}>{EMPTY}</span>;
+          }
+          return <OrderPaymentMethodDisplay record={row} />;
         },
       },
     ],

@@ -130,17 +130,7 @@ function iconForPaymentSlug(slug: string): string | null {
   return PAYMENT_ICON_BY_SLUG[slug] ?? null;
 }
 
-/** 列表行展示：图标 + 文案（对齐 Airwallex 支付方式列） */
-export function resolvePaymentMethodDisplay(raw: unknown): PaymentMethodDisplay | null {
-  const parsed = parseOrderPaymentResult(raw);
-  if (!parsed) {
-    return null;
-  }
-  const combo = formatPaymentMethodCombo(parsed);
-  if (!combo) {
-    return null;
-  }
-
+function buildPaymentMethodDisplayFromCombo(combo: string): PaymentMethodDisplay | null {
   const dash = combo.indexOf("-");
   const wallet = (dash === -1 ? combo : combo.slice(0, dash)).toLowerCase();
   const brandSlug = dash === -1 ? "" : combo.slice(dash + 1);
@@ -171,6 +161,57 @@ export function resolvePaymentMethodDisplay(raw: unknown): PaymentMethodDisplay 
     return null;
   }
   return { icons, label };
+}
+
+const SUBSCRIPTION_PAYMENT_KEY_TO_COMBO: Record<string, string> = {
+  apple_pay_visa: "applepay-visa",
+  apple_pay: "applepay",
+  google_pay_visa: "googlepay-visa",
+  google_pay: "googlepay",
+  visa: "card-visa",
+};
+
+/** 订阅列表 `payment_method` 枚举 → 与代收列表相同的图标 + 文案 */
+export function resolvePaymentMethodDisplayFromKey(key: string): PaymentMethodDisplay | null {
+  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_");
+  const combo = SUBSCRIPTION_PAYMENT_KEY_TO_COMBO[normalized];
+  if (!combo) {
+    return null;
+  }
+  return buildPaymentMethodDisplayFromCombo(combo);
+}
+
+/** 订阅行：优先 `result`（Airwallex JSON），否则 `payment_method` 枚举 */
+export function resolveSubscriptionPaymentMethodDisplay(
+  row: Record<string, unknown>,
+): PaymentMethodDisplay | null {
+  const fromResult = resolvePaymentMethodDisplay(row.result);
+  if (fromResult) {
+    return fromResult;
+  }
+  const key =
+    row.payment_method ??
+    row.paymentMethod ??
+    row.pay_method ??
+    row.payment_type ??
+    row.pay_type;
+  if (key == null || String(key).trim() === "") {
+    return null;
+  }
+  return resolvePaymentMethodDisplayFromKey(String(key));
+}
+
+/** 列表行展示：图标 + 文案（对齐 Airwallex 支付方式列） */
+export function resolvePaymentMethodDisplay(raw: unknown): PaymentMethodDisplay | null {
+  const parsed = parseOrderPaymentResult(raw);
+  if (!parsed) {
+    return null;
+  }
+  const combo = formatPaymentMethodCombo(parsed);
+  if (!combo) {
+    return null;
+  }
+  return buildPaymentMethodDisplayFromCombo(combo);
 }
 
 /** 支付组合中文说明，如「Google Pay · Visa」 */

@@ -102,6 +102,7 @@ export function OrderList() {
   const [keyword, setKeyword] = useState("");
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(() => defaultTodayRange());
   const [orderStatus, setOrderStatus] = useState<string>("");
+  const [orderType, setOrderType] = useState<string>("");
   const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailInfo, setDetailInfo] = useState<AdminOrderInfo | null>(null);
@@ -109,7 +110,8 @@ export function OrderList() {
   const [paymentData, setPaymentData] = useState<AdminOrderPaymentDetail | null>(null);
   const searchTimer = useRef<number | null>(null);
 
-  const fetchList = useCallback(async (p: number, kw: string, range: [Dayjs, Dayjs] | null, status: string) => {
+  const fetchList = useCallback(
+    async (p: number, kw: string, range: [Dayjs, Dayjs] | null, status: string, type: string) => {
     setLoading(true);
     try {
       const kwTrim = kw.trim();
@@ -117,6 +119,7 @@ export function OrderList() {
         page: p,
         keyword: kwTrim || undefined,
         status: status === "" ? undefined : status,
+        type: type === "" ? undefined : type,
       };
       if (range != null) {
         q.daterange = rangeToDaterangeStrings(range);
@@ -144,9 +147,19 @@ export function OrderList() {
     [],
   );
 
+  const onRenewalTypeChange = (value: string) => {
+    setOrderType(value);
+    if (value === "2") {
+      setOrderStatus("1");
+    } else if (value === "1") {
+      setOrderStatus("");
+    }
+    setPage(1);
+  };
+
   useEffect(() => {
-    void fetchList(page, keyword, dateRange, orderStatus);
-  }, [page, keyword, dateRange, orderStatus, fetchList]);
+    void fetchList(page, keyword, dateRange, orderStatus, orderType);
+  }, [page, keyword, dateRange, orderStatus, orderType, fetchList]);
 
   useEffect(() => {
     if (detailOrderId == null) {
@@ -390,6 +403,19 @@ export function OrderList() {
             />
           </div>
           <div className={orderStyles.filterItem}>
+            <span className={orderStyles.filterLabel}>是否续订：</span>
+            <Select
+              value={orderType}
+              onChange={onRenewalTypeChange}
+              style={{ width: 128 }}
+              options={[
+                { label: "全部", value: "" },
+                { label: "是", value: "2" },
+                { label: "否", value: "1" },
+              ]}
+            />
+          </div>
+          <div className={orderStyles.filterItem}>
             <span className={orderStyles.filterLabel}>订单状态：</span>
             <Select
               value={orderStatus}
@@ -424,7 +450,7 @@ export function OrderList() {
               setKeyword(kw);
               setPage(1);
               if (page === 1) {
-                void fetchList(1, kw, dateRange, orderStatus);
+                void fetchList(1, kw, dateRange, orderStatus, orderType);
               }
             }}
           >
