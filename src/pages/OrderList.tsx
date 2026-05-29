@@ -21,7 +21,10 @@ import type { ColumnsType } from "antd/es/table";
 import { apiGet } from "@/api/client";
 import type { ApiGetQueryValue } from "@/api/client";
 import type { ApiResult } from "@/api/types";
-import type { AdminOrderInfo, AdminOrderListPayload, AdminOrderRow } from "@/types/adminOrder";
+import type { AdminOrderInfo, AdminOrderListPayload, AdminOrderPaymentDetail, AdminOrderRow } from "@/types/adminOrder";
+import { OrderPaymentDetailModal } from "@/components/OrderPaymentDetailModal";
+import { OrderPaymentMethodDisplay } from "@/components/OrderPaymentMethodDisplay";
+import { parseOrderPaymentResult, hasOrderPaymentResult } from "@/lib/orderPaymentDetailDisplay";
 import { formatDateTimeZh } from "@/lib/formatDateTime";
 import { mainContentTableSticky } from "@/lib/tableSticky";
 import orderStyles from "./OrderList.module.css";
@@ -102,6 +105,8 @@ export function OrderList() {
   const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailInfo, setDetailInfo] = useState<AdminOrderInfo | null>(null);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentData, setPaymentData] = useState<AdminOrderPaymentDetail | null>(null);
   const searchTimer = useRef<number | null>(null);
 
   const fetchList = useCallback(async (p: number, kw: string, range: [Dayjs, Dayjs] | null, status: string) => {
@@ -183,6 +188,15 @@ export function OrderList() {
     setDetailOrderId(null);
     setDetailInfo(null);
   };
+
+  const openPaymentDetail = useCallback((record: AdminOrderRow) => {
+    const normalized = parseOrderPaymentResult(record.result);
+    if (!normalized) {
+      return;
+    }
+    setPaymentData(normalized);
+    setPaymentOpen(true);
+  }, []);
 
   const onKeywordChange = (v: string) => {
     setKeywordInput(v);
@@ -268,11 +282,12 @@ export function OrderList() {
         dataIndex: "sn",
         width: 180,
         minWidth: 180,
-        render: (v: unknown) => (
+        render: (v: unknown, record: AdminOrderRow) => (
           <div className={orderStyles.platformSnCell}>
             <Typography.Text copyable={String(v ?? "").trim() ? { text: String(v) } : false}>
               {String(v ?? "—")}
             </Typography.Text>
+            <OrderPaymentMethodDisplay result={record.result} />
           </div>
         ),
       },
@@ -302,23 +317,37 @@ export function OrderList() {
       {
         title: "操作",
         key: "actions",
-        width: 88,
+        width: 148,
         fixed: "right",
         render: (_: unknown, record) => (
-          <Button
-            type="link"
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDetailOrderId(record.id);
-            }}
-          >
-            详情
-          </Button>
+          <Space size={0} wrap={false}>
+            <Button
+              type="link"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDetailOrderId(record.id);
+              }}
+            >
+              详情
+            </Button>
+            {hasOrderPaymentResult(record.result) ? (
+              <Button
+                type="link"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openPaymentDetail(record);
+                }}
+              >
+                支付明细
+              </Button>
+            ) : null}
+          </Space>
         ),
       },
     ],
-    [],
+    [openPaymentDetail],
   );
 
   return (
@@ -412,7 +441,7 @@ export function OrderList() {
         dataSource={rows}
         pagination={false}
         sticky={mainContentTableSticky}
-        scroll={{ x: 1050 }}
+        scroll={{ x: 1110 }}
         size="middle"
       />
 
@@ -497,6 +526,15 @@ export function OrderList() {
           <Typography.Text type="secondary">暂无数据</Typography.Text>
         ) : null}
       </Modal>
+
+      <OrderPaymentDetailModal
+        open={paymentOpen}
+        data={paymentData}
+        onClose={() => {
+          setPaymentOpen(false);
+          setPaymentData(null);
+        }}
+      />
     </div>
   );
 }

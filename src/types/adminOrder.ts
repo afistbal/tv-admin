@@ -12,6 +12,8 @@ export type AdminOrderRow = {
   updated_at?: string;
   amount?: string;
   status?: number;
+  /** Airwallex 支付明细 JSON 字符串 */
+  result?: string | null;
   [key: string]: unknown;
 };
 
@@ -40,3 +42,5 @@ export type AdminOrderInfo = {
   billing_at?: string | null;
   [key: string]: unknown;
 };
+
+export type AdminOrderPaymentDetail = Record<string, unknown>;

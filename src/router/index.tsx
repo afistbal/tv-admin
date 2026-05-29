@@ -13,6 +13,7 @@ import { PromotionSources } from "@/pages/PromotionSources";
 import { SubscriptionUsers } from "@/pages/SubscriptionUsers";
 import { SummaryStatistics } from "@/pages/SummaryStatistics";
 import { UserActivity } from "@/pages/UserActivity";
+import { FeedbackList } from "@/pages/FeedbackList";
 import { UserList } from "@/pages/UserList";
 
 /** 登录页单独分包，其余后台页同步引入，避免切换菜单时 lazy + Suspense(null) 造成主区域白屏闪烁 */
@@ -46,6 +47,7 @@ export function AppRouter() {
           <Route path="drama/movies" element={<MovieList />} />
           <Route path="config/products" element={<ProductList />} />
           <Route path="config/recommend-pool" element={<RecommendPoolList />} />
+          <Route path="chat/feedback" element={<FeedbackList />} />
         </Route>
       </Route>
       <Route

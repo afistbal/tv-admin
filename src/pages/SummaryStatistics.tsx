@@ -121,6 +121,66 @@ function pickNum(row: AdminStatSummaryRow, keys: string[]): string {
   return "—";
 }
 
+function pickNumValue(row: AdminStatSummaryRow, keys: string[]): number | null {
+  for (const k of keys) {
+    const v = row[k];
+    if (v === undefined || v === null || v === "") {
+      continue;
+    }
+    const n = Number(v);
+    if (Number.isFinite(n)) {
+      return n;
+    }
+  }
+  return null;
+}
+
+const NEW_REG_FIELD_KEYS = [
+  "newRegister",
+  "new_register",
+  "regPerson",
+  "reg_person",
+  "new_reg",
+  "reg_count",
+] as const;
+
+const RETENTION_FIELD_KEYS = [
+  "retentionNextDay",
+  "next_day_retention",
+  "day2_retention",
+  "retain_day2",
+  "againActiveCount",
+  "again_active_count",
+  "reg_second_count",
+] as const;
+
+function statRowDateKey(row: AdminStatSummaryRow): string {
+  const s = pickStr(row, ["theDate", "the_date", "stat_date", "date", "statDate"]);
+  return s === "—" ? "" : s;
+}
+
+function isStatRowToday(row: AdminStatSummaryRow): boolean {
+  const d = statRowDateKey(row);
+  if (d === "") {
+    return false;
+  }
+  return dayjs().format("YYYY-MM-DD") === dayjs(d).format("YYYY-MM-DD");
+}
+
+/** 与 lot.www 一致：非当天且新增 > 0 时展示整数百分比，否则展示 — */
+function formatRetentionRatePercent(row: AdminStatSummaryRow): string | null {
+  if (isStatRowToday(row)) {
+    return null;
+  }
+  const retained = pickNumValue(row, [...RETENTION_FIELD_KEYS]);
+  const registered = pickNumValue(row, [...NEW_REG_FIELD_KEYS]);
+  if (registered == null || registered === 0) {
+    return null;
+  }
+  const numerator = retained ?? 0;
+  return `${((numerator / registered) * 100).toFixed(0)}%`;
+}
+
 /** `admin/stat/total` 扁平行：`stat_date` + `source` + `reg_count` 等 */
 function isStatTotalFlatApiShape(rows: AdminStatSummaryRow[]): boolean {
   if (rows.length === 0) {
@@ -382,31 +442,31 @@ export function SummaryStatistics() {
         onCell: (record) => ({
           style: cellBg(record),
         }),
-        render: (_: unknown, row) =>
-          pickNum(row, ["newRegister", "new_register", "regPerson", "reg_person", "new_reg", "reg_count"]),
+        render: (_: unknown, row) => pickNum(row, [...NEW_REG_FIELD_KEYS]),
       },
       {
         title: (
-          <Tooltip title="接口字段 reg_second_count（注册侧次日指标；与 login_second_count 分列展示）">
+          <Tooltip title="人数 reg_second_count；下方百分比 = reg_second_count ÷ reg_count">
             <span>次日留存</span>
           </Tooltip>
         ),
         key: "retention",
         width: 100,
+        align: "center",
         className: styles.numCell,
         onCell: (record) => ({
           style: cellBg(record),
         }),
-        render: (_: unknown, row) =>
-          pickNum(row, [
-            "retentionNextDay",
-            "next_day_retention",
-            "day2_retention",
-            "retain_day2",
-            "againActiveCount",
-            "again_active_count",
-            "reg_second_count",
-          ]),
+        render: (_: unknown, row) => {
+          const count = pickNum(row, [...RETENTION_FIELD_KEYS]);
+          const rate = formatRetentionRatePercent(row);
+          return (
+            <div className={styles.retentionCell}>
+              <span>{count}</span>
+              {rate != null ? <span className={styles.retentionRate}>{rate}</span> : null}
+            </div>
+          );
+        },
       },
       {
         title: (
@@ -494,6 +554,8 @@ export function SummaryStatistics() {
       styles.dateCellText,
       styles.channelSummaryInline,
       styles.channelDetailCell,
+      styles.retentionCell,
+      styles.retentionRate,
     ],
   );
 

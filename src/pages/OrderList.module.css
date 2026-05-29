@@ -70,11 +70,12 @@
   white-space: nowrap;
 }
 
-/** 平台订单号：长串可换行，避免与 `copyable` 同用 `ellipsis` 在 WebKit 下被截成「int_…」 */
+/** 平台订单号：长串可换行；下方展示支付方式（与订单号留间距） */
 .platformSnCell {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
 }
 

@@ -62,6 +62,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+.retentionCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.retentionRate {
+  color: #69b1ff;
+  font-size: 12px;
+  font-weight: 400;
+}
+
 /**
  * 汇总行：与 gold-game `tree-parent-row` 一致 — 浅灰底 + 加粗；
  * 首列、固定列与后面列同色靠内联 style + 此处兜底。

@@ -7,6 +7,7 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MessageOutlined,
   PieChartOutlined,
   PlaySquareOutlined,
   SettingOutlined,
@@ -22,7 +23,7 @@ import styles from "./BasicLayout.module.css";
 const { Header, Sider, Content } = Layout;
 
 /** 展开侧栏时保持三个分组常开；用常量避免每次路由变化都 new 数组触发菜单无意义重绘 */
-const DEFAULT_SUBMENU_OPEN_KEYS = ["sub-users", "sub-data", "sub-drama", "sub-stats", "sub-config"] as const;
+const DEFAULT_SUBMENU_OPEN_KEYS = ["sub-users", "sub-data", "sub-drama", "sub-stats", "sub-chat", "sub-config"] as const;
 
 const menuItems: MenuProps["items"] = [
   { key: "/dashboard", icon: <DashboardOutlined />, label: <Link to="/dashboard">仪表盘</Link> },
@@ -76,6 +77,12 @@ const menuItems: MenuProps["items"] = [
     ],
   },
   {
+    key: "sub-chat",
+    icon: <MessageOutlined />,
+    label: "聊天管理",
+    children: [{ key: "/chat/feedback", label: <Link to="/chat/feedback">反馈列表</Link> }],
+  },
+  {
     key: "sub-config",
     icon: <SettingOutlined />,
     label: "配置管理",
@@ -121,6 +128,7 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
   const dataActive = pathname.startsWith("/data");
   const dramaActive = pathname.startsWith("/drama");
   const statsActive = pathname.startsWith("/stats");
+  const chatActive = pathname.startsWith("/chat");
   const configActive = pathname.startsWith("/config");
 
   /**
@@ -234,6 +242,20 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
 
       <Popover
         {...popCommon}
+        content={<CollapsedPopoverLinks links={[{ to: "/chat/feedback", label: "反馈列表" }]} />}
+      >
+        <div
+          className={`${styles.collapsedIconBtn} ${chatActive ? styles.collapsedIconBtnActive : ""}`}
+          role="button"
+          tabIndex={0}
+          aria-label="聊天管理"
+        >
+          <MessageOutlined />
+        </div>
+      </Popover>
+
+      <Popover
+        {...popCommon}
         content={
           <CollapsedPopoverLinks
             links={[
@@ -321,6 +343,9 @@ export function BasicLayout() {
     }
     if (location.pathname.startsWith("/stats/summary")) {
       return ["/stats/summary"];
+    }
+    if (location.pathname.startsWith("/chat/feedback")) {
+      return ["/chat/feedback"];
     }
     if (location.pathname.startsWith("/config/recommend-pool")) {
       return ["/config/recommend-pool"];
