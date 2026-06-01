@@ -17,6 +17,16 @@
   flex-direction: column !important;
 }
 
+/* antd Sider 会包一层 children；须与 .right > .content 一样建立 flex 高度链，菜单区才能 overflow 滚动 */
+.sider :global(.ant-layout-sider-children) {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
 .siderBrand {
   flex-shrink: 0;
 }
@@ -26,6 +36,34 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+.siderMenuScroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.siderMenuScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.siderMenuScroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+}
+
+.siderMenuScroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+/* 菜单高度随内容增长，由 .siderMenuScroll 负责滚动（勿让 Menu 自身锁死高度） */
+.siderMenuScroll :global(.ant-menu) {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  border-inline-end: none !important;
 }
 
 .right {
@@ -109,13 +147,36 @@ a.collapsedIconBtn {
   flex-direction: column;
   gap: 2px;
   min-width: 168px;
+  max-height: min(70vh, 480px);
   padding: 8px;
   border-radius: 8px;
   background: #001529;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
   box-shadow:
     0 6px 16px 0 rgba(0, 0, 0, 0.08),
     0 3px 6px -4px rgba(0, 0, 0, 0.12),
     0 9px 28px 8px rgba(0, 0, 0, 0.05);
+}
+
+.collapsedPopoverPanel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.collapsedPopoverPanel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.collapsedPopoverPanel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+}
+
+.collapsedPopoverPanel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
 }
 
 .collapsedPopoverEntry {
