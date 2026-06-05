@@ -1,0 +1,15 @@
+.contentCell {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.twoLinesText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}

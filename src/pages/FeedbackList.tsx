@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, Input, Pagination, Table, Tooltip, Typography, message } from "antd";
+import { Button, DatePicker, Input, Pagination, Table, Typography, message } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
@@ -10,6 +10,7 @@ import type { AdminFeedbackListPayload, AdminFeedbackRow } from "@/types/adminFe
 import { formatDateTimeZh } from "@/lib/formatDateTime";
 import { mainContentTableSticky } from "@/lib/tableSticky";
 import orderStyles from "./OrderList.module.css";
+import listStyles from "./FeedbackList.module.css";
 import styles from "./UserList.module.css";
 
 function defaultTodayRange(): [Dayjs, Dayjs] {
@@ -76,35 +77,42 @@ export function FeedbackList() {
         width: 96,
       },
       {
+        title: "用户 ID",
+        dataIndex: "user_id",
+        width: 96,
+        render: (v: unknown) => {
+          const s = v != null && String(v) !== "" ? String(v) : "";
+          if (!s) {
+            return "—";
+          }
+          return <Typography.Text copyable={{ text: s }}>{s}</Typography.Text>;
+        },
+      },
+      {
         title: "用户邮箱",
         dataIndex: "email",
         width: 220,
-        ellipsis: true,
+        ellipsis: { showTitle: true },
         render: (v: unknown) => {
           const s = v != null ? String(v).trim() : "";
           if (!s) {
             return "—";
           }
-          return (
-            <Typography.Text copyable={{ text: s }} ellipsis={{ tooltip: s }}>
-              {s}
-            </Typography.Text>
-          );
+          return <Typography.Text copyable={{ text: s }}>{s}</Typography.Text>;
         },
       },
       {
         title: "反馈描述",
         dataIndex: "content",
-        ellipsis: true,
         render: (v: unknown) => {
           const s = v != null ? String(v).trim() : "";
           if (!s) {
             return "—";
           }
           return (
-            <Tooltip title={s} placement="topLeft">
-              <Typography.Text>{s}</Typography.Text>
-            </Tooltip>
+            <div className={listStyles.contentCell} title={s}>
+              <span className={listStyles.twoLinesText}>{s}</span>
+            </div>
           );
         },
       },
@@ -197,7 +205,7 @@ export function FeedbackList() {
         dataSource={rows}
         pagination={false}
         sticky={mainContentTableSticky}
-        scroll={{ x: 860 }}
+        scroll={{ x: 956 }}
         size="middle"
       />
 

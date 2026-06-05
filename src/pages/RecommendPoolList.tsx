@@ -255,9 +255,9 @@ export function RecommendPoolList() {
         width: 96,
       },
       {
-        title: "级别",
+        title: "上架时间",
         key: "level",
-        width: 88,
+        width: 108,
         align: "center",
         render: (_: unknown, row) => movieLevelTag(movieLevelFromRow(poolMovieRecord(row))),
       },
@@ -275,7 +275,7 @@ export function RecommendPoolList() {
         render: (_: unknown, row) => formatCompactCount(readFavoriteCount(poolMovieRecord(row))),
       },
       {
-        title: "上架时间",
+        title: "上架日期",
         key: "created_at",
         width: 120,
         render: (_: unknown, row) => formatDateYmd(row.created_at),
@@ -330,7 +330,7 @@ export function RecommendPoolList() {
           />
           <Select
             value={levelFilter}
-            style={{ width: 130 }}
+            style={{ width: 150 }}
             options={[...MOVIE_LEVEL_FILTER_OPTIONS]}
             onChange={(v) => setLevelFilter(v)}
           />

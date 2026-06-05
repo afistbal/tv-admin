@@ -7,15 +7,15 @@ import playStyles from "./movieLevelDisplay.module.css";
 export type MovieLevelKey = "n" | "a" | "b";
 
 const LEVEL_LABEL: Record<MovieLevelKey, string> = {
-  n: "N级",
-  a: "A级",
-  b: "B级",
+  n: "≤ 3 天",
+  a: "4-30 天",
+  b: "> 30 天",
 };
 
 const LEVEL_TONE: Record<MovieLevelKey, NotionTagTone> = {
-  n: { label: "N级", dot: "#7c3aed", bg: "rgba(124, 58, 237, 0.12)" },
-  a: { label: "A级", dot: "#d97706", bg: "rgba(217, 119, 6, 0.12)" },
-  b: { label: "B级", dot: "#059669", bg: "rgba(5, 150, 105, 0.12)" },
+  n: { label: "≤ 3 天", dot: "#7c3aed", bg: "rgba(124, 58, 237, 0.12)" },
+  a: { label: "4-30 天", dot: "#d97706", bg: "rgba(217, 119, 6, 0.12)" },
+  b: { label: "> 30 天", dot: "#059669", bg: "rgba(5, 150, 105, 0.12)" },
 };
 
 export function parseMovieLevel(raw: unknown): MovieLevelKey | null {
@@ -23,13 +23,13 @@ export function parseMovieLevel(raw: unknown): MovieLevelKey | null {
     return null;
   }
   const s = String(raw).trim().toLowerCase();
-  if (s === "n" || s === "n级" || s === "n级剧") {
+  if (s === "n" || s === "n级" || s === "n级剧" || s === "≤ 3 天" || s === "≤3天" || s === "<=3天") {
     return "n";
   }
-  if (s === "a" || s === "a级" || s === "a级剧") {
+  if (s === "a" || s === "a级" || s === "a级剧" || s === "4-30 天" || s === "4-30天") {
     return "a";
   }
-  if (s === "b" || s === "b级" || s === "b级剧") {
+  if (s === "b" || s === "b级" || s === "b级剧" || s === "> 30 天" || s === ">30天") {
     return "b";
   }
   return null;
@@ -62,10 +62,10 @@ export function movieLevelAntTag(level: MovieLevelKey | null): ReactNode {
 }
 
 export const MOVIE_LEVEL_FILTER_OPTIONS = [
-  { value: "all", label: "全部级别" },
-  { value: "n", label: "N级" },
-  { value: "a", label: "A级" },
-  { value: "b", label: "B级" },
+  { value: "all", label: "全部上架时间" },
+  { value: "n", label: "≤ 3 天" },
+  { value: "a", label: "4-30 天" },
+  { value: "b", label: "> 30 天" },
 ] as const;
 
 export type MovieLevelFilter = (typeof MOVIE_LEVEL_FILTER_OPTIONS)[number]["value"];

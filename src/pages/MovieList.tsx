@@ -110,7 +110,7 @@ export function MovieList() {
   const [keyword, setKeyword] = useState("");
   const [language, setLanguage] = useState("all");
   const [levelFilter, setLevelFilter] = useState<MovieLevelFilter>("all");
-  const [listOrderBy, setListOrderBy] = useState<"" | "views" | "favorites">("");
+  const [listOrderBy, setListOrderBy] = useState<"" | "play" | "favorite">("");
   const [editId, setEditId] = useState<number | null>(null);
   const [recommendSavingId, setRecommendSavingId] = useState<number | null>(null);
   const [sortSavingId, setSortSavingId] = useState<number | null>(null);
@@ -143,7 +143,7 @@ export function MovieList() {
     };
   }, []);
 
-  const fetchList = useCallback(async (p: number, kw: string, lang: string, level: MovieLevelFilter, orderBy: "" | "views" | "favorites") => {
+  const fetchList = useCallback(async (p: number, kw: string, lang: string, level: MovieLevelFilter, orderBy: "" | "play" | "favorite") => {
     setLoading(true);
     try {
       const query: Record<string, string | number> = {
@@ -433,9 +433,9 @@ export function MovieList() {
         },
       },
       {
-        title: "级别",
+        title: "上架时间",
         key: "level",
-        width: 88,
+        width: 108,
         align: "center",
         render: (_: unknown, row) => movieLevelTag(movieLevelFromRow(row as Record<string, unknown>)),
       },
@@ -658,7 +658,7 @@ export function MovieList() {
           />
           <Select
             value={levelFilter}
-            style={{ width: 120 }}
+            style={{ width: 150 }}
             options={[...MOVIE_LEVEL_FILTER_OPTIONS]}
             onChange={(v) => {
               setLevelFilter(v);
@@ -669,13 +669,13 @@ export function MovieList() {
             value={listOrderBy || "default"}
             style={{ width: 160 }}
             onChange={(v) => {
-              setListOrderBy(v === "default" ? "" : (v as "views" | "favorites"));
+              setListOrderBy(v === "default" ? "" : (v as "play" | "favorite"));
               setPage(1);
             }}
             options={[
               { value: "default", label: "默认排序" },
-              { value: "views", label: "按播放量" },
-              { value: "favorites", label: "按收藏数" },
+              { value: "play", label: "按播放量" },
+              { value: "favorite", label: "按收藏数" },
             ]}
           />
           <Input
