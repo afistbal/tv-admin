@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Table, Tooltip, Typography, message } from "antd";
+import { Modal, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   LATEST_UPDATE_DETAIL_PAGE_SIZE,
@@ -48,6 +48,7 @@ function subtitleUrlFromEpisode(item: AdminMovieEpisodeRow): string {
 type EpisodeDisplayRow = {
   key: string;
   episode: string;
+  needUnlock: boolean;
   videoUrl: string;
   subtitleUrl: string;
 };
@@ -155,6 +156,7 @@ export function DramaLatestUpdateDetailModal({
           Number.isFinite(normalizedEpisode) && normalizedEpisode > 0
             ? String(normalizedEpisode)
             : String(index + 1),
+        needUnlock: Number(item.vip) > 0,
         videoUrl,
         subtitleUrl,
       };
@@ -170,6 +172,18 @@ export function DramaLatestUpdateDetailModal({
         width: 72,
         align: "center",
         fixed: "left",
+      },
+      {
+        title: "VIP",
+        key: "vip",
+        width: 72,
+        align: "center",
+        render: (_: unknown, record: EpisodeDisplayRow) =>
+          record.needUnlock ? (
+            <Tag color="gold">是</Tag>
+          ) : (
+            <Tag bordered={false}>否</Tag>
+          ),
       },
       {
         title: "链接",
@@ -211,7 +225,7 @@ export function DramaLatestUpdateDetailModal({
         pagination={false}
         size="middle"
         tableLayout="fixed"
-        scroll={{ x: 840, y: 480 }}
+        scroll={{ x: 936, y: 480 }}
         locale={{ emptyText: loading ? "加载中…" : "暂无集数" }}
       />
     </Modal>
