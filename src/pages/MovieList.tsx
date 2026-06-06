@@ -8,7 +8,7 @@ import { downloadMovieExportTxt } from "@/lib/movieExport";
 import type { ApiResult } from "@/api/types";
 import type { AdminMovieListPayload, AdminMovieRow, AdminTagAreaRow } from "@/types/adminMovie";
 import { useAppStaticBase } from "@/config/AppConfigContext";
-import { movieCoverUrl } from "@/lib/staticAssetOrigin";
+import { checkImageUrlExists, movieCoverUrl, movieWatermarkCoverUrl, readMovieIsRename } from "@/lib/staticAssetOrigin";
 import { publicWebOrigin } from "@/lib/publicWebOrigin";
 import {
   MOVIE_LEVEL_FILTER_OPTIONS,
@@ -22,6 +22,7 @@ import {
 import { mainContentTableSticky } from "@/lib/tableSticky";
 import stylesToolbar from "./UserList.module.css";
 import styles from "./MovieList.module.css";
+import { BatchWatermarkModal } from "./BatchWatermarkModal";
 import { MovieEditModal } from "./MovieEditModal";
 
 const LANGUAGES: { value: string; label: string }[] = [
@@ -113,11 +114,13 @@ export function MovieList() {
   const [listOrderBy, setListOrderBy] = useState<"" | "play" | "favorite">("");
   const [editId, setEditId] = useState<number | null>(null);
   const [recommendSavingId, setRecommendSavingId] = useState<number | null>(null);
+  const [watermarkSavingId, setWatermarkSavingId] = useState<number | null>(null);
   const [sortSavingId, setSortSavingId] = useState<number | null>(null);
   /** 操作列：导出 / 改状态 等 */
   const [rowActionBusyId, setRowActionBusyId] = useState<number | null>(null);
   const [tagNameById, setTagNameById] = useState<Map<number, string>>(() => new Map());
   const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
+  const [batchWatermarkOpen, setBatchWatermarkOpen] = useState(false);
   const searchTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -337,27 +340,41 @@ export function MovieList() {
     [fetchList, page, keyword, language, levelFilter, listOrderBy],
   );
 
-  const handleSwitchWatermark = useCallback(
-    async (row: AdminMovieRow) => {
-      setRowActionBusyId(row.id);
+  const handleWatermarkChange = useCallback(
+    async (row: AdminMovieRow, checked: boolean) => {
+      const watermarkUrl = checked ? movieWatermarkCoverUrl(row.id, appStatic) : null;
+      if (checked && !watermarkUrl) {
+        message.warning("未配置静态资源，无法校验水印图");
+        return;
+      }
+
+      setWatermarkSavingId(row.id);
       try {
+        if (checked && watermarkUrl) {
+          const exists = await checkImageUrlExists(watermarkUrl);
+          if (!exists) {
+            message.error(`水印图不存在：movie_images/${row.id}.webp，请先上传后再开启`);
+            return;
+          }
+        }
+
         const res: ApiResult<unknown> = await apiPostJson("admin/language/save", {
           id: row.id,
-          is_rename: 1,
+          is_rename: checked ? 1 : 0,
         });
         if (res.c !== 0) {
           message.error(res.m || "操作失败");
           return;
         }
-        message.success("已切换水印图");
+        message.success(checked ? "已开启水印" : "已关闭水印");
         await fetchList(page, keyword, language, levelFilter, listOrderBy);
       } catch {
         message.error("网络异常");
       } finally {
-        setRowActionBusyId(null);
+        setWatermarkSavingId(null);
       }
     },
-    [fetchList, page, keyword, language, levelFilter, listOrderBy],
+    [appStatic, fetchList, page, keyword, language, levelFilter, listOrderBy],
   );
 
   const openPosterPreview = useCallback(
@@ -479,15 +496,26 @@ export function MovieList() {
         },
       },
       {
-        title: "是否推荐",
-        key: "recommend",
-        width: 110,
+        title: "开关",
+        key: "switches",
+        width: 132,
         render: (_: unknown, row) => (
-          <Switch
-            checked={isRecommendRow(row)}
-            loading={recommendSavingId === row.id}
-            onChange={(c) => void handleRecommendChange(row, c)}
-          />
+          <div className={styles.switchCell}>
+            <Switch
+              checked={isRecommendRow(row)}
+              checkedChildren="开启推荐"
+              unCheckedChildren="取消推荐"
+              loading={recommendSavingId === row.id}
+              onChange={(c) => void handleRecommendChange(row, c)}
+            />
+            <Switch
+              checked={readMovieIsRename(row as Record<string, unknown>)}
+              checkedChildren="开启水印"
+              unCheckedChildren="关闭水印"
+              loading={watermarkSavingId === row.id}
+              onChange={(c) => void handleWatermarkChange(row, c)}
+            />
+          </div>
         ),
       },
       {
@@ -599,15 +627,6 @@ export function MovieList() {
                 </Button>
               </div>
               <div className={styles.actionsRow}>
-                <Button
-                  type="link"
-                  size="small"
-                  className={styles.actionLink}
-                  disabled={busy}
-                  onClick={() => void handleSwitchWatermark(row)}
-                >
-                  切水印图
-                </Button>
                 <Dropdown menu={{ items: moreItems }} trigger={["click"]} disabled={busy}>
                   <Button type="link" size="small" className={styles.actionLink}>
                     更多
@@ -622,13 +641,14 @@ export function MovieList() {
     [
       appStatic,
       recommendSavingId,
+      watermarkSavingId,
       sortSavingId,
       rowActionBusyId,
       handleRecommendChange,
+      handleWatermarkChange,
       handleSortCommit,
       playMovieUrl,
       handleExportMovie,
-      handleSwitchWatermark,
       handleMovieStatus,
       handleSetAudioTrack,
       openPosterPreview,
@@ -699,6 +719,7 @@ export function MovieList() {
           >
             搜索
           </Button>
+          <Button onClick={() => setBatchWatermarkOpen(true)}>批量切换水印</Button>
         </Space>
       </div>
 
@@ -738,7 +759,7 @@ export function MovieList() {
         wrapClassName={styles.posterPreviewModalWrap}
         styles={{
           content: { padding: 0, margin: 0 },
-          body: { padding: 0, margin: 0, lineHeight: 0, minHeight: 0 },
+          body: { padding: 0, margin: 0, minHeight: 0 },
         }}
         maskClosable
       >
@@ -748,9 +769,22 @@ export function MovieList() {
               ✕
             </button>
             <img src={posterPreviewUrl} alt="" className={styles.posterPreviewImg} />
+            <div className={styles.posterPreviewUrlBar}>
+              <a className={styles.posterPreviewUrlLink} href={posterPreviewUrl} target="_blank" rel="noreferrer">
+                {posterPreviewUrl}
+              </a>
+              <Typography.Text className={styles.posterPreviewUrlCopy} copyable={{ text: posterPreviewUrl }} />
+            </div>
           </div>
         ) : null}
       </Modal>
+
+      <BatchWatermarkModal
+        open={batchWatermarkOpen}
+        staticBase={appStatic}
+        onClose={() => setBatchWatermarkOpen(false)}
+        onCompleted={() => void fetchList(page, keyword, language, levelFilter, listOrderBy)}
+      />
 
       {editId != null ? (
         <MovieEditModal

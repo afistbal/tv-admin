@@ -29,7 +29,14 @@
   color: rgba(0, 0, 0, 0.35);
 }
 
-/** 去掉 Modal 默认内边距与 inline-block 基线留白；仅作用于封面大图 Modal */
+.switchCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/** 封面大图浮层 */
 .posterPreviewModalWrap :global(.ant-modal-content),
 .posterPreviewModalWrap :global(.ant-modal-body) {
   padding: 0 !important;
@@ -37,7 +44,6 @@
 }
 
 .posterPreviewModalWrap :global(.ant-modal-body) {
-  line-height: 0;
   min-height: 0;
 }
 
@@ -45,9 +51,8 @@
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   max-width: min(92vw, 960px);
-  line-height: 0;
 }
 
 .posterPreviewCloseBtn {
@@ -78,11 +83,43 @@
 .posterPreviewImg {
   display: block;
   max-width: 100%;
-  max-height: 85vh;
+  max-height: 75vh;
   width: auto;
   height: auto;
   margin: 0;
   object-fit: contain;
+  line-height: 0;
+}
+
+.posterPreviewUrlBar {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+  max-width: min(92vw, 960px);
+  box-sizing: border-box;
+}
+
+.posterPreviewUrlLink {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1677ff;
+  word-break: break-all;
+  white-space: normal;
+}
+
+.posterPreviewUrlLink:hover {
+  color: #4096ff;
+}
+
+.posterPreviewUrlCopy:global(.ant-typography) {
+  flex-shrink: 0;
+  margin-bottom: 0 !important;
+  line-height: 1;
 }
 
 /** 短剧名称：换行；复制图标紧跟剧名末尾同一行 */
@@ -144,7 +181,7 @@
   font-size: 12px;
 }
 
-/** 操作列：两行——播放/导出/编辑；切水印图/更多 */
+/** 操作列：两行——播放/导出/编辑；更多 */
 .actionsCell {
   display: flex;
   flex-direction: column;

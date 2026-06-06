@@ -1,0 +1,79 @@
+.hint {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.inputArea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.logSection {
+  margin-top: 16px;
+}
+
+.logHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.logSummary {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.logPanel {
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.logLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  border-bottom: 1px dashed #f0f0f0;
+}
+
+.logLine:last-child {
+  border-bottom: none;
+}
+
+.logId {
+  flex-shrink: 0;
+  min-width: 52px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.logIdCopy:global(.ant-typography) {
+  margin-bottom: 0 !important;
+  line-height: 1.5;
+}
+
+.logMessage {
+  flex: 1 1 auto;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.logMessageSuccess {
+  color: #389e0d;
+}
+
+.logMessageMissing {
+  color: #d48806;
+}
+
+.logMessageError {
+  color: #cf1322;
+}

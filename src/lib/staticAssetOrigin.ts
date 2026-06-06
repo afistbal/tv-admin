@@ -117,5 +117,33 @@ export function staticAssetUrl(
   return `${normalizedBase}/${img.replace(/^\//, "")}`;
 }
 
+/** 水印封面相对路径：`movie_images/{id}.webp` */
+export function movieWatermarkCoverPath(movieId: number): string {
+  return `movie_images/${movieId}.webp`;
+}
+
+/** 水印封面完整 URL（开启 `is_rename` 后对外展示的图） */
+export function movieWatermarkCoverUrl(movieId: number, runtimeStaticBase?: string | null): string | null {
+  if (!Number.isFinite(movieId) || movieId <= 0) {
+    return null;
+  }
+  return staticAssetUrl(movieWatermarkCoverPath(movieId), runtimeStaticBase);
+}
+
+/** 探测静态图片 URL 是否可加载（用于开启水印前校验 ID 图是否存在） */
+export function checkImageUrlExists(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const finish = (ok: boolean) => {
+      img.onload = null;
+      img.onerror = null;
+      resolve(ok);
+    };
+    img.onload = () => finish(true);
+    img.onerror = () => finish(false);
+    img.src = url;
+  });
+}
+
 /** @deprecated 使用 {@link staticAssetUrl} */
 export const moviePosterUrl = staticAssetUrl;
