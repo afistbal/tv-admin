@@ -1,0 +1,80 @@
+.root {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.btn:active:not(:disabled) {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.btn:disabled {
+  color: rgba(0, 0, 0, 0.25);
+  cursor: not-allowed;
+}
+
+.percent {
+  min-width: 42px;
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.resetBtn {
+  margin-left: 2px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.rootDark .percent {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.rootDark .btn {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.rootDark .btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rootDark .btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.rootDark .btn:disabled {
+  color: rgba(255, 255, 255, 0.25);
+}

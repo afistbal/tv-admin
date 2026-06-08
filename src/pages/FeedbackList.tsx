@@ -13,11 +13,10 @@ import type {
   AdminFeedbackStatus,
 } from "@/types/adminFeedback";
 import { ADMIN_FEEDBACK_STATUS_OPTIONS } from "@/types/adminFeedback";
+import { useIsMobileH5 } from "@/hooks/useIsMobileH5";
 import { formatDateTimeZh } from "@/lib/formatDateTime";
 import { mainContentTableSticky } from "@/lib/tableSticky";
-import orderStyles from "./OrderList.module.css";
 import listStyles from "./FeedbackList.module.css";
-import styles from "./UserList.module.css";
 
 const FEEDBACK_STATUS_FILTER_OPTIONS = [
   { value: "", label: "全部状态" },
@@ -55,6 +54,7 @@ function StatusPill({ status }: { status: AdminFeedbackStatus }) {
 }
 
 export function FeedbackList() {
+  const isCompact = useIsMobileH5();
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<AdminFeedbackRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -196,12 +196,13 @@ export function FeedbackList() {
       {
         title: "反馈 ID",
         dataIndex: "id",
-        width: 96,
+        width: isCompact ? 80 : 96,
+        fixed: isCompact ? "left" : undefined,
       },
       {
         title: "用户 ID",
         dataIndex: "user_id",
-        width: 96,
+        width: isCompact ? 80 : 96,
         render: (v: unknown) => {
           const s = v != null && String(v) !== "" ? String(v) : "";
           if (!s) {
@@ -213,7 +214,7 @@ export function FeedbackList() {
       {
         title: "用户邮箱",
         dataIndex: "email",
-        width: 220,
+        width: isCompact ? 160 : 220,
         ellipsis: { showTitle: true },
         render: (v: unknown) => {
           const s = v != null ? String(v).trim() : "";
@@ -226,6 +227,7 @@ export function FeedbackList() {
       {
         title: "反馈描述",
         dataIndex: "content",
+        width: isCompact ? 200 : 320,
         render: (v: unknown) => {
           const s = v != null ? String(v).trim() : "";
           if (!s) {
@@ -241,19 +243,19 @@ export function FeedbackList() {
       {
         title: "处理状态",
         dataIndex: "status",
-        width: 120,
+        width: 108,
         render: (_: unknown, record) => <StatusPill status={feedbackStatusOf(record)} />,
       },
       {
         title: "提交时间",
         dataIndex: "created_at",
-        width: 180,
+        width: isCompact ? 150 : 180,
         render: (v: unknown) => formatDateTimeZh(v != null ? String(v) : null),
       },
       {
         title: "操作",
         key: "action",
-        width: 120,
+        width: 108,
         fixed: "right",
         render: (_: unknown, record) => {
           const id = Number(record.id);
@@ -267,138 +269,142 @@ export function FeedbackList() {
               loading={rowStatusSavingId === id}
               disabled={rowStatusSavingId === id || statusSaving}
               onChange={(v) => void handleRowStatusChange(record, v)}
+              popupMatchSelectWidth={false}
             />
           );
         },
       },
     ],
-    [handleRowStatusChange, rowStatusSavingId, statusSaving],
+    [handleRowStatusChange, isCompact, rowStatusSavingId, statusSaving],
   );
 
   return (
-    <div>
-      <Typography.Title level={4} style={{ marginTop: 0 }}>
+    <div className={listStyles.page}>
+      <Typography.Title level={4} className={listStyles.pageTitle}>
         需求处理
       </Typography.Title>
 
-      <div className={orderStyles.filterWrap}>
-        <div className={orderStyles.filterBar}>
-          <div className={orderStyles.filterItem}>
-            <span className={orderStyles.filterLabel}>日期：</span>
-            <DatePicker.RangePicker
-              className={orderStyles.dateRange}
-              format="YYYY-MM-DD"
-              allowClear
-              value={dateRange}
-              onChange={(dates) => {
-                if (dates?.[0] && dates[1]) {
-                  setDateRange([dates[0].startOf("day"), dates[1].startOf("day")]);
-                  setPage(1);
-                } else {
-                  setDateRange(null);
-                  setPage(1);
-                }
-              }}
-              presets={[
-                {
-                  label: "今天",
-                  value: [dayjs().startOf("day"), dayjs().startOf("day")] satisfies [Dayjs, Dayjs],
-                },
-                {
-                  label: "昨天",
-                  value: [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").startOf("day")] satisfies [
-                    Dayjs,
-                    Dayjs,
-                  ],
-                },
-              ]}
-            />
-          </div>
-          <div className={orderStyles.filterItem}>
-            <span className={orderStyles.filterLabel}>关键词：</span>
-            <Input
-              allowClear
-              placeholder="输入反馈内容/邮箱进行搜索..."
-              value={keywordInput}
-              onChange={(e) => setKeywordInput(e.target.value)}
-              onPressEnter={runSearch}
-              style={{ width: 260 }}
-              maxLength={64}
-            />
-          </div>
-          <div className={orderStyles.filterItem}>
-            <span className={orderStyles.filterLabel}>用户 id：</span>
-            <Input
-              allowClear
-              placeholder="用户 id"
-              value={userIdInput}
-              onChange={(e) => setUserIdInput(e.target.value)}
-              onPressEnter={runSearch}
-              style={{ width: 140 }}
-              maxLength={64}
-            />
-          </div>
-          <div className={orderStyles.filterItem}>
-            <span className={orderStyles.filterLabel}>处理状态：</span>
-            <Select
-              value={statusFilter}
-              options={FEEDBACK_STATUS_FILTER_OPTIONS}
-              style={{ width: 120 }}
-              onChange={(v) => {
-                setStatusFilter(v);
+      <div className={listStyles.filterBar}>
+        <div className={listStyles.filterItem}>
+          <span className={listStyles.filterLabel}>日期：</span>
+          <DatePicker.RangePicker
+            className={listStyles.dateRange}
+            format="YYYY-MM-DD"
+            allowClear
+            value={dateRange}
+            onChange={(dates) => {
+              if (dates?.[0] && dates[1]) {
+                setDateRange([dates[0].startOf("day"), dates[1].startOf("day")]);
                 setPage(1);
-              }}
-            />
-          </div>
-          <Button type="primary" onClick={runSearch}>
-            搜索
+              } else {
+                setDateRange(null);
+                setPage(1);
+              }
+            }}
+            presets={[
+              {
+                label: "今天",
+                value: [dayjs().startOf("day"), dayjs().startOf("day")] satisfies [Dayjs, Dayjs],
+              },
+              {
+                label: "昨天",
+                value: [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").startOf("day")] satisfies [
+                  Dayjs,
+                  Dayjs,
+                ],
+              },
+            ]}
+          />
+        </div>
+        <div className={listStyles.filterItem}>
+          <span className={listStyles.filterLabel}>关键词：</span>
+          <Input
+            allowClear
+            className={listStyles.keywordField}
+            placeholder="输入反馈内容/邮箱进行搜索..."
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            onPressEnter={runSearch}
+            maxLength={64}
+          />
+        </div>
+        <div className={listStyles.filterItem}>
+          <span className={listStyles.filterLabel}>用户 id：</span>
+          <Input
+            allowClear
+            className={listStyles.userIdField}
+            placeholder="用户 id"
+            value={userIdInput}
+            onChange={(e) => setUserIdInput(e.target.value)}
+            onPressEnter={runSearch}
+            maxLength={64}
+          />
+        </div>
+        <div className={listStyles.filterItem}>
+          <span className={listStyles.filterLabel}>处理状态：</span>
+          <Select
+            className={listStyles.statusField}
+            value={statusFilter}
+            options={FEEDBACK_STATUS_FILTER_OPTIONS}
+            onChange={(v) => {
+              setStatusFilter(v);
+              setPage(1);
+            }}
+          />
+        </div>
+        <Button type="primary" onClick={runSearch}>
+          搜索
+        </Button>
+        <span className={listStyles.totalHint}>共 {total} 条</span>
+        <div className={listStyles.filterBarActions}>
+          <Button
+            icon={<ClockCircleOutlined />}
+            loading={statusSaving}
+            disabled={selectedCount === 0}
+            onClick={() => void handleBatchStatus(0)}
+          >
+            批量改为未处理 ({selectedCount})
           </Button>
-          <span className={orderStyles.totalHint}>共 {total} 条</span>
-          <div className={listStyles.filterBarActions}>
-            <Button
-              icon={<ClockCircleOutlined />}
-              loading={statusSaving}
-              disabled={selectedCount === 0}
-              onClick={() => void handleBatchStatus(0)}
-            >
-              批量改为未处理 ({selectedCount})
-            </Button>
-            <Button
-              type="primary"
-              icon={<CheckCircleOutlined />}
-              loading={statusSaving}
-              disabled={selectedCount === 0}
-              onClick={() => void handleBatchStatus(1)}
-            >
-              批量改为已处理 ({selectedCount})
-            </Button>
-          </div>
+          <Button
+            type="primary"
+            icon={<CheckCircleOutlined />}
+            loading={statusSaving}
+            disabled={selectedCount === 0}
+            onClick={() => void handleBatchStatus(1)}
+          >
+            批量改为已处理 ({selectedCount})
+          </Button>
         </div>
       </div>
 
-      <Table<AdminFeedbackRow>
-        rowKey="id"
-        loading={loading}
-        columns={columns}
-        dataSource={rows}
-        rowSelection={{
-          selectedRowKeys,
-          onChange: (keys) => setSelectedRowKeys(keys.map(Number)),
-          preserveSelectedRowKeys: false,
-        }}
-        pagination={false}
-        sticky={mainContentTableSticky}
-        scroll={{ x: TABLE_SCROLL_X }}
-        size="middle"
-      />
+      <div className={listStyles.tableScroll}>
+        <Table<AdminFeedbackRow>
+          rowKey="id"
+          loading={loading}
+          columns={columns}
+          dataSource={rows}
+          rowSelection={{
+            selectedRowKeys,
+            onChange: (keys) => setSelectedRowKeys(keys.map(Number)),
+            preserveSelectedRowKeys: false,
+            columnWidth: isCompact ? 40 : 48,
+          }}
+          pagination={false}
+          sticky={mainContentTableSticky}
+          scroll={{ x: TABLE_SCROLL_X }}
+          size={isCompact ? "small" : "middle"}
+          tableLayout="fixed"
+        />
+      </div>
 
-      <div className={styles.paginationWrap}>
+      <div className={listStyles.paginationWrap}>
         <Pagination
           current={page}
           pageSize={perPage}
           total={total}
+          simple={isCompact}
           showSizeChanger={false}
-          showTotal={(t) => `共 ${t} 条`}
+          showTotal={isCompact ? undefined : (t) => `共 ${t} 条`}
           onChange={(p) => setPage(p)}
         />
       </div>

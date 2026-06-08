@@ -14,9 +14,13 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Dropdown, Layout, Menu, Popover, Space, Tag, Tooltip, theme, Typography } from "antd";
+import { Drawer, Dropdown, Layout, Menu, Popover, Space, Tag, Tooltip, theme, Typography } from "antd";
 import type { MenuProps } from "antd";
+import { MobilePageZoom } from "@/components/MobilePageZoom";
+import { MobileZoomViewport } from "@/components/MobileZoomViewport";
 import { useAuth } from "@/auth/AuthContext";
+import { useMobileH5State } from "@/hooks/useIsMobileH5";
+import { usePageZoom } from "@/hooks/usePageZoom";
 import { MAIN_CONTENT_SCROLL_ID } from "@/lib/tableSticky";
 import styles from "./BasicLayout.module.css";
 
@@ -80,7 +84,7 @@ const menuItems: MenuProps["items"] = [
     key: "sub-chat",
     icon: <MessageOutlined />,
     label: "聊天管理",
-    children: [{ key: "/chat/feedback", label: <Link to="/chat/feedback">反馈列表</Link> }],
+    children: [{ key: "/chat/feedback", label: <Link to="/chat/feedback">需求处理</Link> }],
   },
   {
     key: "sub-config",
@@ -242,7 +246,7 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
 
       <Popover
         {...popCommon}
-        content={<CollapsedPopoverLinks links={[{ to: "/chat/feedback", label: "反馈列表" }]} />}
+        content={<CollapsedPopoverLinks links={[{ to: "/chat/feedback", label: "需求处理" }]} />}
       >
         <div
           className={`${styles.collapsedIconBtn} ${chatActive ? styles.collapsedIconBtnActive : ""}`}
@@ -278,8 +282,31 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
   );
 }
 
+function SideMenu(props: {
+  selectedKeys: string[];
+  openKeys: string[];
+  onOpenChange: (keys: string[]) => void;
+  onNavigate?: () => void;
+}) {
+  const { selectedKeys, openKeys, onOpenChange, onNavigate } = props;
+  return (
+    <Menu
+      theme="dark"
+      mode="inline"
+      selectedKeys={selectedKeys}
+      openKeys={openKeys}
+      onOpenChange={onOpenChange}
+      items={menuItems}
+      onClick={onNavigate}
+    />
+  );
+}
+
 export function BasicLayout() {
+  const { isMobile, isLandscapePhone } = useMobileH5State();
+  const pageZoom = usePageZoom();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>(() => [...DEFAULT_SUBMENU_OPEN_KEYS]);
   const location = useLocation();
   const navigate = useNavigate();
@@ -290,7 +317,7 @@ export function BasicLayout() {
 
   /** 切换路由后仍保持各一级分组默认展开（pathname 变化时若已是展开态则不重复 set，减轻菜单闪动） */
   useEffect(() => {
-    if (collapsed) {
+    if (collapsed || isMobile) {
       return;
     }
     setOpenKeys((prev) => {
@@ -302,7 +329,17 @@ export function BasicLayout() {
       }
       return [...DEFAULT_SUBMENU_OPEN_KEYS];
     });
-  }, [location.pathname, collapsed]);
+  }, [location.pathname, collapsed, isMobile]);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (isMobile) {
+      setCollapsed(true);
+    }
+  }, [isMobile]);
 
   const userMenu: MenuProps["items"] = [
     {
@@ -356,84 +393,161 @@ export function BasicLayout() {
     return [];
   }, [location.pathname]);
 
-  return (
-    <Layout className={styles.root} style={{ background: "#ffffff" }}>
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        theme="dark"
-        className={styles.sider}
+  const closeMobileNav = () => setMobileNavOpen(false);
+
+  const zoomControls = (theme: "light" | "dark" = "light") => (
+    <MobilePageZoom
+      theme={theme}
+      zoom={pageZoom.zoom}
+      canDecrease={pageZoom.canDecrease}
+      canIncrease={pageZoom.canIncrease}
+      onDecrease={pageZoom.decrease}
+      onIncrease={pageZoom.increase}
+      onReset={pageZoom.reset}
+    />
+  );
+
+  const mainPanel = (
+    <>
+      <Header
+        className={styles.header}
+        style={{
+          padding: isMobile ? "0 12px" : "0 16px",
+          background: colorBgContainer,
+          display: "flex",
+          alignItems: "center",
+          gap: isMobile ? 8 : 12,
+        }}
       >
+        {isMobile ? (
+          <MenuUnfoldOutlined className={styles.menuTrigger} onClick={() => setMobileNavOpen(true)} />
+        ) : collapsed ? (
+          <MenuUnfoldOutlined className={styles.menuTrigger} onClick={() => setCollapsed(false)} />
+        ) : (
+          <MenuFoldOutlined className={styles.menuTrigger} onClick={() => setCollapsed(true)} />
+        )}
+        <Typography.Text type="secondary" className={styles.headerWelcome} style={{ flex: 1 }}>
+          欢迎回来{user?.name ? `，${String(user.name)}` : ""}
+        </Typography.Text>
+        <Space size={isMobile ? "small" : "middle"} className={styles.headerActions}>
+          {!isMobile ? <Tag color="blue">管理员</Tag> : null}
+          <Dropdown
+            menu={{ items: userMenu }}
+            placement="bottomRight"
+            dropdownRender={(menu) => (
+              <div className={styles.userDropdownPanel}>
+                {menu}
+                {isMobile ? (
+                  <div className={styles.userMenuZoom}>
+                    <Typography.Text type="secondary" className={styles.userMenuZoomLabel}>
+                      页面缩放
+                    </Typography.Text>
+                    {zoomControls("light")}
+                  </div>
+                ) : null}
+              </div>
+            )}
+          >
+            <Space style={{ cursor: "pointer" }} className={styles.headerUser}>
+              <UserOutlined />
+              <Typography.Text className={styles.headerUserName}>
+                {user?.name ?? user?.email ?? "账号"}
+              </Typography.Text>
+            </Space>
+          </Dropdown>
+        </Space>
+      </Header>
+      <Content id={MAIN_CONTENT_SCROLL_ID} className={styles.content}>
         <div
-          className={styles.siderBrand}
+          className={styles.contentInner}
           style={{
-            height: 64,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: collapsed ? "center" : "flex-start",
-            padding: collapsed ? 0 : "0 20px",
+            background: colorBgContainer,
+            borderRadius: borderRadiusLG,
           }}
         >
-          <Typography.Title level={4} style={{ color: "#fff", margin: 0, whiteSpace: "nowrap" }}>
-            {collapsed ? "TV" : "TV 管理后台"}
-          </Typography.Title>
+          <Outlet />
         </div>
-        <div className={styles.siderMenuScroll}>
-          {collapsed ? (
-            <CollapsedSideNav pathname={location.pathname} />
-          ) : (
-            <Menu
-              theme="dark"
-              mode="inline"
+      </Content>
+    </>
+  );
+
+  const mobileDrawerWidth = isLandscapePhone
+    ? Math.min(320, typeof window !== "undefined" ? Math.round(window.innerWidth * 0.42) : 320)
+    : Math.min(280, typeof window !== "undefined" ? Math.round(window.innerWidth * 0.82) : 280);
+
+  return (
+    <Layout
+      className={isLandscapePhone ? `${styles.root} ${styles.rootLandscapePhone}` : styles.root}
+      style={{ background: "#ffffff" }}
+    >
+      {isMobile ? (
+        <Drawer
+          className={styles.mobileNavDrawer}
+          placement="left"
+          open={mobileNavOpen}
+          onClose={closeMobileNav}
+          width={mobileDrawerWidth}
+          styles={{
+            body: {
+              padding: 0,
+              background: "#001529",
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+            },
+          }}
+          title={
+            <Typography.Title level={5} style={{ color: "#fff", margin: 0 }}>
+              TV 管理后台
+            </Typography.Title>
+          }
+        >
+          <div className={styles.mobileNavMenu}>
+            <SideMenu
               selectedKeys={selectedKeys}
               openKeys={openKeys}
               onOpenChange={setOpenKeys}
-              items={menuItems}
+              onNavigate={closeMobileNav}
             />
-          )}
-        </div>
-      </Sider>
-      <Layout className={styles.right} style={{ background: "#ffffff" }}>
-        <Header
-          className={styles.header}
-          style={{
-            padding: "0 16px",
-            background: colorBgContainer,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
+          </div>
+        </Drawer>
+      ) : (
+        <Sider
+          trigger={null}
+          collapsible
+          collapsed={collapsed}
+          theme="dark"
+          className={styles.sider}
         >
-          {collapsed ? (
-            <MenuUnfoldOutlined style={{ fontSize: 18 }} onClick={() => setCollapsed(false)} />
-          ) : (
-            <MenuFoldOutlined style={{ fontSize: 18 }} onClick={() => setCollapsed(true)} />
-          )}
-          <Typography.Text type="secondary" style={{ flex: 1 }}>
-            欢迎回来{user?.name ? `，${String(user.name)}` : ""}
-          </Typography.Text>
-          <Space size="middle">
-            <Tag color="blue">管理员</Tag>
-            <Dropdown menu={{ items: userMenu }} placement="bottomRight">
-              <Space style={{ cursor: "pointer" }}>
-                <UserOutlined />
-                <Typography.Text>{user?.name ?? user?.email ?? "账号"}</Typography.Text>
-              </Space>
-            </Dropdown>
-          </Space>
-        </Header>
-        <Content id={MAIN_CONTENT_SCROLL_ID} className={styles.content}>
           <div
-            className={styles.contentInner}
+            className={styles.siderBrand}
             style={{
-              background: colorBgContainer,
-              borderRadius: borderRadiusLG,
+              height: 64,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: collapsed ? "center" : "flex-start",
+              padding: collapsed ? 0 : "0 20px",
             }}
           >
-            <Outlet />
+            <Typography.Title level={4} style={{ color: "#fff", margin: 0, whiteSpace: "nowrap" }}>
+              {collapsed ? "TV" : "TV 管理后台"}
+            </Typography.Title>
           </div>
-        </Content>
+          <div className={styles.siderMenuScroll}>
+            {collapsed ? (
+              <CollapsedSideNav pathname={location.pathname} />
+            ) : (
+              <SideMenu selectedKeys={selectedKeys} openKeys={openKeys} onOpenChange={setOpenKeys} />
+            )}
+          </div>
+        </Sider>
+      )}
+      <Layout className={styles.right} style={{ background: "#ffffff" }}>
+        {isMobile ? (
+          <MobileZoomViewport zoom={pageZoom.zoom}>{mainPanel}</MobileZoomViewport>
+        ) : (
+          mainPanel
+        )}
       </Layout>
     </Layout>
   );

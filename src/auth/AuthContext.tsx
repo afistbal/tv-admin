@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getAuthToken } from "@/api/authToken";
 import { apiPostJson } from "@/api/client";
 import { fetchLoginTokenOutcome, type LoginTokenFetchOutcome } from "@/api/loginToken";
 import { auth } from "@/firebase";
@@ -80,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const loadFromStoredToken = useCallback(async (signal?: AbortSignal) => {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = getAuthToken();
     if (!token) {
       setUser(null);
       return;

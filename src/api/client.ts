@@ -1,3 +1,4 @@
+import { getAuthToken } from "./authToken";
 import { apiBaseURL } from "./baseURL";
 import type { ApiResult } from "./types";
 
@@ -25,7 +26,7 @@ function clientHeaders(): Record<string, string> {
   return {
     Accept: "application/json",
     "Accept-Language": localStorage.getItem("locale") ?? "zh-CN",
-    Authorization: `Bearer ${localStorage.getItem("token") ?? ""}`,
+    Authorization: `Bearer ${getAuthToken()}`,
     "X-Platform": "web",
     "X-OS": "unknown",
     "X-Test": localStorage.getItem("test") ?? "",

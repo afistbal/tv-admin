@@ -206,3 +206,116 @@ a.collapsedIconBtn {
 .collapsedPopoverRoot {
   --antd-arrow-background-color: #001529;
 }
+
+.menuTrigger {
+  font-size: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.headerWelcome {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerActions {
+  flex-shrink: 0;
+}
+
+.headerUser {
+  min-width: 0;
+}
+
+.headerUserName {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobileNavDrawer :global(.ant-drawer-header) {
+  background: #001529;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mobileNavDrawer :global(.ant-drawer-header-title) {
+  flex: 1;
+}
+
+.mobileNavDrawer :global(.ant-drawer-close) {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.mobileNavMenu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rootLandscapePhone .header {
+  line-height: 44px;
+  min-height: 44px;
+}
+
+.userDropdownPanel {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow:
+    0 6px 16px 0 rgba(0, 0, 0, 0.08),
+    0 3px 6px -4px rgba(0, 0, 0, 0.12),
+    0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.userDropdownPanel :global(.ant-dropdown-menu) {
+  box-shadow: none;
+}
+
+.userMenuZoom {
+  padding: 10px 12px 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.userMenuZoomLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .content {
+    margin: 8px;
+  }
+
+  .contentInner {
+    padding: 12px;
+    border-radius: 8px !important;
+  }
+
+  .headerUserName {
+    max-width: 88px;
+  }
+}
+
+@media (max-height: 640px) and (orientation: landscape) {
+  .content {
+    margin: 8px 12px;
+  }
+
+  .contentInner {
+    padding: 12px 16px;
+  }
+
+  .siderBrand {
+    height: 48px !important;
+  }
+
+  .header {
+    line-height: 48px;
+    min-height: 48px;
+  }
+}

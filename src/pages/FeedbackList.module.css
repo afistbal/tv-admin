@@ -1,3 +1,14 @@
+.page {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pageTitle {
+  margin-top: 0 !important;
+  margin-bottom: 12px !important;
+}
+
 .contentCell {
   min-width: 0;
   max-width: 100%;
@@ -12,6 +23,71 @@
   word-break: break-word;
   overflow-wrap: anywhere;
   line-height: 1.45;
+}
+
+.filterBar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 10px 0;
+  margin-bottom: 12px;
+}
+
+.filterBar::after {
+  content: " ";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  transform: scaleY(0.5);
+  background-color: #d9d9d9;
+}
+
+.filterItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  min-width: 0;
+}
+
+.filterLabel {
+  flex-shrink: 0;
+  min-width: 4.5em;
+  text-align: right;
+  color: rgba(0, 0, 0, 0.65);
+  font-size: 14px;
+  line-height: 1.5715;
+}
+
+.dateRange {
+  width: 330px;
+  max-width: min(330px, 100%);
+}
+
+.keywordField {
+  width: 260px;
+  max-width: 100%;
+}
+
+.userIdField {
+  width: 140px;
+  max-width: 100%;
+}
+
+.statusField {
+  width: 120px;
+  max-width: 100%;
+}
+
+.totalHint {
+  margin-left: auto;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 .filterBarActions {
@@ -43,4 +119,131 @@
 
 .statusSelect {
   width: 108px;
+  max-width: 100%;
+}
+
+.tableScroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.paginationWrap {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .filterItem {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .filterLabel {
+    min-width: 4em;
+    text-align: left;
+  }
+
+  .filterItem :global(.ant-input),
+  .filterItem :global(.ant-picker-range),
+  .filterItem :global(.ant-select) {
+    flex: 1 1 auto;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .dateRange,
+  .keywordField,
+  .userIdField,
+  .statusField {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .totalHint {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .filterBarActions {
+    margin-left: 0;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filterBarActions :global(.ant-btn) {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .paginationWrap {
+    justify-content: center;
+  }
+
+  .pageTitle {
+    font-size: 18px !important;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .filterBar {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .filterItem {
+    width: auto;
+    flex: 0 1 auto;
+  }
+
+  .filterItem :global(.ant-input),
+  .filterItem :global(.ant-picker-range),
+  .filterItem :global(.ant-select) {
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .dateRange {
+    width: min(280px, 42vw);
+  }
+
+  .keywordField {
+    width: min(200px, 32vw);
+  }
+
+  .userIdField {
+    width: min(120px, 18vw);
+  }
+
+  .statusField {
+    width: 108px;
+  }
+
+  .totalHint {
+    margin-left: 0;
+    width: auto;
+  }
+
+  .filterBarActions {
+    margin-left: auto;
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .filterBarActions :global(.ant-btn) {
+    width: auto;
+  }
 }
