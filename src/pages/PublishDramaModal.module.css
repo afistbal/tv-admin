@@ -1,0 +1,288 @@
+.modalBody {
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+.infoTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  border: 1px solid #f0f0f0;
+}
+
+.infoTable td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.infoTable tr:last-child td {
+  border-bottom: none;
+}
+
+.infoLabel {
+  width: 96px;
+  background: #fafafa;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.infoSplit {
+  border-left: 1px solid #f0f0f0;
+}
+
+.placeholder {
+  color: rgba(0, 0, 0, 0.25);
+}
+
+.coverRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.coverBox {
+  width: 72px;
+  height: 108px;
+  border: 2px dashed #d9d9d9;
+  border-radius: 6px;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.coverBoxFilled {
+  border-style: solid;
+}
+
+.coverPlus {
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.coverImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverReplace {
+  padding: 0;
+  font-size: 12px;
+}
+
+.sectionLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.tagAreaWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.checkCard {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.addChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  background: #fafafa;
+  font-size: 12px;
+  color: #1677ff;
+  cursor: pointer;
+}
+
+.tagSearchRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.episodeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.episodeSummary {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.dropZone {
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  background: #fafafa;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.dropZoneActive {
+  border-color: #1677ff;
+}
+
+.dropZoneText {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.epToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.epToolbarSep {
+  color: #f0f0f0;
+}
+
+.lockFromInput {
+  width: 40px;
+  margin: 0 4px;
+}
+
+.episodeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.epRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  user-select: none;
+}
+
+.epRowDragging {
+  opacity: 0.45;
+}
+
+.epRowDragOver {
+  box-shadow: inset 0 0 0 2px #1677ff;
+}
+
+.epDragHandle {
+  cursor: grab;
+  color: rgba(0, 0, 0, 0.25);
+  padding: 0 2px;
+}
+
+.epNum {
+  width: 32px;
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.epName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.epProgress {
+  width: 56px;
+}
+
+.epIconOk {
+  color: #52c41a;
+}
+
+.epIconSub {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.epIconSubOn {
+  color: #52c41a;
+}
+
+.epIconSubOff {
+  color: rgba(0, 0, 0, 0.25);
+}
+
+.epIconLock {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.epIconLockOn {
+  color: #faad14;
+}
+
+.epIconLockOff {
+  color: #1677ff;
+}
+
+.epRemove {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.epRemove:hover {
+  color: #ff4d4f;
+}
+
+.epError {
+  color: #ff4d4f;
+}
+
+.footerHint {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.hiddenInput {
+  display: none;
+}

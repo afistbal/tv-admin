@@ -24,6 +24,8 @@ import stylesToolbar from "./UserList.module.css";
 import styles from "./MovieList.module.css";
 import { BatchWatermarkModal } from "./BatchWatermarkModal";
 import { MovieEditModal } from "./MovieEditModal";
+import { PublishDramaModal } from "./PublishDramaModal";
+import { CosUploadDemoModal } from "./CosUploadDemoModal";
 
 const LANGUAGES: { value: string; label: string }[] = [
   { value: "all", label: "全部" },
@@ -121,6 +123,8 @@ export function MovieList() {
   const [tagNameById, setTagNameById] = useState<Map<number, string>>(() => new Map());
   const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
   const [batchWatermarkOpen, setBatchWatermarkOpen] = useState(false);
+  const [publishDramaOpen, setPublishDramaOpen] = useState(false);
+  const [cosUploadDemoOpen, setCosUploadDemoOpen] = useState(false);
   const searchTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -720,6 +724,10 @@ export function MovieList() {
             搜索
           </Button>
           <Button onClick={() => setBatchWatermarkOpen(true)}>批量切换水印</Button>
+          <Button type="primary" onClick={() => setPublishDramaOpen(true)}>
+            + 新增短剧
+          </Button>
+          <Button onClick={() => setCosUploadDemoOpen(true)}>Demo 测试上传</Button>
         </Space>
       </div>
 
@@ -778,6 +786,14 @@ export function MovieList() {
           </div>
         ) : null}
       </Modal>
+
+      <CosUploadDemoModal open={cosUploadDemoOpen} onClose={() => setCosUploadDemoOpen(false)} />
+
+      <PublishDramaModal
+        open={publishDramaOpen}
+        onClose={() => setPublishDramaOpen(false)}
+        onPublished={() => void fetchList(page, keyword, language, levelFilter, listOrderBy)}
+      />
 
       <BatchWatermarkModal
         open={batchWatermarkOpen}

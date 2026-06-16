@@ -13,6 +13,8 @@ export default defineConfig(({ mode, command }) => {
   const apiProxyTarget = env.VITE_API_PROXY_TARGET || "https://test.yogoshort.com";
   const isProdMode = mode === "prod";
   const isBuild = command === "build";
+  /** dev 8666 / npm run prod 8667（6666/6667 为浏览器禁止端口） */
+  const devServerPort = isProdMode ? 8667 : 8666;
 
   return {
     plugins: [react()],
@@ -63,8 +65,7 @@ export default defineConfig(({ mode, command }) => {
     },
     server: {
       host: "0.0.0.0",
-      /** 与 slot_old（5173 + PWA）错开端口，避免共用 origin 时 SW/manifest 串台 */
-      port: 5174,
+      port: devServerPort,
       open: true,
       proxy: {
         "/api": {
@@ -76,7 +77,7 @@ export default defineConfig(({ mode, command }) => {
     },
     preview: {
       host: "0.0.0.0",
-      port: 5174,
+      port: devServerPort,
       proxy: {
         "/api": {
           target: apiProxyTarget,

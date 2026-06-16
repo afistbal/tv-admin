@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>新增短剧 · 弹窗设计稿</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft Yahei", sans-serif; }
+  .req::before { content:'* '; color:#ef4444; }
+  .ep-row.dragging { opacity:.4; }
+  .ep-row.drag-over { box-shadow: inset 0 0 0 2px #3b82f6; }
+  .scrollbar-thin::-webkit-scrollbar { width:6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background:#d1d5db; border-radius:3px; }
+  .toast { animation: fadeio 2.6s forwards; }
+  @keyframes fadeio { 0%{opacity:0;transform:translateY(6px)} 10%{opacity:1;transform:none} 85%{opacity:1} 100%{opacity:0} }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+<!-- 模拟剧集列表页顶部，演示入口按钮位置 -->
+<div class="bg-white border-b border-slate-200 px-8 py-4">
+  <div class="text-lg font-semibold text-slate-800">剧集列表</div>
+  <div class="mt-3 flex items-center gap-2">
+    <span class="text-sm text-slate-500 mr-auto">共 4546 部</span>
+    <select class="h-8 px-2 border border-slate-300 rounded text-sm bg-white text-slate-600"><option>全部</option></select>
+    <select class="h-8 px-2 border border-slate-300 rounded text-sm bg-white text-slate-600"><option>全部上架时间</option></select>
+    <input class="h-8 px-2 border border-slate-300 rounded text-sm w-44" placeholder="按剧名 / ID 搜索" />
+    <button class="h-8 px-4 rounded bg-blue-600 text-white text-sm">搜 索</button>
+    <button class="h-8 px-3 rounded border border-slate-300 bg-white text-sm text-slate-700">批量切换水印</button>
+    <!-- ▼ 新增入口：放在工具条最右、主操作位 -->
+    <button onclick="openModal()" class="h-8 px-4 rounded bg-blue-600 text-white text-sm font-medium flex items-center gap-1">
+      <span class="text-base leading-none">+</span> 新增短剧
+    </button>
+  </div>
+</div>
+
+<div class="p-8 text-sm text-slate-400">（下方为列表区域……点右上「+ 新增短剧」打开弹窗）</div>
+
+<!-- ========== 新增短剧 弹窗 ========== -->
+<div id="mask" class="fixed inset-0 bg-black/40 z-40 hidden" onclick="if(event.target===this)tryClose()"></div>
+<div id="modal" class="fixed z-50 inset-0 hidden items-center justify-center pointer-events-none">
+  <div class="pointer-events-auto bg-white rounded-lg shadow-2xl w-[640px] max-h-[88vh] flex flex-col">
+
+    <!-- header -->
+    <div class="px-5 py-4 flex items-center justify-between border-b border-slate-100 shrink-0">
+      <div class="text-base font-semibold text-slate-800">新增短剧</div>
+      <button onclick="tryClose()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+    </div>
+
+    <!-- body -->
+    <div class="flex-1 overflow-y-auto scrollbar-thin px-5 py-4 space-y-5">
+
+      <!-- 信息条：与编辑弹窗同构，未保存字段显示占位 -->
+      <table class="w-full text-sm border border-slate-200">
+        <tr class="border-b border-slate-200">
+          <td class="bg-slate-50 px-3 py-2 w-24 text-slate-500">状态</td>
+          <td class="px-3 py-2 text-slate-700">草稿（保存后可上架）</td>
+          <td class="bg-slate-50 px-3 py-2 w-24 text-slate-500 border-l border-slate-200">短剧 ID</td>
+          <td class="px-3 py-2 text-slate-400">保存后生成</td>
+        </tr>
+        <tr>
+          <td class="bg-slate-50 px-3 py-2 text-slate-500">创建时间</td>
+          <td class="px-3 py-2 text-slate-400">—</td>
+          <td class="bg-slate-50 px-3 py-2 text-slate-500 border-l border-slate-200">更新时间</td>
+          <td class="px-3 py-2 text-slate-400">—</td>
+        </tr>
+      </table>
+
+      <!-- 封面：新增态为上传，编辑态为只读预览 -->
+      <div>
+        <div class="text-sm text-slate-500 mb-2">封面（必传，建议 9:16，jpg/png ≤ 2MB）</div>
+        <div class="flex items-end gap-3">
+          <div id="coverBox" class="w-[72px] h-[108px] rounded border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center cursor-pointer hover:border-blue-400 overflow-hidden"
+               onclick="coverClick()" title="">
+            <span id="coverPh" class="text-slate-400 text-2xl">+</span>
+            <img id="coverImg" class="w-full h-full object-cover hidden" />
+          </div>
+          <button id="coverReplace" class="hidden text-xs text-blue-600" onclick="document.getElementById('coverInput').click()">更换</button>
+          <input id="coverInput" type="file" accept="image/png,image/jpeg" class="hidden" onchange="pickCover(this)" />
+        </div>
+      </div>
+
+      <!-- 排序 -->
+      <div>
+        <label class="req text-sm text-slate-600 block mb-1.5">排序</label>
+        <input id="fSort" class="w-full h-9 px-3 border border-slate-300 rounded text-sm" value="100" />
+      </div>
+
+      <!-- 短剧名称 -->
+      <div>
+        <label class="req text-sm text-slate-600 block mb-1.5">短剧名称</label>
+        <input id="fName" class="w-full h-9 px-3 border border-slate-300 rounded text-sm" placeholder="输入短剧名称" />
+      </div>
+
+      <!-- 音轨 -->
+      <div>
+        <label class="req text-sm text-slate-600 block mb-1.5">音轨 <span class="text-slate-400 cursor-help" title="选择本剧默认音轨语言">?</span></label>
+        <div class="flex items-center gap-5 text-sm">
+          <label class="flex items-center gap-1.5"><input type="radio" name="track" checked /> zh-Hans</label>
+          <label class="flex items-center gap-1.5"><input type="radio" name="track" /> en</label>
+        </div>
+      </div>
+
+      <!-- 地区 -->
+      <div>
+        <div class="text-sm text-slate-500 mb-1.5">地区（已选 <span id="areaCount">0</span>）</div>
+        <div id="areaChips" class="flex items-center gap-1.5 flex-wrap">
+          <button onclick="addArea()" class="h-7 px-2.5 rounded border border-dashed border-slate-300 text-xs text-blue-600">+ 添加地区</button>
+        </div>
+      </div>
+
+      <!-- 标签 -->
+      <div>
+        <div class="text-sm text-slate-500 mb-1.5">标签（已选 <span id="tagCount">0</span>）</div>
+        <input class="w-full h-8 px-3 border border-slate-300 rounded text-sm mb-2" placeholder="筛选标签名称" oninput="filterTags(this.value)" />
+        <div id="tagGrid" class="grid grid-cols-3 gap-1.5"></div>
+      </div>
+
+      <!-- ========== 分集（核心新增区） ========== -->
+      <div class="border-t border-slate-100 pt-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-sm text-slate-600 font-medium">分集 <span class="text-slate-400 font-normal">（拖拽行可排序）</span></div>
+          <div id="epSummary" class="text-xs text-slate-400">共 0 集</div>
+        </div>
+
+        <div id="paneLocal">
+          <div class="border-2 border-dashed border-slate-300 rounded p-5 text-center cursor-pointer hover:border-blue-400 bg-slate-50"
+               onclick="document.getElementById('epFiles').click()"
+               ondragover="event.preventDefault();this.classList.add('border-blue-400')"
+               ondragleave="this.classList.remove('border-blue-400')"
+               ondrop="event.preventDefault();this.classList.remove('border-blue-400');handleFiles(event.dataTransfer.files)">
+            <div class="text-sm text-slate-500">点击或拖拽视频到此处，<b class="text-slate-700">支持多选批量上传</b></div>
+            <input id="epFiles" type="file" multiple accept=".mp4,.mov,.vtt" class="hidden" onchange="handleFiles(this.files)" />
+            <input id="subFiles" type="file" multiple accept=".vtt" class="hidden" onchange="handleSubs(this.files)" />
+            <input id="subFileOne" type="file" accept=".vtt" class="hidden" onchange="handleSubOne(this)" />
+          </div>
+        </div>
+
+        <!-- 批量操作条 -->
+        <div id="epToolbar" class="hidden mt-3 flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+          <button onclick="$('subFiles').click()" class="text-blue-600 hover:underline">批量上传字幕</button>
+          <span class="text-slate-300">|</span>
+          <span>从第 <input id="lockFrom" class="w-10 h-6 px-1 border border-slate-300 rounded text-center" value="9" /> 集起锁定</span>
+          <button onclick="applyLock()" class="text-blue-600 hover:underline">应用</button>
+          <span class="text-slate-300">|</span>
+          <button onclick="clearEps()" class="text-rose-500 hover:underline">清空全部</button>
+        </div>
+
+        <!-- 分集列表：与编辑弹窗一致的双列网格 -->
+        <div id="epGrid" class="mt-2 grid grid-cols-2 gap-1.5"></div>
+      </div>
+
+    </div>
+
+    <!-- footer -->
+    <div class="px-5 py-3.5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-white rounded-b-lg">
+      <div id="footHint" class="text-xs text-slate-400"></div>
+      <div class="flex items-center gap-2">
+        <button onclick="tryClose()" class="h-9 px-4 rounded border border-slate-300 text-sm text-slate-600 bg-white">取消</button>
+        <button onclick="save('draft')" class="h-9 px-4 rounded border border-blue-200 bg-blue-50 text-blue-600 text-sm">存为草稿</button>
+        <button onclick="save('publish')" class="h-9 px-5 rounded bg-blue-600 text-white text-sm">保存并上架</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toastBox" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] space-y-2"></div>
+
+<!-- 封面大图预览 -->
+<div id="coverViewer" class="fixed inset-0 z-[70] bg-black/70 hidden items-center justify-center cursor-zoom-out"
+     onclick="this.classList.add('hidden');this.classList.remove('flex')">
+  <img id="coverViewerImg" class="max-h-[80vh] max-w-[80vw] rounded shadow-2xl" />
+</div>
+
+<script>
+/* ---------- 基础 ---------- */
+const $ = id => document.getElementById(id);
+function toast(msg, ok=true) {
+  const el = document.createElement('div');
+  el.className = `toast px-4 py-2 rounded text-sm text-white shadow ${ok?'bg-slate-800':'bg-rose-500'}`;
+  el.textContent = msg;
+  $('toastBox').appendChild(el);
+  setTimeout(()=>el.remove(), 2600);
+}
+function openModal(){ $('mask').classList.remove('hidden'); $('modal').classList.remove('hidden'); $('modal').classList.add('flex'); }
+function closeModal(){ $('mask').classList.add('hidden'); $('modal').classList.add('hidden'); $('modal').classList.remove('flex'); }
+function tryClose(){
+  if (eps.length || $('fName').value.trim()) {
+    if (!confirm('当前内容未保存，关闭后将丢失，确认关闭？')) return;
+  }
+  closeModal();
+}
+
+/* ---------- 封面 ---------- */
+let coverUrl = '';
+// 未上传 → 点击选择文件；已上传 → 点击查看大图（重新上传走「更换」按钮）
+function coverClick(){
+  if (!coverUrl) return $('coverInput').click();
+  $('coverViewerImg').src = coverUrl;
+  $('coverViewer').classList.remove('hidden');
+  $('coverViewer').classList.add('flex');
+}
+function pickCover(input){
+  const f = input.files[0]; if(!f) return;
+  if (f.size > 2*1024*1024) { input.value=''; return toast('封面超过 2MB', false); }
+  const reader = new FileReader();
+  reader.onload = e => {
+    coverUrl = e.target.result;
+    $('coverImg').src = coverUrl;
+    $('coverImg').classList.remove('hidden');
+    $('coverPh').classList.add('hidden');
+    $('coverBox').classList.remove('border-dashed');
+    $('coverBox').title = '点击查看大图';
+    $('coverReplace').classList.remove('hidden');
+  };
+  reader.readAsDataURL(f);
+  input.value = ''; // 允许再次选择同一文件
+}
+
+/* ---------- 地区 / 标签（与编辑弹窗同款交互） ---------- */
+let areas = [];
+function addArea(){
+  const name = prompt('输入地区（演示用，正式版为接口下拉）','US');
+  if(!name) return;
+  areas.push(name); renderAreas();
+}
+function renderAreas(){
+  $('areaCount').textContent = areas.length;
+  $('areaChips').innerHTML = areas.map((a,i)=>`
+    <span class="h-7 px-2.5 rounded bg-blue-50 text-blue-600 text-xs flex items-center gap-1">${a}
+      <button onclick="areas.splice(${i},1);renderAreas()" class="text-blue-400">×</button></span>
+  `).join('') + `<button onclick="addArea()" class="h-7 px-2.5 rounded border border-dashed border-slate-300 text-xs text-blue-600">+ 添加地区</button>`;
+}
+const TAGS = ['tag_68f9959107329','tag_68f995911adb4','tag_68f995912e4a6','tag_68f9959141421','tag_68f9959155183','tag_68f99591686b8','tag_68f9968116b3c','tag_68f9977b170f4','tag_68f9988fb2ec9','tag_68f9996410cd9','tag_68f99964257c0'];
+let tagSel = new Set();
+function renderTags(filter=''){
+  $('tagGrid').innerHTML = TAGS.filter(t=>t.includes(filter)).map(t=>`
+    <label class="h-8 px-2 border ${tagSel.has(t)?'border-blue-400 bg-blue-50':'border-slate-200'} rounded flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer truncate">
+      <input type="checkbox" ${tagSel.has(t)?'checked':''} onchange="toggleTag('${t}')"/> ${t}
+    </label>
+  `).join('') + `<button class="h-8 px-2 rounded border border-dashed border-slate-300 text-xs text-blue-600">+ 添加标签</button>`;
+  $('tagCount').textContent = tagSel.size;
+}
+function toggleTag(t){ tagSel.has(t)?tagSel.delete(t):tagSel.add(t); renderTags(); }
+function filterTags(v){ renderTags(v.trim()); }
+renderTags();
+
+/* ---------- 分集 ---------- */
+let eps = []; // {id,name,sub:bool,locked:bool,status:'uploading'|'done'|'error',progress}
+let epSeq = 0;
+
+// 从文件名提取集号：取第一段连续数字
+function extractNum(name){
+  const m = name.match(/\d+/);
+  return m ? parseInt(m[0],10) : null;
+}
+
+function baseName(n){ return n.replace(/\.[^.]+$/,'').toLowerCase(); }
+
+function handleFiles(fileList){
+  const files = Array.from(fileList);
+  const videos = files.filter(f=>/\.(mp4|mov)$/i.test(f.name));
+  const vttMap = new Map(files.filter(f=>/\.vtt$/i.test(f.name)).map(f=>[baseName(f.name), f.name]));
+  if(!videos.length) return toast('未选择到视频文件', false);
+
+  const items = videos.map(f=>({
+    id: ++epSeq, name: f.name,
+    sub: vttMap.has(baseName(f.name)),
+    subName: vttMap.get(baseName(f.name)) || '',
+    locked: false, status: 'uploading', progress: 0,
+    parsedNum: extractNum(f.name),
+  }));
+  // 有可解析集号 → 按集号排序插入；否则按选择顺序追加
+  const parsable = items.every(i=>i.parsedNum !== null);
+  if (parsable) items.sort((a,b)=>a.parsedNum-b.parsedNum);
+  eps = eps.concat(items);
+  if (parsable) toast(`已按文件名集号排序加入 ${items.length} 集`);
+  else toast(`已按选择顺序加入 ${items.length} 集（文件名无数字，未自动排序）`);
+  renderEps();
+  items.forEach(simulateUpload);
+  $('epFiles').value = '';
+}
+
+function simulateUpload(item){
+  const timer = setInterval(()=>{
+    item.progress += Math.floor(Math.random()*18)+6;
+    if (item.progress >= 100){
+      item.progress = 100;
+      item.status = Math.random() < 0.08 ? 'error' : 'done'; // 模拟少量失败
+      clearInterval(timer);
+    }
+    renderEps();
+  }, 350);
+}
+/* 排序操作 */
+let dragIdx = null;
+function renderEps(){
+  $('epToolbar').classList.toggle('hidden', !eps.length);
+  const subCount = eps.filter(e=>e.sub).length;
+  $('epSummary').textContent = `共 ${eps.length} 集 · 有视频 ${eps.filter(e=>e.status==='done').length} · 有字幕 ${subCount}`;
+  $('footHint').textContent = eps.some(e=>e.status==='uploading') ? '分集上传中，保存后将在后台继续…' : '';
+
+  $('epGrid').innerHTML = eps.map((e,i)=>`
+    <div class="ep-row border border-slate-200 rounded px-2 py-1.5 flex items-center gap-1.5 bg-white text-xs select-none"
+         draggable="true" data-i="${i}"
+         ondragstart="dragIdx=${i};this.classList.add('dragging')"
+         ondragend="this.classList.remove('dragging');document.querySelectorAll('.ep-row').forEach(r=>r.classList.remove('drag-over'))"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="dropEp(event, ${i})">
+      <span class="cursor-grab text-slate-300 px-0.5" title="拖拽排序">⠿</span>
+      <span class="font-mono font-medium text-slate-700 w-8">${String(i+1).padStart(3,'0')}</span>
+      <span class="flex-1 truncate text-slate-500" title="${e.name}">${e.name}</span>
+      ${e.status==='uploading' ? `
+        <span class="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden"><span class="block h-full bg-blue-500" style="width:${e.progress}%"></span></span>
+      ` : e.status==='error' ? `
+        <span class="text-rose-500">失败</span>
+      ` : `
+        <span class="text-emerald-600">▶</span>
+        <button onclick="rowSubClick(event, ${e.id})" class="${e.sub?'text-emerald-600':'text-slate-300'} hover:text-emerald-500" title="${e.sub?('字幕：'+(e.subName||'已配')+'，点击更换或删除'):'无字幕，点击上传 .vtt'}">字</button>
+        <button onclick="toggleLock(${e.id})" class="${e.locked?'text-amber-500':'text-blue-500'} font-medium">${e.locked?'锁':'开'}</button>
+      `}
+      <button onclick="removeEp(${e.id})" class="text-slate-300 hover:text-rose-500 px-0.5">×</button>
+    </div>
+  `).join('');
+}
+function dropEp(ev, to){
+  ev.preventDefault();
+  if (dragIdx===null || dragIdx===to) return;
+  const [moved] = eps.splice(dragIdx,1);
+  eps.splice(to,0,moved);
+  dragIdx = null;
+  renderEps();
+}
+function clearEps(){ if(confirm('清空全部分集？')){ eps=[]; renderEps(); } }
+/* 字幕：批量补传（按同名匹配已有分集）+ 行级单集上传/替换 */
+function handleSubs(fileList){
+  const vtts = Array.from(fileList).filter(f=>/\.vtt$/i.test(f.name));
+  $('subFiles').value = '';
+  if(!vtts.length) return toast('未选择到 .vtt 字幕文件', false);
+  let matched = 0;
+  vtts.forEach(f=>{
+    const ep = eps.find(e=>baseName(e.name)===baseName(f.name));
+    if (ep){ ep.sub = true; ep.subName = f.name; matched++; }
+  });
+  const miss = vtts.length - matched;
+  toast(`字幕匹配成功 ${matched} 集${miss?`，${miss} 个未找到同名分集`:''}`, !miss);
+  renderEps();
+}
+let pendingSubEp = null;
+// 无字幕 → 直接选文件上传；已有字幕 → 弹出「更换 / 删除」菜单
+function rowSubClick(ev, id){
+  ev.stopPropagation();
+  const ep = eps.find(e=>e.id===id); if(!ep) return;
+  if (!ep.sub){ pendingSubEp = id; return $('subFileOne').click(); }
+  openSubMenu(ev, id);
+}
+function openSubMenu(ev, id){
+  closeSubMenu();
+  const m = document.createElement('div');
+  m.id = 'subMenu';
+  m.className = 'fixed z-[80] bg-white border border-slate-200 rounded shadow-lg py-1 text-xs min-w-[96px]';
+  m.style.left = ev.clientX + 'px';
+  m.style.top = (ev.clientY + 6) + 'px';
+  m.innerHTML = `
+    <button class="block w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-700" onclick="pendingSubEp=${id};closeSubMenu();$('subFileOne').click()">更换字幕</button>
+    <button class="block w-full text-left px-3 py-1.5 hover:bg-slate-50 text-rose-500" onclick="removeSub(${id})">删除字幕</button>`;
+  document.body.appendChild(m);
+  setTimeout(()=>document.addEventListener('click', closeSubMenu, {once:true}));
+}
+function closeSubMenu(){ const m = $('subMenu'); if(m) m.remove(); }
+function removeSub(id){
+  closeSubMenu();
+  const ep = eps.find(e=>e.id===id); if(!ep) return;
+  ep.sub = false; ep.subName = '';
+  renderEps(); toast(`第 ${eps.indexOf(ep)+1} 集字幕已删除`);
+}
+function handleSubOne(input){
+  const f = input.files[0]; input.value = '';
+  if(!f) return;
+  if(!/\.vtt$/i.test(f.name)) return toast('仅支持 .vtt 格式', false);
+  const ep = eps.find(e=>e.id===pendingSubEp); if(!ep) return;
+  ep.sub = true; ep.subName = f.name;
+  renderEps(); toast(`第 ${eps.indexOf(ep)+1} 集字幕已更新`);
+}
+
+function toggleLock(id){ const e=eps.find(x=>x.id===id); e.locked=!e.locked; renderEps(); }
+function removeEp(id){ eps = eps.filter(x=>x.id!==id); renderEps(); }
+function applyLock(){
+  const n = parseInt($('lockFrom').value,10);
+  if (!n || n<1) return toast('请输入合法集数', false);
+  eps.forEach((e,i)=>e.locked = i+1 >= n);
+  renderEps(); toast(`已设置：第 ${n} 集起锁定，前 ${n-1} 集免费`);
+}
+
+/* ---------- 保存 ---------- */
+function save(mode){
+  if (!$('fName').value.trim()) return toast('请填写短剧名称', false);
+  if (!coverUrl) return toast('请上传封面', false);
+  if (mode==='publish' && !eps.length) return toast('上架前请至少添加 1 集', false);
+  if (eps.some(e=>e.status==='error')) return toast('存在上传失败的分集，请删除后再保存', false);
+  toast(mode==='draft' ? '已存为草稿（演示）' : '已保存并上架（演示）');
+  setTimeout(closeModal, 600);
+}
+
+/* 默认打开弹窗便于评审 */
+openModal();
+</script>
+</body>
+</html>
