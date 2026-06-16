@@ -14,6 +14,8 @@ interface ImportMetaEnv {
   readonly VITE_COS_REGION?: string;
   /** COS 对象 Key 前缀目录，如 movie_assets/dev */
   readonly VITE_COS_KEY_PREFIX?: string;
+  /** COS 公网访问根（预览 add-movies 视频），默认 https://cos.yogoshort.com */
+  readonly VITE_COS_PUBLIC_BASE?: string;
   /** 业务 STS 接口路径（相对 API），默认 admin/movie/cos-sts */
   readonly VITE_COS_STS_API_PATH?: string;
   /** 独立 STS 服务完整 URL（优先于 STS_API_PATH） */

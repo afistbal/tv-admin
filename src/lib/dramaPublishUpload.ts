@@ -1,7 +1,7 @@
 import { getAuthToken } from "@/api/authToken";
 import { buildUrl } from "@/api/client";
 import type { ApiResult } from "@/api/types";
-import { uploadDramaAssetToCos, uploadDramaAssetOssFormDemo } from "@/lib/cosDramaUpload";
+import { uploadDramaAssetToCos } from "@/lib/cosDramaUpload";
 import { readCosUploadConfig } from "@/lib/cosUploadConfig";
 
 function clientUploadHeaders(): Record<string, string> {
@@ -70,14 +70,6 @@ function uploadDramaAssetViaApi(
     form.append("file", file);
     xhr.send(form);
   });
-}
-
-/** Demo：始终走 GET oss/form + POST COS（不依赖 VITE_COS_UPLOAD_ENABLED） */
-export async function uploadDramaAssetDemo(
-  file: File,
-  onProgress?: (percent: number) => void,
-): Promise<string> {
-  return uploadDramaAssetOssFormDemo(file, onProgress);
 }
 
 /** 上传封面 / 视频 / 字幕，返回 publish 用的 storage key */

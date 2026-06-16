@@ -6,8 +6,10 @@ export type AdminMovieRow = {
   is_rename?: number | string;
   sort?: number;
   audio_track?: string;
-  /** 与 slot 一致：`1` 上架、`2` 下架、`3` 已删除 */
+  /** `0` 草稿、`1` 上架、`2` 下架、`3` 已删除 */
   status?: number;
+  /** `0` 自动拉取、`1` 手动上传（original） */
+  source?: number;
   /** 列表里常见为标签 id 数组，与详情 `tag` 一致 */
   tag?: number[];
   level?: string;
@@ -37,6 +39,8 @@ export type AdminMovieEpisodeRow = {
   id?: number;
   episode?: number;
   video?: string;
+  /** 手动上传分集原始文件名 */
+  alias_name?: string;
   /** 字幕文件路径（常为 .vtt），与 `video` 同级 */
   url?: string;
   vip?: number;
@@ -47,4 +51,6 @@ export type AdminMovieEpisodeRow = {
 export type AdminTagAreaRow = {
   id: number;
   name: string;
+  /** 标签业务标识，展示与 publish 接口 `tags[]` 使用此字段 */
+  unique_id?: string;
 };

@@ -262,15 +262,7 @@ async function uploadDramaAssetViaSts(
   return cosKeyToPublishKey(sts.key);
 }
 
-/** Demo 测试：始终 oss/form 直传 */
-export function uploadDramaAssetOssFormDemo(
-  file: File,
-  onProgress?: (percent: number) => void,
-): Promise<string> {
-  return uploadDramaAssetViaOssForm(file, onProgress);
-}
-
-/** 浏览器直传 COS，返回 publish 用的文件名 key */
+/** 浏览器直传 COS，返回 publish 用的 storage key */
 export async function uploadDramaAssetToCos(
   file: File,
   onProgress?: (percent: number) => void,

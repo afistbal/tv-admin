@@ -1,16 +1,19 @@
 /**
  * C 端站点根（活动日志页 `/z/page/user-activity/...` 等）。
- * 默认 `https://yogoshort.com`，与线上活动页一致；可用环境变量覆盖。
+ * 开发/测试默认 `testwww.yogoshort.com`；正式默认 `yogoshort.com`。
  */
 export function publicWebOrigin(): string {
   const raw = import.meta.env.VITE_PUBLIC_WEB_ORIGIN?.trim();
   if (raw) {
     return raw.replace(/\/+$/, "");
   }
+  if (import.meta.env.VITE_APP_FLAG === "dev") {
+    return "https://testwww.yogoshort.com";
+  }
   return "https://yogoshort.com";
 }
 
-/** 播放页等分享链接：主域 `yogoshort.com` 统一为 `www.yogoshort.com` */
+/** 播放页等分享链接：正式主域 `yogoshort.com` 统一为 `www.yogoshort.com`；测试域保持不变 */
 export function publicWebOriginForVideo(): string {
   const o = publicWebOrigin();
   try {

@@ -117,6 +117,23 @@ export function staticAssetUrl(
   return `${normalizedBase}/${img.replace(/^\//, "")}`;
 }
 
+/** 手动上传分集/字幕预览：优先 config.static，否则走 COS 公网域名 */
+export function dramaAssetPlayUrl(
+  storageKey: string | undefined | null,
+  runtimeStaticBase?: string | null,
+): string | null {
+  const key = String(storageKey ?? "").trim().replace(/^\//, "");
+  if (!key) {
+    return null;
+  }
+  const fromStatic = staticAssetUrl(key, runtimeStaticBase);
+  if (fromStatic) {
+    return fromStatic;
+  }
+  const cosBase = import.meta.env.VITE_COS_PUBLIC_BASE?.trim() || "https://cos.yogoshort.com";
+  return `${cosBase.replace(/\/+$/, "")}/${key}`;
+}
+
 /** 水印封面相对路径：`movie_images/{id}.webp` */
 export function movieWatermarkCoverPath(movieId: number): string {
   return `movie_images/${movieId}.webp`;

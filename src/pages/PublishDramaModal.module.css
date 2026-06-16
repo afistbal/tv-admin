@@ -224,6 +224,11 @@
 }
 
 .epIconOk {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  cursor: pointer;
+  font-size: 12px;
   color: #52c41a;
 }
 

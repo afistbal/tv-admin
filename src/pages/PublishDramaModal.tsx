@@ -19,10 +19,15 @@ import type { ApiResult } from "@/api/types";
 import {
   baseNameWithoutExt,
   extractEpisodeNumFromFileName,
+  mediaStorageKey,
   publishMovie,
 } from "@/lib/dramaPublishApi";
 import { uploadDramaAsset } from "@/lib/dramaPublishUpload";
-import type { AdminTagAreaRow } from "@/types/adminMovie";
+import { parseAdminTagRows, tagDisplayLabel } from "@/lib/adminTagDisplay";
+import { toPublishStorageKey } from "@/lib/cosUploadConfig";
+import { formatDateTimeZh } from "@/lib/formatDateTime";
+import { movieCoverUrlFromDetail, dramaAssetPlayUrl } from "@/lib/staticAssetOrigin";
+import type { AdminMovieDetailPayload, AdminMovieEpisodeRow, AdminTagAreaRow } from "@/types/adminMovie";
 import styles from "./PublishDramaModal.module.css";
 
 type FormValues = {
@@ -36,6 +41,8 @@ type FormValues = {
 type EpisodeUploadRow = {
   clientId: number;
   fileName: string;
+  /** 上传时的真实文件名，publish 时作为 alias_name */
+  aliasName: string;
   videoKey?: string;
   subtitleKey?: string;
   subtitleName?: string;
@@ -46,11 +53,77 @@ type EpisodeUploadRow = {
 
 type Props = {
   open: boolean;
+  /** 传入时为编辑手动上传短剧（source=1） */
+  movieId?: number | null;
+  staticBase?: string | null;
   onClose: () => void;
   onPublished: () => void;
 };
 
-function normalizeTagAreaList(raw: unknown): AdminTagAreaRow[] {
+function movieStatusLabel(status: unknown): string {
+  const s = Number(status);
+  if (s === 0) {
+    return "草稿";
+  }
+  if (s === 1) {
+    return "已上架";
+  }
+  if (s === 2) {
+    return "已下架";
+  }
+  if (s === 3) {
+    return "已删除";
+  }
+  return "—";
+}
+
+function normalizeIdArray(raw: unknown): number[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const ids: number[] = [];
+  for (const x of raw) {
+    if (typeof x === "number" && Number.isFinite(x)) {
+      ids.push(x);
+    } else if (x != null && typeof x === "object" && "id" in x) {
+      const n = Number((x as { id: unknown }).id);
+      if (Number.isFinite(n)) {
+        ids.push(n);
+      }
+    } else if (typeof x === "string" && x.trim() !== "") {
+      const n = Number(x);
+      if (Number.isFinite(n)) {
+        ids.push(n);
+      }
+    }
+  }
+  return ids;
+}
+
+function parseEpisodesForEdit(d: AdminMovieDetailPayload): EpisodeUploadRow[] {
+  const raw = Array.isArray(d.episodes) ? d.episodes : [];
+  return raw.map((v: AdminMovieEpisodeRow, idx: number) => {
+    const st = v.subtitle as { id?: number; url?: string } | null | undefined;
+    const videoRaw = v.video != null ? String(v.video) : "";
+    const subRaw = st?.url != null ? String(st.url) : "";
+    const episodeNo = Number(v.episode ?? idx + 1);
+    const aliasRaw = v.alias_name != null ? String(v.alias_name).trim() : "";
+    const displayName = aliasRaw || mediaStorageKey(videoRaw) || `第 ${episodeNo} 集`;
+    return {
+      clientId: ++episodeClientSeq,
+      fileName: displayName,
+      aliasName: aliasRaw || displayName,
+      videoKey: toPublishStorageKey(videoRaw),
+      subtitleKey: subRaw ? toPublishStorageKey(subRaw) : undefined,
+      subtitleName: subRaw ? mediaStorageKey(subRaw) : undefined,
+      vip: Number(v.vip) > 0 ? 1 : 0,
+      status: videoRaw ? ("done" as const) : ("error" as const),
+      progress: videoRaw ? 100 : 0,
+    };
+  });
+}
+
+function normalizeAreaList(raw: unknown): AdminTagAreaRow[] {
   const list: unknown[] = Array.isArray(raw)
     ? raw
     : raw != null && typeof raw === "object" && "data" in raw && Array.isArray((raw as { data: unknown }).data)
@@ -77,9 +150,15 @@ function escapeRegExp(s: string): string {
 
 let episodeClientSeq = 0;
 
-export function PublishDramaModal({ open, onClose, onPublished }: Props) {
+export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublished }: Props) {
+  const isEditMode = movieId != null && Number.isFinite(movieId) && movieId > 0;
   const [form] = Form.useForm<FormValues>();
   const [loadingMeta, setLoadingMeta] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [movieStatus, setMovieStatus] = useState(0);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [areas, setAreas] = useState<AdminTagAreaRow[]>([]);
   const [tags, setTags] = useState<AdminTagAreaRow[]>([]);
@@ -98,6 +177,7 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
 
   const coverInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -126,14 +206,63 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
     setDragOverIndex(null);
     setDropActive(false);
     pendingSubClientId.current = null;
+    setLoadError(null);
+    setMovieStatus(0);
+    setCreatedAt(null);
+    setUpdatedAt(null);
+    setVideoPreviewUrl(null);
   }, [form]);
+
+  const loadMovieDetail = useCallback(
+    async (id: number) => {
+      setLoadingDetail(true);
+      setLoadError(null);
+      try {
+        const res = await apiGet<AdminMovieDetailPayload>("admin/movie", { id });
+        if (res.c !== 0) {
+          const msg = res.m || "加载影片失败";
+          message.error(msg);
+          setLoadError(msg);
+          return;
+        }
+        const d = res.d;
+        const info = d.info;
+        const sortVal = info["sort"];
+        const titleVal = info["title"];
+        const track = info["audio_track"];
+        form.setFieldsValue({
+          sort: sortVal != null && sortVal !== "" ? String(sortVal) : "100",
+          title: String(titleVal ?? ""),
+          language: String(info["language"] ?? "en"),
+          introduction: String(info["introduction"] ?? ""),
+          audio_track: track == null || track === "" ? "en" : String(track) === "en" ? "en" : "zh-Hans",
+        });
+        setMovieStatus(Number(info["status"] ?? 0));
+        setCreatedAt(formatDateTimeZh(info["created_at"] as string | undefined));
+        setUpdatedAt(formatDateTimeZh(info["updated_at"] as string | undefined));
+        setAreaSelected(normalizeIdArray(d.area));
+        setTagSelected(normalizeIdArray(d.tag));
+        const coverStorageKey = toPublishStorageKey(String(info["cover_key"] ?? info["image"] ?? ""));
+        setCoverKey(coverStorageKey || null);
+        const poster = movieCoverUrlFromDetail(id, d, staticBase ?? null);
+        setCoverPreview(poster);
+        setEpisodes(parseEpisodesForEdit(d));
+      } catch {
+        message.error("网络异常");
+        setLoadError("网络异常");
+      } finally {
+        setLoadingDetail(false);
+      }
+    },
+    [form, staticBase],
+  );
 
   const loadMeta = useCallback(async () => {
     setLoadingMeta(true);
     try {
       const [tagRes, areaRes] = await Promise.all([apiGet<unknown>("admin/tag"), apiGet<unknown>("admin/area")]);
-      setTags(tagRes.c === 0 ? normalizeTagAreaList(tagRes.d) : []);
-      setAreas(areaRes.c === 0 ? normalizeTagAreaList(areaRes.d) : []);
+      setTags(tagRes.c === 0 ? parseAdminTagRows(tagRes.d) : []);
+      setAreas(areaRes.c === 0 ? normalizeAreaList(areaRes.d) : []);
       if (tagRes.c !== 0) {
         message.error(tagRes.m || "标签加载失败");
       }
@@ -153,7 +282,19 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
       return;
     }
     void loadMeta();
-  }, [open, loadMeta, resetState]);
+    if (isEditMode && movieId != null) {
+      void loadMovieDetail(movieId);
+      return;
+    }
+    resetState();
+    form.setFieldsValue({
+      sort: "100",
+      language: "en",
+      audio_track: "en",
+      introduction: "",
+      title: "",
+    });
+  }, [open, isEditMode, movieId, loadMeta, loadMovieDetail, resetState, form]);
 
   const filteredTags = useMemo(() => {
     const q = tagSearch.trim();
@@ -162,14 +303,29 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
     }
     try {
       const re = new RegExp(escapeRegExp(q), "i");
-      return tags.filter((t) => re.test(t.name));
+      return tags.filter((t) => re.test(tagDisplayLabel(t)));
     } catch {
       return tags;
     }
   }, [tags, tagSearch]);
 
-  const tagNameById = useMemo(() => new Map(tags.map((t) => [t.id, t.name])), [tags]);
   const areaNameById = useMemo(() => new Map(areas.map((a) => [a.id, a.name])), [areas]);
+
+  const openEpisodeVideo = useCallback(
+    (row: EpisodeUploadRow) => {
+      if (!row.videoKey) {
+        message.warning("该分集尚未上传视频");
+        return;
+      }
+      const url = dramaAssetPlayUrl(row.videoKey, staticBase ?? null);
+      if (!url) {
+        message.warning("无法生成播放地址");
+        return;
+      }
+      setVideoPreviewUrl(url);
+    },
+    [staticBase],
+  );
 
   const uploadEpisodeVideo = useCallback((clientId: number, file: File) => {
     void uploadDramaAsset(file, (progress) => {
@@ -218,6 +374,7 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
           row: {
             clientId,
             fileName: file.name,
+            aliasName: file.name,
             vip: 0,
             status: "uploading" as const,
             progress: 0,
@@ -375,6 +532,12 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
         setAreas((a) => [...a, { id: newId, name: value }]);
       }
     } else if (addOpen === "tag") {
+      if (tags.some((t) => tagDisplayLabel(t) === value)) {
+        message.info("该标签已存在");
+        setAddOpen(null);
+        setAddName("");
+        return;
+      }
       const res: ApiResult<number> = await apiPostJson("admin/tag", { name: value });
       if (res.c !== 0) {
         message.error(res.m || "创建失败");
@@ -382,7 +545,7 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
       }
       const newId = Number(res.d);
       if (Number.isFinite(newId)) {
-        setTags((t) => [...t, { id: newId, name: value }]);
+        setTags((t) => [...t, { id: newId, name: value, unique_id: value }]);
       }
     }
     message.success("已添加");
@@ -405,7 +568,7 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
     onClose();
   };
 
-  const handlePublish = async (mode: "draft" | "publish") => {
+  const handlePublish = async (mode: "draft" | "publish" | "keep") => {
     try {
       const v = await form.validateFields();
       if (!coverKey) {
@@ -414,6 +577,10 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
       }
       if (mode === "publish" && episodes.length === 0) {
         message.warning("上架前请至少添加 1 集");
+        return;
+      }
+      if (mode !== "keep" && episodes.length === 0 && isEditMode) {
+        message.warning("请至少保留 1 集");
         return;
       }
       if (episodes.some((ep) => ep.status === "uploading")) {
@@ -437,20 +604,22 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
 
       setSaving(true);
       const res = await publishMovie({
+        ...(isEditMode && movieId != null ? { movie_id: movieId } : {}),
         title: v.title.trim(),
         language: v.language.trim() || "en",
         introduction: v.introduction?.trim() ?? "",
         cover_key: coverKey,
         audio_track: v.audio_track,
         sort: sortNum,
-        status: mode === "publish" ? 1 : 2,
-        tags: tagSelected.map((id) => tagNameById.get(id)).filter((name): name is string => Boolean(name)),
+        status: mode === "publish" ? 1 : mode === "draft" ? 0 : movieStatus,
+        tags: tagSelected,
         area: areaSelected.map((id) => areaNameById.get(id)).filter((name): name is string => Boolean(name)),
         episodes: episodes
-          .filter((ep) => ep.status === "done" && ep.videoKey)
+          .filter((ep) => ep.videoKey && ep.status !== "uploading")
           .map((ep, index) => ({
             ep: index + 1,
             video_key: ep.videoKey!,
+            alias_name: ep.aliasName.trim() || ep.fileName.trim(),
             ...(ep.subtitleKey ? { subtitle_key: ep.subtitleKey } : {}),
             vip: ep.vip,
           })),
@@ -460,7 +629,13 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
         message.error(res.m || "保存失败");
         return;
       }
-      message.success(mode === "draft" ? "已存为草稿" : "已保存并上架");
+      message.success(
+        mode === "keep"
+          ? "已保存"
+          : mode === "draft"
+            ? "已存为草稿"
+            : "已保存并上架",
+      );
       onPublished();
       onClose();
     } catch {
@@ -553,13 +728,14 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
   return (
     <>
       <Modal
-        title="新增短剧"
+        title={isEditMode ? `编辑短剧 #${movieId}` : "新增短剧"}
         open={open}
         onCancel={tryClose}
         width={640}
         destroyOnHidden
         maskClosable={!saving}
         footer={
+          loadError ? null : (
           <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
             <span className={styles.footerHint}>
               {uploadingCount > 0 ? "分集上传中，请等待完成后再保存…" : null}
@@ -568,31 +744,38 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
               <Button onClick={tryClose} disabled={saving}>
                 取消
               </Button>
-              <Button loading={saving} onClick={() => void handlePublish("draft")}>
-                存为草稿
+              <Button loading={saving} onClick={() => void handlePublish(isEditMode && movieStatus === 1 ? "keep" : "draft")}>
+                {isEditMode && movieStatus === 1 ? "保存" : "存为草稿"}
               </Button>
-              <Button type="primary" loading={saving} onClick={() => void handlePublish("publish")}>
-                保存并上架
-              </Button>
+              {!(isEditMode && movieStatus === 1) ? (
+                <Button type="primary" loading={saving} onClick={() => void handlePublish("publish")}>
+                  保存并上架
+                </Button>
+              ) : null}
             </Space>
           </div>
+          )
         }
       >
-        <Spin spinning={loadingMeta || coverUploading}>
+        <Spin spinning={loadingMeta || loadingDetail || coverUploading}>
           <div className={styles.modalBody}>
+            {loadError ? (
+              <Typography.Text type="danger">{loadError}</Typography.Text>
+            ) : (
+            <>
             <table className={styles.infoTable}>
               <tbody>
                 <tr>
                   <td className={styles.infoLabel}>状态</td>
-                  <td>草稿（保存后可上架）</td>
+                  <td>{isEditMode ? movieStatusLabel(movieStatus) : "草稿（保存后可上架）"}</td>
                   <td className={`${styles.infoLabel} ${styles.infoSplit}`}>短剧 ID</td>
-                  <td className={styles.placeholder}>保存后生成</td>
+                  <td className={isEditMode ? undefined : styles.placeholder}>{isEditMode ? String(movieId) : "保存后生成"}</td>
                 </tr>
                 <tr>
                   <td className={styles.infoLabel}>创建时间</td>
-                  <td className={styles.placeholder}>—</td>
+                  <td className={isEditMode ? undefined : styles.placeholder}>{createdAt ?? "—"}</td>
                   <td className={`${styles.infoLabel} ${styles.infoSplit}`}>更新时间</td>
-                  <td className={styles.placeholder}>—</td>
+                  <td className={isEditMode ? undefined : styles.placeholder}>{updatedAt ?? "—"}</td>
                 </tr>
               </tbody>
             </table>
@@ -674,13 +857,13 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
             <div style={{ marginTop: 16 }}>
               <Typography.Text type="secondary">标签（已选 {tagSelected.length}）</Typography.Text>
               <div className={styles.tagSearchRow}>
-                <Input allowClear placeholder="筛选标签名称" value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} />
+                <Input allowClear placeholder="筛选标签 unique_id" value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} />
               </div>
               <div className={styles.tagAreaWrap}>
                 {filteredTags.map((t) => (
                   <label key={t.id} className={styles.checkCard}>
                     <Checkbox checked={tagSelected.includes(t.id)} onChange={() => toggleTag(t.id)} />
-                    <span>{t.name}</span>
+                    <span>{tagDisplayLabel(t)}</span>
                   </label>
                 ))}
                 <button type="button" className={styles.addChip} onClick={() => { setAddOpen("tag"); setAddName(""); }}>
@@ -781,7 +964,14 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
                       <span className={styles.epError}>失败</span>
                     ) : (
                       <>
-                        <span className={styles.epIconOk}>▶</span>
+                        <button
+                          type="button"
+                          className={styles.epIconOk}
+                          title="播放视频"
+                          onClick={() => openEpisodeVideo(row)}
+                        >
+                          ▶
+                        </button>
                         {row.subtitleKey ? (
                           <Dropdown menu={subtitleMenu(row)} trigger={["click"]}>
                             <button
@@ -821,8 +1011,23 @@ export function PublishDramaModal({ open, onClose, onPublished }: Props) {
                 ))}
               </div>
             </div>
+            </>
+            )}
           </div>
         </Spin>
+      </Modal>
+
+      <Modal
+        title="分集预览"
+        open={videoPreviewUrl != null}
+        footer={null}
+        onCancel={() => setVideoPreviewUrl(null)}
+        destroyOnHidden
+        width={720}
+      >
+        {videoPreviewUrl ? (
+          <video src={videoPreviewUrl} controls autoPlay style={{ width: "100%", maxHeight: "70vh" }} />
+        ) : null}
       </Modal>
 
       <Modal

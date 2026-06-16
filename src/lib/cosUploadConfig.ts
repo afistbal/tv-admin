@@ -25,9 +25,26 @@ export function buildCosObjectKey(prefix: string, fileName: string): string {
   return base ? `${base}/${name}` : name;
 }
 
+/** publish / 入库用的 storage key：保留目录前缀，如 add-movies/xxx.mp4 */
 export function cosKeyToPublishKey(cosKey: string): string {
-  const parts = cosKey.split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? cosKey;
+  return cosKey.replace(/^\/+/, "");
+}
+
+/** 将详情里的路径或纯文件名规范为 publish 用的 key（缺前缀时补 VITE_COS_KEY_PREFIX） */
+export function toPublishStorageKey(keyOrPath: string): string {
+  const trimmed = String(keyOrPath ?? "").trim().replace(/^\/+/, "");
+  if (!trimmed) {
+    return "";
+  }
+  const prefix = trimSlashes(readCosUploadConfig().keyPrefix);
+  if (!prefix) {
+    return trimmed;
+  }
+  if (trimmed.startsWith(`${prefix}/`)) {
+    return trimmed;
+  }
+  const base = trimmed.split("/").filter(Boolean).pop() ?? trimmed;
+  return `${prefix}/${base}`;
 }
 
 export function readCosUploadConfig(): CosUploadRuntimeConfig {

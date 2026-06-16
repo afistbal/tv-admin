@@ -9,7 +9,7 @@ import type { ApiResult } from "@/api/types";
 import type { AdminMovieListPayload, AdminMovieRow, AdminTagAreaRow } from "@/types/adminMovie";
 import { useAppStaticBase } from "@/config/AppConfigContext";
 import { checkImageUrlExists, movieCoverUrl, movieWatermarkCoverUrl, readMovieIsRename } from "@/lib/staticAssetOrigin";
-import { publicWebOrigin } from "@/lib/publicWebOrigin";
+import { publicWebOriginForVideo } from "@/lib/publicWebOrigin";
 import {
   MOVIE_LEVEL_FILTER_OPTIONS,
   formatCompactCount,
@@ -23,9 +23,11 @@ import { mainContentTableSticky } from "@/lib/tableSticky";
 import stylesToolbar from "./UserList.module.css";
 import styles from "./MovieList.module.css";
 import { BatchWatermarkModal } from "./BatchWatermarkModal";
+import { CursorSaveModal } from "./CursorSaveModal";
 import { MovieEditModal } from "./MovieEditModal";
 import { PublishDramaModal } from "./PublishDramaModal";
-import { CosUploadDemoModal } from "./CosUploadDemoModal";
+import { parseAdminTagRows, tagDisplayLabel } from "@/lib/adminTagDisplay";
+import { isOriginalMovieSource } from "@/lib/dramaPublishApi";
 
 const LANGUAGES: { value: string; label: string }[] = [
   { value: "all", label: "全部" },
@@ -43,6 +45,23 @@ const LANGUAGES: { value: string; label: string }[] = [
   { value: "ar", label: "阿拉伯语" },
 ];
 
+type MovieSourceFilter = "all" | "0" | "1";
+type MovieStatusFilter = "all" | "0" | "1" | "2" | "3";
+
+const MOVIE_SOURCE_OPTIONS: { value: MovieSourceFilter; label: string }[] = [
+  { value: "all", label: "全部来源" },
+  { value: "0", label: "自动拉取" },
+  { value: "1", label: "手动上传" },
+];
+
+const MOVIE_STATUS_OPTIONS: { value: MovieStatusFilter; label: string }[] = [
+  { value: "all", label: "全部状态" },
+  { value: "0", label: "草稿" },
+  { value: "1", label: "已上架" },
+  { value: "2", label: "已下架" },
+  { value: "3", label: "已删除" },
+];
+
 /**
  * 与 slot_old 一致：**`sort === 100` = 在首页推荐**；**`sort === 0` = 非推荐**（取消推荐时接口传 0）。
  * 「推荐设为 0」指的是关推荐时把 `sort` 设为 0，不是用 0 表示「正在推荐」。
@@ -53,24 +72,7 @@ function isRecommendRow(row: AdminMovieRow): boolean {
 
 /** `admin/movie/status` 与 slot MovieDetail 一致 */
 function tagRowsFromApi(d: unknown): AdminTagAreaRow[] {
-  const raw = Array.isArray(d)
-    ? d
-    : d != null && typeof d === "object" && "data" in d && Array.isArray((d as { data: unknown }).data)
-      ? (d as { data: unknown[] }).data
-      : [];
-  const out: AdminTagAreaRow[] = [];
-  for (const row of raw) {
-    if (row == null || typeof row !== "object") {
-      continue;
-    }
-    const o = row as Record<string, unknown>;
-    const id = Number(o.id ?? o.ID);
-    const name = String(o.name ?? o.title ?? "").trim();
-    if (Number.isFinite(id) && name) {
-      out.push({ id, name });
-    }
-  }
-  return out;
+  return parseAdminTagRows(d);
 }
 
 function parseMovieTagIds(row: AdminMovieRow): number[] {
@@ -113,6 +115,8 @@ export function MovieList() {
   const [keyword, setKeyword] = useState("");
   const [language, setLanguage] = useState("all");
   const [levelFilter, setLevelFilter] = useState<MovieLevelFilter>("all");
+  const [sourceFilter, setSourceFilter] = useState<MovieSourceFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<MovieStatusFilter>("all");
   const [listOrderBy, setListOrderBy] = useState<"" | "play" | "favorite">("");
   const [editId, setEditId] = useState<number | null>(null);
   const [recommendSavingId, setRecommendSavingId] = useState<number | null>(null);
@@ -124,8 +128,17 @@ export function MovieList() {
   const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
   const [batchWatermarkOpen, setBatchWatermarkOpen] = useState(false);
   const [publishDramaOpen, setPublishDramaOpen] = useState(false);
-  const [cosUploadDemoOpen, setCosUploadDemoOpen] = useState(false);
+  const [publishEditId, setPublishEditId] = useState<number | null>(null);
+  const [cursorSaveOpen, setCursorSaveOpen] = useState(false);
   const searchTimer = useRef<number | null>(null);
+
+  const openMovieEdit = useCallback((row: AdminMovieRow) => {
+    if (isOriginalMovieSource(row.source)) {
+      setPublishEditId(row.id);
+      return;
+    }
+    setEditId(row.id);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,7 +151,7 @@ export function MovieList() {
         const list = tagRowsFromApi(res.d);
         const m = new Map<number, string>();
         for (const t of list) {
-          m.set(t.id, t.name);
+          m.set(t.id, tagDisplayLabel(t));
         }
         setTagNameById(m);
       } catch {
@@ -150,19 +163,26 @@ export function MovieList() {
     };
   }, []);
 
-  const fetchList = useCallback(async (p: number, kw: string, lang: string, level: MovieLevelFilter, orderBy: "" | "play" | "favorite") => {
+  const fetchList = useCallback(async (overridePage?: number) => {
+    const p = overridePage ?? page;
     setLoading(true);
     try {
       const query: Record<string, string | number> = {
         page: p,
-        keyword: kw,
-        language: lang,
+        keyword,
+        language,
       };
-      if (level !== "all") {
-        query.level = level;
+      if (levelFilter !== "all") {
+        query.level = levelFilter;
       }
-      if (orderBy) {
-        query.order_by = orderBy;
+      if (sourceFilter !== "all") {
+        query.source = Number(sourceFilter);
+      }
+      if (statusFilter !== "all") {
+        query.status = Number(statusFilter);
+      }
+      if (listOrderBy) {
+        query.order_by = listOrderBy;
       }
       const res: ApiResult<AdminMovieListPayload> = await apiGet<AdminMovieListPayload>("admin/movie/list", query);
       if (res.c !== 0) {
@@ -183,11 +203,11 @@ export function MovieList() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, keyword, language, levelFilter, sourceFilter, statusFilter, listOrderBy]);
 
   useEffect(() => {
-    void fetchList(page, keyword, language, levelFilter, listOrderBy);
-  }, [page, keyword, language, levelFilter, listOrderBy, fetchList]);
+    void fetchList();
+  }, [page, keyword, language, levelFilter, sourceFilter, statusFilter, listOrderBy, fetchList]);
 
   /** 仪表盘播放排行等入口：`/drama/movies?id=` 预填搜索 */
   useEffect(() => {
@@ -234,7 +254,7 @@ export function MovieList() {
           message.error(res.m || "更新失败");
           return;
         }
-        await fetchList(page, keyword, language, levelFilter, listOrderBy);
+        await fetchList();
       } catch {
         message.error("网络异常");
       } finally {
@@ -269,7 +289,7 @@ export function MovieList() {
           message.error(res.m || "更新失败");
           return;
         }
-        await fetchList(page, keyword, language, levelFilter, listOrderBy);
+        await fetchList();
       } catch {
         message.error("网络异常");
       } finally {
@@ -279,7 +299,7 @@ export function MovieList() {
     [fetchList, page, keyword, language, levelFilter, listOrderBy],
   );
 
-  const playMovieUrl = useCallback((id: number) => `${publicWebOrigin()}/video/${id}`, []);
+  const playMovieUrl = useCallback((id: number) => `${publicWebOriginForVideo()}/video/${id}`, []);
 
   const handleExportMovie = useCallback(async (row: AdminMovieRow) => {
     setRowActionBusyId(row.id);
@@ -308,7 +328,7 @@ export function MovieList() {
               return;
             }
             message.success("已更新");
-            await fetchList(page, keyword, language, levelFilter, listOrderBy);
+            await fetchList();
           } catch {
             message.error("网络异常");
           } finally {
@@ -334,7 +354,7 @@ export function MovieList() {
           return;
         }
         message.success(audio === "en" ? "已设为英文音轨" : "已设为中文音轨");
-        await fetchList(page, keyword, language, levelFilter, listOrderBy);
+        await fetchList();
       } catch {
         message.error("网络异常");
       } finally {
@@ -371,7 +391,7 @@ export function MovieList() {
           return;
         }
         message.success(checked ? "已开启水印" : "已关闭水印");
-        await fetchList(page, keyword, language, levelFilter, listOrderBy);
+        await fetchList();
       } catch {
         message.error("网络异常");
       } finally {
@@ -438,11 +458,11 @@ export function MovieList() {
                 role="button"
                 tabIndex={0}
                 className={styles.titleLink}
-                onClick={() => setEditId(row.id)}
+                onClick={() => openMovieEdit(row)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    setEditId(row.id);
+                    openMovieEdit(row);
                   }
                 }}
               >
@@ -625,7 +645,7 @@ export function MovieList() {
                   size="small"
                   className={styles.actionLink}
                   disabled={busy}
-                  onClick={() => setEditId(row.id)}
+                  onClick={() => openMovieEdit(row)}
                 >
                   编辑
                 </Button>
@@ -655,6 +675,7 @@ export function MovieList() {
       handleExportMovie,
       handleMovieStatus,
       handleSetAudioTrack,
+      openMovieEdit,
       openPosterPreview,
       tagNameById,
     ],
@@ -671,6 +692,24 @@ export function MovieList() {
           <Typography.Text type="secondary">共 {total} 部</Typography.Text>
         </Space>
         <Space wrap className={stylesToolbar.toolbarRight}>
+          <Select
+            value={sourceFilter}
+            style={{ width: 130 }}
+            options={MOVIE_SOURCE_OPTIONS}
+            onChange={(v) => {
+              setSourceFilter(v);
+              setPage(1);
+            }}
+          />
+          <Select
+            value={statusFilter}
+            style={{ width: 130 }}
+            options={MOVIE_STATUS_OPTIONS}
+            onChange={(v) => {
+              setStatusFilter(v);
+              setPage(1);
+            }}
+          />
           <Select
             value={language}
             style={{ width: 140 }}
@@ -717,7 +756,7 @@ export function MovieList() {
               setKeyword(kw);
               setPage(1);
               if (page === 1) {
-                void fetchList(1, kw, language, levelFilter, listOrderBy);
+                void fetchList(1);
               }
             }}
           >
@@ -727,7 +766,7 @@ export function MovieList() {
           <Button type="primary" onClick={() => setPublishDramaOpen(true)}>
             + 新增短剧
           </Button>
-          <Button onClick={() => setCosUploadDemoOpen(true)}>Demo 测试上传</Button>
+          <Button onClick={() => setCursorSaveOpen(true)}>重拉剧游标</Button>
         </Space>
       </div>
 
@@ -787,19 +826,24 @@ export function MovieList() {
         ) : null}
       </Modal>
 
-      <CosUploadDemoModal open={cosUploadDemoOpen} onClose={() => setCosUploadDemoOpen(false)} />
+      <CursorSaveModal open={cursorSaveOpen} onClose={() => setCursorSaveOpen(false)} />
 
       <PublishDramaModal
-        open={publishDramaOpen}
-        onClose={() => setPublishDramaOpen(false)}
-        onPublished={() => void fetchList(page, keyword, language, levelFilter, listOrderBy)}
+        open={publishDramaOpen || publishEditId != null}
+        movieId={publishEditId}
+        staticBase={appStatic}
+        onClose={() => {
+          setPublishDramaOpen(false);
+          setPublishEditId(null);
+        }}
+        onPublished={() => void fetchList()}
       />
 
       <BatchWatermarkModal
         open={batchWatermarkOpen}
         staticBase={appStatic}
         onClose={() => setBatchWatermarkOpen(false)}
-        onCompleted={() => void fetchList(page, keyword, language, levelFilter, listOrderBy)}
+        onCompleted={() => void fetchList()}
       />
 
       {editId != null ? (
@@ -808,7 +852,7 @@ export function MovieList() {
           movieId={editId}
           staticBase={appStatic}
           onClose={() => setEditId(null)}
-          onSaved={() => void fetchList(page, keyword, language, levelFilter, listOrderBy)}
+          onSaved={() => void fetchList()}
         />
       ) : null}
     </div>

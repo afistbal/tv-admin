@@ -24,6 +24,7 @@ import type {
 } from "@/types/adminMovie";
 import { movieCoverUrlFromDetail, staticAssetUrl } from "@/lib/staticAssetOrigin";
 import { formatDateTimeZh } from "@/lib/formatDateTime";
+import { parseAdminTagRows, tagDisplayLabel } from "@/lib/adminTagDisplay";
 import styles from "./MovieEditModal.module.css";
 
 type FormValues = {
@@ -42,6 +43,9 @@ export type EpisodeEditState = {
 
 function movieStatusLabel(status: unknown): string {
   const s = Number(status);
+  if (s === 0) {
+    return "草稿";
+  }
   if (s === 1) {
     return "上架";
   }
@@ -54,8 +58,8 @@ function movieStatusLabel(status: unknown): string {
   return "—";
 }
 
-/** 兼容 `d` 为数组或 `{ data: [] }` 等包装 */
-function normalizeTagAreaList(raw: unknown): AdminTagAreaRow[] {
+/** 兼容 `d` 为数组或 `{ data: [] }` 等包装（地区列表） */
+function normalizeAreaList(raw: unknown): AdminTagAreaRow[] {
   const list: unknown[] = Array.isArray(raw)
     ? raw
     : raw != null && typeof raw === "object" && "data" in raw && Array.isArray((raw as { data: unknown }).data)
@@ -167,8 +171,8 @@ export function MovieEditModal(props: {
         apiGet<unknown>("admin/tag"),
         apiGet<unknown>("admin/area"),
       ]);
-      const tagList = tagRes.c === 0 ? normalizeTagAreaList(tagRes.d) : [];
-      const areaList = areaRes.c === 0 ? normalizeTagAreaList(areaRes.d) : [];
+      const tagList = tagRes.c === 0 ? parseAdminTagRows(tagRes.d) : [];
+      const areaList = areaRes.c === 0 ? normalizeAreaList(areaRes.d) : [];
       if (tagRes.c !== 0) {
         message.error(tagRes.m || "标签加载失败");
       }
@@ -231,7 +235,7 @@ export function MovieEditModal(props: {
     }
     try {
       const re = new RegExp(escapeRegExp(q), "i");
-      return tags.filter((t) => re.test(t.name));
+      return tags.filter((t) => re.test(tagDisplayLabel(t)));
     } catch {
       return tags;
     }
@@ -294,7 +298,7 @@ export function MovieEditModal(props: {
         setAreas((a) => [...a, { id: newId, name: value }]);
       }
     } else if (addOpen === "tag") {
-      if (tags.some((t) => t.name === value)) {
+      if (tags.some((t) => tagDisplayLabel(t) === value)) {
         message.info("该标签已存在");
         setAddOpen(null);
         setAddName("");
@@ -307,7 +311,7 @@ export function MovieEditModal(props: {
       }
       const newId = Number(res.d);
       if (Number.isFinite(newId)) {
-        setTags((t) => [...t, { id: newId, name: value }]);
+        setTags((t) => [...t, { id: newId, name: value, unique_id: value }]);
       }
     }
     message.success("已添加");
@@ -352,7 +356,7 @@ export function MovieEditModal(props: {
 
   return (
     <Modal
-      title={`编辑短剧 #${movieId}`}
+      title={`编辑短剧 #${movieId}（自动拉取）`}
       open
       onCancel={onClose}
       onOk={() => void handleOk()}
@@ -438,7 +442,7 @@ export function MovieEditModal(props: {
                 <div className={styles.tagSearchRow}>
                   <Input
                     allowClear
-                    placeholder="筛选标签名称"
+                    placeholder="筛选标签 unique_id"
                     value={tagSearch}
                     onChange={(e) => setTagSearch(e.target.value)}
                   />
@@ -457,7 +461,7 @@ export function MovieEditModal(props: {
                       style={hideTag && k > 10 ? { display: "none" } : undefined}
                     >
                       <Checkbox checked={tagSelected.includes(t.id)} onChange={() => toggleTag(t.id)} />
-                      <span>{t.name}</span>
+                      <span>{tagDisplayLabel(t)}</span>
                     </label>
                   ))}
                   <button type="button" className={`${styles.addChip} ${styles.addChipTag}`} onClick={() => { setAddOpen("tag"); setAddName(""); }}>
