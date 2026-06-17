@@ -9,7 +9,7 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const PROD_OUT_DIR =
   process.platform === "win32"
     ? "D:/JJ-TV/movie-admin-prod"
-    : "/Users/home/Documents/projects/D/D1/JJ-TV/movie-admin-prod";
+    : "/Users/home/Documents/projects/JJ-TV/movie-admin-prod";
 
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, rootDir, "");
