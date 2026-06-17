@@ -6,7 +6,10 @@ import react from "@vitejs/plugin-react";
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 /** `npm run build:prod`（`--mode prod`）时静态资源输出目录 */
-const PROD_OUT_DIR = "D:/JJ-TV/movie-admin-prod";
+const PROD_OUT_DIR =
+  process.platform === "win32"
+    ? "D:/JJ-TV/movie-admin-prod"
+    : "/Users/home/Documents/projects/D/D1/JJ-TV/movie-admin-prod";
 
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, rootDir, "");
