@@ -70,6 +70,27 @@ function isRecommendRow(row: AdminMovieRow): boolean {
   return Number(row.sort) === 100;
 }
 
+function movieStatusShortLabel(status: unknown): string {
+  const s = Number(status);
+  if (s === 0) {
+    return "草稿";
+  }
+  if (s === 1) {
+    return "上架";
+  }
+  if (s === 2) {
+    return "下架";
+  }
+  if (s === 3) {
+    return "已删除";
+  }
+  return "—";
+}
+
+function movieSourceShortLabel(source: unknown): string {
+  return isOriginalMovieSource(source) ? "手动" : "自动";
+}
+
 /** `admin/movie/status` 与 slot MovieDetail 一致 */
 function tagRowsFromApi(d: unknown): AdminTagAreaRow[] {
   return parseAdminTagRows(d);
@@ -478,7 +499,15 @@ export function MovieList() {
         key: "level",
         width: 108,
         align: "center",
-        render: (_: unknown, row) => movieLevelTag(movieLevelFromRow(row as Record<string, unknown>)),
+        render: (_: unknown, row) => (
+          <div className={styles.shelfTimeCell}>
+            <div className={styles.shelfTimeLine}>
+              {movieLevelTag(movieLevelFromRow(row as Record<string, unknown>))}
+            </div>
+            <div className={styles.shelfTimeSub}>{movieStatusShortLabel(row.status)}</div>
+            <div className={styles.shelfTimeSub}>来源：{movieSourceShortLabel(row.source)}</div>
+          </div>
+        ),
       },
       {
         title: "播放量",

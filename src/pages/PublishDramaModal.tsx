@@ -188,7 +188,7 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
   const resetState = useCallback(() => {
     form.resetFields();
     form.setFieldsValue({
-      sort: "100",
+      sort: "0",
       language: "en",
       audio_track: "en",
       introduction: "",
@@ -288,7 +288,7 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
     }
     resetState();
     form.setFieldsValue({
-      sort: "100",
+      sort: "0",
       language: "en",
       audio_track: "en",
       introduction: "",
