@@ -25,6 +25,8 @@ export type AdminProductSaveBody = {
   id: number;
   name: string;
   price: string;
-  renewal_price: string;
+  renewal_price?: string;
+  /** 金币产品赠送比例，接口字段名为 bouns */
+  bouns?: string;
   status: 0 | 1;
 };
