@@ -132,7 +132,7 @@
   color: rgba(0, 0, 0, 0.45);
 }
 
-/* 列表「来源」列第二行：来源参数最多 2 行 + hover 全文 + 复制 */
+/* 列表「来源」列第二行：来源参数单行 urlencode + hover 多行可复制 */
 .fromSourceLine {
   display: flex;
   flex-direction: row;
@@ -157,13 +157,39 @@
   max-width: 100%;
 }
 
-.fromSourceTwoLinesText {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+.fromSourceOneLineText {
+  display: block;
+  max-width: 100%;
   overflow: hidden;
-  white-space: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fromSourceTooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 480px;
+}
+
+.fromSourceTooltipLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fromSourceTooltipText {
+  color: #fff !important;
   word-break: break-all;
   overflow-wrap: anywhere;
   line-height: 1.45;
+}
+
+.fromSourceTooltipLine :global(.ant-typography-copy) {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.fromSourceTooltipLine :global(.ant-typography-copy:hover) {
+  color: #fff;
 }

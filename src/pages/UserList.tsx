@@ -54,16 +54,57 @@ function fmtSource(v: unknown): string {
   return s || "—";
 }
 
+function safeDecodeURIComponent(s: string): string {
+  try {
+    return decodeURIComponent(s.replace(/\+/g, " "));
+  } catch {
+    return s;
+  }
+}
+
+/** 来源参数：先 decode 再按 & 拆行；展示用 encode 后的单行 */
+function fromSourceParts(raw: string): { display: string; lines: string[] } {
+  const trimmed = raw.trim();
+  const decoded = safeDecodeURIComponent(trimmed);
+  const display = encodeURIComponent(decoded);
+  const lines = decoded.includes("&")
+    ? decoded
+        .split("&")
+        .map((x) => x.trim())
+        .filter(Boolean)
+    : decoded
+      ? [decoded]
+      : [];
+  return { display, lines };
+}
+
 function copyableFromSourceCell(text: unknown): ReactNode {
   const s = text != null ? String(text).trim() : "";
   if (!s) {
     return "—";
   }
+  const { display, lines } = fromSourceParts(s);
+  const tooltipContent = (
+    <div className={styles.fromSourceTooltip}>
+      {lines.map((line, i) => (
+        <div key={`${i}-${line.slice(0, 24)}`} className={styles.fromSourceTooltipLine}>
+          <Typography.Text copyable={{ text: line }} className={styles.fromSourceTooltipText}>
+            {line}
+          </Typography.Text>
+        </div>
+      ))}
+    </div>
+  );
   return (
-    <Tooltip title={s} placement="topLeft" overlayStyle={{ maxWidth: 520 }}>
+    <Tooltip
+      title={tooltipContent}
+      placement="topLeft"
+      overlayStyle={{ maxWidth: 520 }}
+      styles={{ body: { pointerEvents: "auto" } }}
+    >
       <div className={styles.copyFromSourceCell}>
-        <Typography.Text className={styles.fromSourceTwoLinesText} copyable={{ text: s }}>
-          {s}
+        <Typography.Text className={styles.fromSourceOneLineText} copyable={{ text: display }}>
+          {display}
         </Typography.Text>
       </div>
     </Tooltip>
