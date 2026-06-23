@@ -4,6 +4,8 @@ export type AdminMovieRow = {
   image?: string;
   /** 剧表：无水印标记，`1` 时封面走 `movieCoverUrl` → `movie_images/{id}.webp` */
   is_rename?: number | string;
+  /** 剧表：自制标记，`0` 关闭自制，`1` 开启自制 */
+  is_self?: number | string;
   sort?: number;
   audio_track?: string;
   /** `0` 草稿、`1` 上架、`2` 下架、`3` 已删除 */

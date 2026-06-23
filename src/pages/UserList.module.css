@@ -131,3 +131,39 @@
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
 }
+
+/* 列表「来源」列第二行：来源参数最多 2 行 + hover 全文 + 复制 */
+.fromSourceLine {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0 4px;
+  min-width: 0;
+}
+
+.copyFromSourceCell {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+  max-width: 100%;
+}
+
+.copyFromSourceCell :global(.ant-typography) {
+  margin-bottom: 0 !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fromSourceTwoLinesText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}

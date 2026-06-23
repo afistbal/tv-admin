@@ -30,6 +30,15 @@ export function readMovieIsRename(record: Record<string, unknown> | undefined): 
   return v === 1 || v === "1" || v === true;
 }
 
+/** 剧表 `is_self`：`0` 关闭自制，`1` 开启自制 */
+export function readMovieIsSelf(record: Record<string, unknown> | undefined): boolean {
+  if (!record) {
+    return false;
+  }
+  const v = record.is_self;
+  return v === 1 || v === "1" || v === true;
+}
+
 /** 将 list 行 / 详情 info 等 API 对象规范为封面源 */
 export function normalizeMovieCoverSource(
   record: Record<string, unknown> | MovieCoverSource | null | undefined,

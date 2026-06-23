@@ -6,9 +6,9 @@ import type { ColumnsType } from "antd/es/table";
 import { apiGet, apiPostJson } from "@/api/client";
 import { downloadMovieExportTxt } from "@/lib/movieExport";
 import type { ApiResult } from "@/api/types";
-import type { AdminMovieListPayload, AdminMovieRow, AdminTagAreaRow } from "@/types/adminMovie";
+import type { AdminMovieDetailPayload, AdminMovieListPayload, AdminMovieRow, AdminTagAreaRow } from "@/types/adminMovie";
 import { useAppStaticBase } from "@/config/AppConfigContext";
-import { checkImageUrlExists, movieCoverUrl, movieWatermarkCoverUrl, readMovieIsRename } from "@/lib/staticAssetOrigin";
+import { checkImageUrlExists, movieCoverUrl, movieWatermarkCoverUrl, readMovieIsRename, readMovieIsSelf } from "@/lib/staticAssetOrigin";
 import { publicWebOriginForVideo } from "@/lib/publicWebOrigin";
 import {
   MOVIE_LEVEL_FILTER_OPTIONS,
@@ -28,6 +28,7 @@ import { MovieEditModal } from "./MovieEditModal";
 import { PublishDramaModal } from "./PublishDramaModal";
 import { parseAdminTagRows, tagDisplayLabel } from "@/lib/adminTagDisplay";
 import { isOriginalMovieSource } from "@/lib/dramaPublishApi";
+import { buildMovieSavePayload } from "@/lib/movieSavePayload";
 
 const LANGUAGES: { value: string; label: string }[] = [
   { value: "all", label: "全部" },
@@ -47,6 +48,7 @@ const LANGUAGES: { value: string; label: string }[] = [
 
 type MovieSourceFilter = "all" | "0" | "1";
 type MovieStatusFilter = "all" | "0" | "1" | "2" | "3";
+type MovieSelfFilter = "all" | "0" | "1";
 
 const MOVIE_SOURCE_OPTIONS: { value: MovieSourceFilter; label: string }[] = [
   { value: "all", label: "全部来源" },
@@ -60,6 +62,12 @@ const MOVIE_STATUS_OPTIONS: { value: MovieStatusFilter; label: string }[] = [
   { value: "1", label: "已上架" },
   { value: "2", label: "已下架" },
   { value: "3", label: "已删除" },
+];
+
+const MOVIE_SELF_OPTIONS: { value: MovieSelfFilter; label: string }[] = [
+  { value: "all", label: "是否自制" },
+  { value: "1", label: "是" },
+  { value: "0", label: "否" },
 ];
 
 /**
@@ -117,10 +125,12 @@ export function MovieList() {
   const [levelFilter, setLevelFilter] = useState<MovieLevelFilter>("all");
   const [sourceFilter, setSourceFilter] = useState<MovieSourceFilter>("all");
   const [statusFilter, setStatusFilter] = useState<MovieStatusFilter>("all");
+  const [selfFilter, setSelfFilter] = useState<MovieSelfFilter>("all");
   const [listOrderBy, setListOrderBy] = useState<"" | "play" | "favorite">("");
   const [editId, setEditId] = useState<number | null>(null);
   const [recommendSavingId, setRecommendSavingId] = useState<number | null>(null);
   const [watermarkSavingId, setWatermarkSavingId] = useState<number | null>(null);
+  const [selfMadeSavingId, setSelfMadeSavingId] = useState<number | null>(null);
   const [sortSavingId, setSortSavingId] = useState<number | null>(null);
   /** 操作列：导出 / 改状态 等 */
   const [rowActionBusyId, setRowActionBusyId] = useState<number | null>(null);
@@ -181,6 +191,9 @@ export function MovieList() {
       if (statusFilter !== "all") {
         query.status = Number(statusFilter);
       }
+      if (selfFilter !== "all") {
+        query.is_self = Number(selfFilter);
+      }
       if (listOrderBy) {
         query.order_by = listOrderBy;
       }
@@ -203,11 +216,11 @@ export function MovieList() {
     } finally {
       setLoading(false);
     }
-  }, [page, keyword, language, levelFilter, sourceFilter, statusFilter, listOrderBy]);
+  }, [page, keyword, language, levelFilter, sourceFilter, statusFilter, selfFilter, listOrderBy]);
 
   useEffect(() => {
     void fetchList();
-  }, [page, keyword, language, levelFilter, sourceFilter, statusFilter, listOrderBy, fetchList]);
+  }, [page, keyword, language, levelFilter, sourceFilter, statusFilter, selfFilter, listOrderBy, fetchList]);
 
   /** 仪表盘播放排行等入口：`/drama/movies?id=` 预填搜索 */
   useEffect(() => {
@@ -401,6 +414,36 @@ export function MovieList() {
     [appStatic, fetchList, page, keyword, language, levelFilter, listOrderBy],
   );
 
+  const handleSelfMadeChange = useCallback(
+    async (row: AdminMovieRow, checked: boolean) => {
+      setSelfMadeSavingId(row.id);
+      try {
+        const movieRes: ApiResult<AdminMovieDetailPayload> = await apiGet<AdminMovieDetailPayload>("admin/movie", {
+          id: row.id,
+        });
+        if (movieRes.c !== 0) {
+          message.error(movieRes.m || "加载失败");
+          return;
+        }
+        const res: ApiResult<unknown> = await apiPostJson(
+          "admin/movie/save",
+          buildMovieSavePayload(row.id, movieRes.d, { is_self: checked ? 1 : 0 }),
+        );
+        if (res.c !== 0) {
+          message.error(res.m || "操作失败");
+          return;
+        }
+        message.success(checked ? "已开启自制" : "已关闭自制");
+        await fetchList();
+      } catch {
+        message.error("网络异常");
+      } finally {
+        setSelfMadeSavingId(null);
+      }
+    },
+    [fetchList],
+  );
+
   const openPosterPreview = useCallback(
     (row: AdminMovieRow) => {
       const url = movieCoverUrl(row, appStatic);
@@ -539,6 +582,13 @@ export function MovieList() {
               loading={watermarkSavingId === row.id}
               onChange={(c) => void handleWatermarkChange(row, c)}
             />
+            <Switch
+              checked={readMovieIsSelf(row as Record<string, unknown>)}
+              checkedChildren="开启自制"
+              unCheckedChildren="关闭自制"
+              loading={selfMadeSavingId === row.id}
+              onChange={(c) => void handleSelfMadeChange(row, c)}
+            />
           </div>
         ),
       },
@@ -666,10 +716,12 @@ export function MovieList() {
       appStatic,
       recommendSavingId,
       watermarkSavingId,
+      selfMadeSavingId,
       sortSavingId,
       rowActionBusyId,
       handleRecommendChange,
       handleWatermarkChange,
+      handleSelfMadeChange,
       handleSortCommit,
       playMovieUrl,
       handleExportMovie,
@@ -707,6 +759,15 @@ export function MovieList() {
             options={MOVIE_STATUS_OPTIONS}
             onChange={(v) => {
               setStatusFilter(v);
+              setPage(1);
+            }}
+          />
+          <Select
+            value={selfFilter}
+            style={{ width: 130 }}
+            options={MOVIE_SELF_OPTIONS}
+            onChange={(v) => {
+              setSelfFilter(v);
               setPage(1);
             }}
           />

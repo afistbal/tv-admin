@@ -11,6 +11,7 @@ import {
   Radio,
   Space,
   Spin,
+  Switch,
   Typography,
   message,
 } from "antd";
@@ -22,7 +23,8 @@ import type {
   AdminMovieEpisodeRow,
   AdminTagAreaRow,
 } from "@/types/adminMovie";
-import { movieCoverUrlFromDetail, staticAssetUrl } from "@/lib/staticAssetOrigin";
+import { movieCoverUrlFromDetail, readMovieIsSelf, staticAssetUrl } from "@/lib/staticAssetOrigin";
+import { buildMovieSavePayload } from "@/lib/movieSavePayload";
 import { formatDateTimeZh } from "@/lib/formatDateTime";
 import { parseAdminTagRows, tagDisplayLabel } from "@/lib/adminTagDisplay";
 import styles from "./MovieEditModal.module.css";
@@ -31,6 +33,7 @@ type FormValues = {
   sort: string;
   title: string;
   audio_track: string;
+  is_self: boolean;
 };
 
 export type EpisodeEditState = {
@@ -199,6 +202,7 @@ export function MovieEditModal(props: {
         title: String(titleVal ?? ""),
         audio_track:
           track == null || track === "" ? "zh-Hans" : String(track) === "en" ? "en" : "zh-Hans",
+        is_self: readMovieIsSelf(info),
       });
       setAreaSelected(normalizeIdArray(d.area));
       setTagSelected(normalizeIdArray(d.tag));
@@ -320,21 +324,27 @@ export function MovieEditModal(props: {
   };
 
   const handleOk = async () => {
+    if (!detail) {
+      return;
+    }
     try {
       const v = await form.validateFields();
       const changedEpisodes = episodes
         .filter((ep) => episodeVipInitial.current[ep.id] !== undefined && episodeVipInitial.current[ep.id] !== ep.vip)
         .map((ep) => ({ id: ep.id, vip: ep.vip }));
       setSaving(true);
-      const res: ApiResult<unknown> = await apiPostJson("admin/movie/save", {
-        id: movieId,
-        title: v.title,
-        sort: v.sort,
-        audio_track: v.audio_track,
-        area: areaSelected,
-        tag: tagSelected,
-        episodes: changedEpisodes,
-      });
+      const res: ApiResult<unknown> = await apiPostJson(
+        "admin/movie/save",
+        buildMovieSavePayload(movieId, detail, {
+          title: v.title,
+          sort: v.sort,
+          audio_track: v.audio_track,
+          area: areaSelected,
+          tag: tagSelected,
+          episodes: changedEpisodes,
+          is_self: v.is_self ? 1 : 0,
+        }),
+      );
       if (res.c !== 0) {
         message.error(res.m || "保存失败");
         return;
@@ -414,6 +424,14 @@ export function MovieEditModal(props: {
                     <Radio value="zh-Hans">zh-Hans</Radio>
                     <Radio value="en">en</Radio>
                   </Radio.Group>
+                </Form.Item>
+                <Form.Item
+                  name="is_self"
+                  label="开启自制"
+                  valuePropName="checked"
+                  tooltip="0 关闭自制，1 开启自制"
+                >
+                  <Switch checkedChildren="开启自制" unCheckedChildren="关闭自制" />
                 </Form.Item>
               </Form>
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Avatar,
@@ -13,6 +13,7 @@ import {
   Spin,
   Table,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from "antd";
@@ -51,6 +52,22 @@ function rangeToDaterangeStrings(range: [Dayjs, Dayjs]): [string, string] {
 function fmtSource(v: unknown): string {
   const s = String(v ?? "").trim();
   return s || "—";
+}
+
+function copyableFromSourceCell(text: unknown): ReactNode {
+  const s = text != null ? String(text).trim() : "";
+  if (!s) {
+    return "—";
+  }
+  return (
+    <Tooltip title={s} placement="topLeft" overlayStyle={{ maxWidth: 520 }}>
+      <div className={styles.copyFromSourceCell}>
+        <Typography.Text className={styles.fromSourceTwoLinesText} copyable={{ text: s }}>
+          {s}
+        </Typography.Text>
+      </div>
+    </Tooltip>
+  );
 }
 
 function fmtAliveMinutes(alive: unknown): string {
@@ -295,11 +312,20 @@ export function UserList() {
         title: "来源",
         dataIndex: "source",
         width: 168,
-        ellipsis: true,
         render: (_: unknown, record) => (
-          <Typography.Text copyable={String(record.source ?? "").trim() ? { text: String(record.source) } : false}>
-            {fmtSource(record.source)}
-          </Typography.Text>
+          <div className={styles.timeCell}>
+            <div className={styles.timeLine}>
+              <Typography.Text
+                copyable={String(record.source ?? "").trim() ? { text: String(record.source) } : false}
+              >
+                {fmtSource(record.source)}
+              </Typography.Text>
+            </div>
+            <div className={styles.fromSourceLine}>
+              <span className={styles.timeLabel}>来源参数：</span>
+              {copyableFromSourceCell(record.from_source)}
+            </div>
+          </div>
         ),
       },
       {
