@@ -9,6 +9,7 @@ type FormValues = {
   name: string;
   price: string;
   renewal_price?: string;
+  coin?: string;
   bouns?: string;
   status: 0 | 1;
 };
@@ -29,6 +30,7 @@ export function ProductEditModal({ row, onClose, onSaved }: Props) {
       name: row.name,
       price: row.price,
       renewal_price: isCoin ? undefined : row.renewal_price,
+      coin: isCoin ? String(row.coin ?? "") : undefined,
       bouns: isCoin ? row.bouns : undefined,
       status: row.status === 1 ? 1 : 0,
     });
@@ -45,6 +47,7 @@ export function ProductEditModal({ row, onClose, onSaved }: Props) {
         status: v.status,
       };
       if (isCoin) {
+        payload.coin = Number(String(v.coin ?? "").trim());
         payload.bouns = String(v.bouns ?? "").trim();
       } else {
         payload.renewal_price = String(v.renewal_price ?? "").trim();
@@ -78,7 +81,6 @@ export function ProductEditModal({ row, onClose, onSaved }: Props) {
       <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
         <Descriptions.Item label="ID">{row.id}</Descriptions.Item>
         <Descriptions.Item label="类型">{isCoin ? "金币" : "套餐"}</Descriptions.Item>
-        {isCoin ? <Descriptions.Item label="金币">{row.coin}</Descriptions.Item> : null}
         <Descriptions.Item label="创建时间">
           {row.created_at ? formatDateTimeZh(row.created_at) : "—"}
         </Descriptions.Item>
@@ -95,13 +97,25 @@ export function ProductEditModal({ row, onClose, onSaved }: Props) {
           <Input maxLength={32} />
         </Form.Item>
         {isCoin ? (
-          <Form.Item
-            label="赠送比例"
-            name="bouns"
-            rules={[{ required: true, message: "请输入赠送比例" }]}
-          >
-            <Input maxLength={32} placeholder="如 0.40" />
-          </Form.Item>
+          <>
+            <Form.Item
+              label="金币"
+              name="coin"
+              rules={[
+                { required: true, message: "请输入金币" },
+                { pattern: /^\d+$/, message: "金币须为正整数" },
+              ]}
+            >
+              <Input maxLength={16} inputMode="numeric" placeholder="如 2000" />
+            </Form.Item>
+            <Form.Item
+              label="赠送比例"
+              name="bouns"
+              rules={[{ required: true, message: "请输入赠送比例" }]}
+            >
+              <Input maxLength={32} placeholder="如 0.40" />
+            </Form.Item>
+          </>
         ) : (
           <Form.Item
             label="续费价格"
