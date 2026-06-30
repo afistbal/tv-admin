@@ -1,0 +1,132 @@
+.searchInput {
+  width: 260px;
+  max-width: 100%;
+}
+
+.filterLabel {
+  color: rgba(0, 0, 0, 0.65);
+  font-size: 14px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+
+.statCard {
+  min-height: 74px;
+  padding: 14px 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.statValue {
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.statLabel {
+  margin-top: 6px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.tableWrap {
+  min-width: 0;
+}
+
+.table :global(.ant-table-thead > tr > th),
+.table :global(.ant-table-tbody > tr > td) {
+  padding: 14px 20px;
+}
+
+.table :global(.ant-table-tbody > tr > td) {
+  vertical-align: middle;
+}
+
+.table :global(.ant-table-thead > tr > th) {
+  font-weight: 600;
+}
+
+.monoToken {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(0, 0, 0, 0.45);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tagName {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(0, 0, 0, 0.88);
+  font-weight: 600;
+  line-height: 1.45;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.countCell {
+  display: block;
+  width: 100%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.numberCell {
+  color: rgba(0, 0, 0, 0.88);
+  font-weight: 600;
+}
+
+.numberUnit {
+  color: rgba(0, 0, 0, 0.65);
+  font-size: 12px;
+  font-weight: 400;
+  vertical-align: baseline;
+}
+
+.timeCell {
+  color: rgba(0, 0, 0, 0.65);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.sortInput {
+  width: 88px;
+}
+
+.categorySelect {
+  width: 168px;
+}
+
+.actionCol {
+  padding-left: 8px !important;
+  padding-right: 12px !important;
+}
+
+.paginationWrap {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .searchInput {
+    width: 100%;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
