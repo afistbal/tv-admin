@@ -5,7 +5,9 @@ import { apiGet } from "@/api/client";
 import type { ApiResult } from "@/api/types";
 import type { AdminProductListPayload, AdminProductRow } from "@/types/adminProduct";
 import { formatDateTimeZh } from "@/lib/formatDateTime";
+import { productDiscountSummary } from "@/lib/productExtra";
 import { ProductEditModal } from "./ProductEditModal";
+import styles from "./ProductList.module.css";
 
 type ProductTabKey = "package" | "coin";
 
@@ -32,6 +34,35 @@ function rowsFromPayload(d: unknown): AdminProductRow[] {
     return (d as AdminProductListPayload).data;
   }
   return [];
+}
+
+function productTimeCell(row: AdminProductRow): ReactNode {
+  return (
+    <div className={styles.timeCell}>
+      <div className={styles.timeLine}>
+        <span className={styles.timeLabel}>创建</span>
+        <span>{row.created_at ? formatDateTimeZh(row.created_at) : EMPTY}</span>
+      </div>
+      <div className={styles.timeLine}>
+        <span className={styles.timeLabel}>更新</span>
+        <span>{row.updated_at ? formatDateTimeZh(row.updated_at) : EMPTY}</span>
+      </div>
+    </div>
+  );
+}
+
+function productDiscountCell(extra: unknown): ReactNode {
+  const lines = productDiscountSummary(extra);
+  if (lines.length === 0) {
+    return <span className={styles.emptyText}>{EMPTY}</span>;
+  }
+  return (
+    <div className={styles.discountCell}>
+      {lines.map((line) => (
+        <span key={line}>{line}</span>
+      ))}
+    </div>
+  );
 }
 
 export function ProductList() {
@@ -85,6 +116,13 @@ export function ProductList() {
       { title: "价格", dataIndex: "price", key: "price", width: 96 },
       { title: "续费价格", dataIndex: "renewal_price", key: "renewal_price", width: 108 },
       {
+        title: "挽留优惠",
+        dataIndex: "extra",
+        key: "discounts",
+        width: 152,
+        render: productDiscountCell,
+      },
+      {
         title: "状态",
         dataIndex: "status",
         key: "status",
@@ -93,18 +131,10 @@ export function ProductList() {
         render: (v) => productStatusTag(v),
       },
       {
-        title: "创建时间",
-        dataIndex: "created_at",
-        key: "created_at",
-        width: 172,
-        render: (v) => (v ? formatDateTimeZh(v) : EMPTY),
-      },
-      {
-        title: "更新时间",
-        dataIndex: "updated_at",
-        key: "updated_at",
-        width: 172,
-        render: (v) => (v ? formatDateTimeZh(v) : EMPTY),
+        title: "时间",
+        key: "time",
+        width: 188,
+        render: (_: unknown, row) => productTimeCell(row),
       },
       {
         title: "操作",
@@ -129,6 +159,13 @@ export function ProductList() {
       { title: "金币", dataIndex: "coin", key: "coin", width: 88, align: "right" },
       { title: "赠送比例", dataIndex: "bouns", key: "bouns", width: 100 },
       {
+        title: "挽留优惠",
+        dataIndex: "extra",
+        key: "discounts",
+        width: 152,
+        render: productDiscountCell,
+      },
+      {
         title: "状态",
         dataIndex: "status",
         key: "status",
@@ -137,18 +174,10 @@ export function ProductList() {
         render: (v) => productStatusTag(v),
       },
       {
-        title: "创建时间",
-        dataIndex: "created_at",
-        key: "created_at",
-        width: 172,
-        render: (v) => (v ? formatDateTimeZh(v) : EMPTY),
-      },
-      {
-        title: "更新时间",
-        dataIndex: "updated_at",
-        key: "updated_at",
-        width: 172,
-        render: (v) => (v ? formatDateTimeZh(v) : EMPTY),
+        title: "时间",
+        key: "time",
+        width: 188,
+        render: (_: unknown, row) => productTimeCell(row),
       },
       {
         title: "操作",

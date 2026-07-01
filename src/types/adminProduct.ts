@@ -30,5 +30,6 @@ export type AdminProductSaveBody = {
   bouns?: string;
   /** 金币产品金币数量 */
   coin?: number;
+  extra?: string;
   status: 0 | 1;
 };

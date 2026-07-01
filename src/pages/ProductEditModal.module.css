@@ -1,0 +1,25 @@
+.discountHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.discountTitle {
+  color: rgba(0, 0, 0, 0.88);
+  font-weight: 500;
+}
+
+.discountRow {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 8px;
+  align-items: start;
+}
+
+@media (max-width: 560px) {
+  .discountRow {
+    grid-template-columns: 1fr;
+  }
+}

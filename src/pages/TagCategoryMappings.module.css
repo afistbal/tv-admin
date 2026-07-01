@@ -106,6 +106,24 @@
   width: 88px;
 }
 
+.sortCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sortDirtyIcon {
+  color: #1677ff;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.sortChangeText {
+  color: rgba(0, 0, 0, 0.88);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .categorySelect {
   width: 168px;
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Input, InputNumber, Pagination, Select, Space, Table, Tag, Tooltip, Typography, message } from "antd";
-import { SearchOutlined } from "@ant-design/icons";
+import { Button, Input, InputNumber, Modal, Pagination, Select, Space, Switch, Table, Tag, Tooltip, Typography, message } from "antd";
+import { InfoCircleFilled, SearchOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { apiGet, apiPostJson } from "@/api/client";
 import type { ApiResult } from "@/api/types";
@@ -34,6 +34,13 @@ const CATEGORY_HINTS: Record<string, { hint: string; description: string }> = {
   genre: { hint: "题材", description: "题材类型类 Tag" },
   style: { hint: "风格", description: "内容风格、情绪、表达方式类 Tag" },
   other: { hint: "其它", description: "待归类或暂不适合归入以上分类的 Tag" },
+};
+
+type PendingSortChange = {
+  tag: string;
+  row: AdminTagCategoryMappingRow;
+  originalSort: number;
+  nextSort: number;
 };
 
 function normalizeSortValue(value: unknown): number {
@@ -121,10 +128,10 @@ function categoryTagColor(slug: string | undefined): string | undefined {
 function TagSortInput(props: {
   row: AdminTagCategoryMappingRow;
   disabled: boolean;
+  value: number;
   onCommit: (row: AdminTagCategoryMappingRow, sort: number) => void;
 }) {
-  const { row, disabled, onCommit } = props;
-  const initial = normalizeSortValue(row.sort);
+  const { row, disabled, value: initial, onCommit } = props;
   const [value, setValue] = useState<number | null>(initial);
 
   useEffect(() => {
@@ -182,6 +189,10 @@ export function TagCategoryMappings() {
   const [keyword, setKeyword] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORY);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [batchSortMode, setBatchSortMode] = useState(false);
+  const [pendingSortByTag, setPendingSortByTag] = useState<Record<string, PendingSortChange>>({});
+  const [sortModalOpen, setSortModalOpen] = useState(false);
+  const [sortSubmitting, setSortSubmitting] = useState(false);
   const searchTimer = useRef<number | null>(null);
 
   const categoryOptions = useMemo(
@@ -203,6 +214,9 @@ export function TagCategoryMappings() {
       })),
     [categories],
   );
+
+  const pendingSortList = useMemo(() => Object.values(pendingSortByTag), [pendingSortByTag]);
+  const pendingSortCount = pendingSortList.length;
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -300,7 +314,62 @@ export function TagCategoryMappings() {
     applyKeyword(keywordInput);
   };
 
-  const handleSortCommit = useCallback(
+  const handleBatchModeChange = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        setBatchSortMode(true);
+        return;
+      }
+      if (pendingSortCount === 0) {
+        setBatchSortMode(false);
+        setSortModalOpen(false);
+        return;
+      }
+      Modal.confirm({
+        title: "切换到单个排序？",
+        content: "当前未提交的批量排序改动会被清空。",
+        okText: "切换",
+        cancelText: "取消",
+        onOk: () => {
+          setPendingSortByTag({});
+          setSortModalOpen(false);
+          setBatchSortMode(false);
+        },
+      });
+    },
+    [pendingSortCount],
+  );
+
+  const handleSortDraftCommit = useCallback((row: AdminTagCategoryMappingRow, sort: number) => {
+    const tag = tagRequestValue(row);
+    if (!tag) {
+      message.warning("缺少 Tag 标识");
+      return;
+    }
+    setPendingSortByTag((prev) => {
+      const existing = prev[tag];
+      const originalSort = existing?.originalSort ?? normalizeSortValue(row.sort);
+      if (sort === originalSort) {
+        if (!existing) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[tag];
+        return next;
+      }
+      return {
+        ...prev,
+        [tag]: {
+          tag,
+          row,
+          originalSort,
+          nextSort: sort,
+        },
+      };
+    });
+  }, []);
+
+  const handleImmediateSortCommit = useCallback(
     async (row: AdminTagCategoryMappingRow, sort: number) => {
       const tag = tagRequestValue(row);
       if (!tag) {
@@ -327,6 +396,41 @@ export function TagCategoryMappings() {
     },
     [fetchList],
   );
+
+  const handleSortCommit = useCallback(
+    (row: AdminTagCategoryMappingRow, sort: number) => {
+      if (batchSortMode) {
+        handleSortDraftCommit(row, sort);
+        return;
+      }
+      void handleImmediateSortCommit(row, sort);
+    },
+    [batchSortMode, handleImmediateSortCommit, handleSortDraftCommit],
+  );
+
+  const submitPendingSorts = useCallback(async () => {
+    if (pendingSortList.length === 0) {
+      return;
+    }
+    setSortSubmitting(true);
+    try {
+      const res: ApiResult<null> = await apiPostJson<null>("admin/tag-category-mappings/sort", {
+        orders: pendingSortList.map((item) => ({ tag: item.tag, sort: item.nextSort })),
+      });
+      if (res.c !== 0) {
+        message.error(res.m || "排序更新失败");
+        return;
+      }
+      message.success("排序已更新");
+      setPendingSortByTag({});
+      setSortModalOpen(false);
+      await fetchList();
+    } catch {
+      message.error("网络异常");
+    } finally {
+      setSortSubmitting(false);
+    }
+  }, [fetchList, pendingSortList]);
 
   const handleCategoryChange = useCallback(
     async (row: AdminTagCategoryMappingRow, nextCategoryId: string) => {
@@ -360,6 +464,23 @@ export function TagCategoryMappings() {
         }
         const affected = Number(res.d?.affected_movie_tags) || 0;
         message.success(affected > 0 ? `分类已更新，影响 ${affected} 个短剧标签` : "分类已更新");
+        setPendingSortByTag((prev) => {
+          const existing = prev[tag];
+          if (!existing) {
+            return prev;
+          }
+          const nextCategory = categories.find((item) => item.id === categoryId) ?? row.category;
+          return {
+            ...prev,
+            [tag]: {
+              ...existing,
+              row: {
+                ...existing.row,
+                category: nextCategory,
+              },
+            },
+          };
+        });
         await fetchList();
       } catch {
         message.error("网络异常");
@@ -367,7 +488,59 @@ export function TagCategoryMappings() {
         setSavingKey(null);
       }
     },
-    [fetchList],
+    [categories, fetchList],
+  );
+
+  const sortPreviewColumns: ColumnsType<PendingSortChange> = useMemo(
+    () => [
+      {
+        title: "Tag 名称",
+        key: "tag",
+        width: 180,
+        render: (_: unknown, item) => {
+          const text = formatTagNameForDisplay(item.row);
+          return (
+            <Tooltip title={tagNameText(item.row)} placement="topLeft">
+              <span className={styles.tagName}>{text || "-"}</span>
+            </Tooltip>
+          );
+        },
+      },
+      {
+        title: "对应分类",
+        key: "category",
+        width: 150,
+        render: (_: unknown, item) => (
+          <Tooltip title={categoryDescription(item.row.category)}>
+            <Tag color={categoryTagColor(item.row.category?.slug)}>{categoryDisplayName(item.row.category)}</Tag>
+          </Tooltip>
+        ),
+      },
+      {
+        title: "关联短剧",
+        key: "movie_count",
+        width: 96,
+        align: "right",
+        render: (_: unknown, item) => (
+          <span className={styles.countCell}>
+            <span className={styles.numberCell}>{Number(item.row.movie_count) || 0}</span>
+            <span className={styles.numberUnit}> 个</span>
+          </span>
+        ),
+      },
+      {
+        title: "排序变更",
+        key: "sort",
+        width: 140,
+        align: "right",
+        render: (_: unknown, item) => (
+          <span className={styles.sortChangeText}>
+            {item.originalSort} → {item.nextSort}
+          </span>
+        ),
+      },
+    ],
+    [],
   );
 
   const columns: ColumnsType<AdminTagCategoryMappingRow> = useMemo(
@@ -417,12 +590,23 @@ export function TagCategoryMappings() {
         width: 128,
         render: (_: unknown, row) => {
           const tag = tagRequestValue(row);
+          const pending = batchSortMode ? pendingSortByTag[tag] : undefined;
+          const originalSort = pending?.originalSort ?? normalizeSortValue(row.sort);
+          const displaySort = pending?.nextSort ?? originalSort;
           return (
-            <TagSortInput
-              row={row}
-              disabled={savingKey === `${tag}:sort` || savingKey === `${tag}:category`}
-              onCommit={handleSortCommit}
-            />
+            <div className={styles.sortCell}>
+              <TagSortInput
+                row={row}
+                disabled={savingKey === `${tag}:sort` || savingKey === `${tag}:category`}
+                value={displaySort}
+                onCommit={handleSortCommit}
+              />
+              {pending ? (
+                <Tooltip title={`原值：${originalSort}，当前值：${pending.nextSort}`}>
+                  <InfoCircleFilled className={styles.sortDirtyIcon} />
+                </Tooltip>
+              ) : null}
+            </div>
           );
         },
       },
@@ -469,7 +653,7 @@ export function TagCategoryMappings() {
         },
       },
     ],
-    [handleCategoryChange, handleSortCommit, rowCategoryOptions, savingKey],
+    [batchSortMode, handleCategoryChange, handleSortCommit, pendingSortByTag, rowCategoryOptions, savingKey],
   );
 
   return (
@@ -502,6 +686,22 @@ export function TagCategoryMappings() {
               }}
             />
           </Space>
+        </Space>
+        <Space wrap className={stylesToolbar.toolbarRight}>
+          <Space size={8}>
+            <Typography.Text type="secondary">排序模式</Typography.Text>
+            <Switch
+              checked={batchSortMode}
+              checkedChildren="批量排序"
+              unCheckedChildren="单个排序"
+              onChange={handleBatchModeChange}
+            />
+          </Space>
+          {batchSortMode ? (
+            <Button type="primary" disabled={pendingSortCount === 0} onClick={() => setSortModalOpen(true)}>
+              批量排序（{pendingSortCount}）
+            </Button>
+          ) : null}
         </Space>
       </div>
 
@@ -546,6 +746,27 @@ export function TagCategoryMappings() {
           }}
         />
       </div>
+
+      <Modal
+        title={`确认批量排序（${pendingSortCount}）`}
+        open={sortModalOpen}
+        okText="确定"
+        cancelText="取消"
+        confirmLoading={sortSubmitting}
+        okButtonProps={{ disabled: pendingSortCount === 0 }}
+        onCancel={() => setSortModalOpen(false)}
+        onOk={() => void submitPendingSorts()}
+        width={720}
+      >
+        <Table<PendingSortChange>
+          columns={sortPreviewColumns}
+          dataSource={pendingSortList}
+          pagination={false}
+          rowKey={(item) => item.tag}
+          size="small"
+          tableLayout="fixed"
+        />
+      </Modal>
     </div>
   );
 }
