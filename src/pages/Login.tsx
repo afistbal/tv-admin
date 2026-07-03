@@ -44,7 +44,7 @@ export function Login() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, bootstrapping, revalidateSession, loginWithEmailCode, loginWithGooglePopup } = useAuth();
+  const { user, bootstrapping, revalidateSession, loginWithEmailCode, loginWithGooglePopup, clearSessionForSiteSwitch } = useAuth();
   const loginRetryRef = useRef(false);
   const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
 
@@ -109,7 +109,7 @@ export function Login() {
     try {
       const result = await apiPostJson("login/email/code", { email: em });
       if (result.c !== 0) {
-        localStorage.removeItem("token");
+        clearSessionForSiteSwitch();
         message.error(result.m || "发送失败");
         return;
       }

@@ -1,5 +1,5 @@
 import { getAuthToken } from "./authToken";
-import { apiBaseURL } from "./baseURL";
+import { getApiBaseURL } from "./baseURL";
 import type { ApiResult } from "./types";
 
 /** 从接口 JSON 取可读错误（兼容 slot 的 `m` 与 Laravel 的 `message`） */
@@ -35,7 +35,7 @@ function clientHeaders(): Record<string, string> {
 }
 
 export function buildUrl(path: string, query?: Record<string, string>): string {
-  const base = `${apiBaseURL}${path.replace(/^\//, "")}`;
+  const base = `${getApiBaseURL()}${path.replace(/^\//, "")}`;
   if (!query || Object.keys(query).length === 0) {
     return base;
   }

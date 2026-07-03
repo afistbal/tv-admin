@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
-import { getAuthToken } from "@/api/authToken";
+import { clearAuthToken, getAuthToken, setAuthToken } from "@/api/authToken";
 import { apiPostJson } from "@/api/client";
 import { fetchLoginTokenOutcome, type LoginTokenFetchOutcome } from "@/api/loginToken";
 import { auth } from "@/firebase";
@@ -25,11 +25,10 @@ type AuthState = {
   loginWithEmailCode: (email: string, code: string) => Promise<AuthLoginResult>;
   loginWithGooglePopup: () => Promise<AuthLoginResult>;
   logout: () => void;
+  clearSessionForSiteSwitch: () => void;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
-
-const TOKEN_KEY = "token";
 
 function resolveSessionToken(fallbackToken: string, d: Record<string, unknown>): string {
   const t = d.token;
@@ -50,11 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, message: "登录响应缺少 token" };
     }
     if (!isAdminUser(info)) {
-      localStorage.removeItem(TOKEN_KEY);
+      clearAuthToken();
       setUser(null);
       return { ok: false as const, message: "当前账号不是管理员，无法进入后台" };
     }
-    localStorage.setItem(TOKEN_KEY, token);
+    setAuthToken(token);
     setUser(info);
     return { ok: true as const };
   }, []);
@@ -73,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
         }
       } else {
-        localStorage.removeItem(TOKEN_KEY);
+        clearAuthToken();
         setUser(null);
       }
     },
@@ -221,7 +220,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySession]);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
+    clearAuthToken();
+    setUser(null);
+    void signOut(auth).catch(() => {});
+  }, []);
+
+  const clearSessionForSiteSwitch = useCallback(() => {
+    clearAuthToken();
     setUser(null);
     void signOut(auth).catch(() => {});
   }, []);
@@ -235,8 +240,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loginWithEmailCode,
       loginWithGooglePopup,
       logout,
+      clearSessionForSiteSwitch,
     }),
-    [user, bootstrapping, revalidateSession, loginWithToken, loginWithEmailCode, loginWithGooglePopup, logout],
+    [
+      user,
+      bootstrapping,
+      revalidateSession,
+      loginWithToken,
+      loginWithEmailCode,
+      loginWithGooglePopup,
+      logout,
+      clearSessionForSiteSwitch,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

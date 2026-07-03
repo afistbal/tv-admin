@@ -51,7 +51,7 @@ function rowTitle(row: TRow): string {
 }
 
 function imageBasename(path: string): string {
-  const s = String(path ?? "").replace(/\\/g, "/").trim();
+  const s = String(path ?? "").replace(/\\/g, "/").trim().split(/[?#]/)[0] ?? "";
   if (!s) {
     return "";
   }
@@ -59,8 +59,12 @@ function imageBasename(path: string): string {
   return i >= 0 ? s.slice(i + 1) : s;
 }
 
+function safeDownloadName(filename: string): string {
+  return filename.replace(/[/\\?%*:|"<>]/g, "_");
+}
+
 function triggerBlobDownload(blob: Blob, filename: string) {
-  const safeName = filename.replace(/[/\\?%*:|"<>]/g, "_");
+  const safeName = safeDownloadName(filename);
   const objectUrl = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = objectUrl;
@@ -74,8 +78,20 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   });
 }
 
+function triggerDirectImageDownload(url: string, filename: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = safeDownloadName(filename);
+  a.target = "_blank";
+  a.rel = "noreferrer";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  requestAnimationFrame(() => a.remove());
+}
+
 async function downloadImageViaCanvas(imageUrl: string, filename: string): Promise<boolean> {
-  const safeName = filename.replace(/[/\\?%*:|"<>]/g, "_");
+  const safeName = safeDownloadName(filename);
   return new Promise((resolve) => {
     const img = document.createElement("img");
     img.crossOrigin = "anonymous";
@@ -124,7 +140,7 @@ async function downloadImageViaCanvas(imageUrl: string, filename: string): Promi
 }
 
 async function downloadImageAsFile(url: string, filename: string) {
-  const safeName = filename.replace(/[/\\?%*:|"<>]/g, "_");
+  const safeName = safeDownloadName(filename);
 
   try {
     const res = await fetch(url, { mode: "cors", credentials: "omit", cache: "no-store" });
@@ -145,7 +161,8 @@ async function downloadImageAsFile(url: string, filename: string) {
     return;
   }
 
-  message.error("无法直接保存到本地（跨域限制）。请在大图预览里右键「图片另存为」，或由静态资源域名开放 CORS。");
+  triggerDirectImageDownload(url, safeName);
+  message.warning("图片域名限制了直接保存，已打开原图链接；如仍未下载，请在新页面右键另存。");
 }
 
 type DramaListRow = {
