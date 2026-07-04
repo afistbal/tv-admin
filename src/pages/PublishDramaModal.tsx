@@ -583,15 +583,19 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
         message.warning("请至少保留 1 集");
         return;
       }
-      if (episodes.some((ep) => ep.status === "uploading")) {
+      const publishEpisodes = episodes.map((ep) => ({
+        ...ep,
+        videoKey: ep.videoKey ? toPublishStorageKey(ep.videoKey.trim()) : undefined,
+      }));
+      if (publishEpisodes.some((ep) => ep.status === "uploading")) {
         message.warning("分集仍在上传中，请稍候");
         return;
       }
-      if (episodes.some((ep) => ep.status === "error")) {
+      if (publishEpisodes.some((ep) => ep.status === "error")) {
         message.warning("存在上传失败的分集，请删除后重试");
         return;
       }
-      if (episodes.some((ep) => ep.status === "done" && !ep.videoKey)) {
+      if (publishEpisodes.some((ep) => ep.status === "done" && !ep.videoKey)) {
         message.warning("存在未上传成功的分集");
         return;
       }
@@ -614,7 +618,7 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
         status: mode === "publish" ? 1 : mode === "draft" ? 0 : movieStatus,
         tags: tagSelected,
         area: areaSelected.map((id) => areaNameById.get(id)).filter((name): name is string => Boolean(name)),
-        episodes: episodes
+        episodes: publishEpisodes
           .filter((ep) => ep.videoKey && ep.status !== "uploading")
           .map((ep, index) => ({
             ep: index + 1,
@@ -672,6 +676,22 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
   const toggleEpisodeVip = (clientId: number) => {
     setEpisodes((prev) =>
       prev.map((ep) => (ep.clientId === clientId ? { ...ep, vip: ep.vip ? 0 : 1 } : ep)),
+    );
+  };
+
+  const updateEpisodeVideoKey = (clientId: number, value: string, normalize = false) => {
+    const key = normalize ? toPublishStorageKey(value.trim()) : value;
+    setEpisodes((prev) =>
+      prev.map((ep) =>
+        ep.clientId === clientId
+          ? {
+              ...ep,
+              videoKey: key || undefined,
+              progress: key ? 100 : 0,
+              status: key ? "done" : "error",
+            }
+          : ep,
+      ),
     );
   };
 
@@ -958,6 +978,15 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
                     <span className={styles.epName} title={row.fileName}>
                       {row.fileName}
                     </span>
+                    <Input
+                      size="small"
+                      className={styles.epVideoKeyInput}
+                      placeholder="video 路径"
+                      value={row.videoKey ?? ""}
+                      disabled={row.status === "uploading"}
+                      onChange={(e) => updateEpisodeVideoKey(row.clientId, e.target.value)}
+                      onBlur={(e) => updateEpisodeVideoKey(row.clientId, e.target.value, true)}
+                    />
                     {row.status === "uploading" ? (
                       <Progress percent={row.progress} size="small" className={styles.epProgress} showInfo={false} />
                     ) : row.status === "error" ? (

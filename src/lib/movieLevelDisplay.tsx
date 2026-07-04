@@ -101,9 +101,29 @@ export function readViews7d(row: Record<string, unknown> | undefined): number | 
   return Number.isFinite(n) ? n : null;
 }
 
+export function readMoviePv(row: Record<string, unknown> | undefined): number | null {
+  if (!row) {
+    return null;
+  }
+  const v = row.pv ?? row.page_view ?? row.page_views;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function readMovieUv(row: Record<string, unknown> | undefined): number | null {
+  if (!row) {
+    return null;
+  }
+  const v = row.uv ?? row.unique_view ?? row.unique_views;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function MoviePlayCountCell({ row }: { row: Record<string, unknown> | undefined }) {
   const total = readTotalPlay(row);
   const views7d = readViews7d(row);
+  const pv = readMoviePv(row);
+  const uv = readMovieUv(row);
   return (
     <div className={playStyles.playCell}>
       <div className={playStyles.playLine}>
@@ -113,6 +133,14 @@ export function MoviePlayCountCell({ row }: { row: Record<string, unknown> | und
       <div className={playStyles.playLine}>
         <span className={playStyles.playLabel}>7天播放量：</span>
         <span>{formatCompactCount(views7d)}</span>
+      </div>
+      <div className={playStyles.playLine}>
+        <span className={playStyles.playLabel}>PV：</span>
+        <span>{formatCompactCount(pv)}</span>
+      </div>
+      <div className={playStyles.playLine}>
+        <span className={playStyles.playLabel}>UV：</span>
+        <span>{formatCompactCount(uv)}</span>
       </div>
     </div>
   );

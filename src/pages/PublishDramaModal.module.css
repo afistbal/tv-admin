@@ -1,6 +1,16 @@
 .modalBody {
   max-height: 72vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+}
+
+.modalBody :global(.ant-form),
+.modalBody :global(.ant-form-item),
+.modalBody :global(.ant-input),
+.modalBody :global(.ant-input-affix-wrapper) {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .infoTable {
@@ -172,15 +182,19 @@
 
 .episodeGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 8px;
 }
 
 .epRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   padding: 6px 8px;
   border: 1px solid #f0f0f0;
   border-radius: 6px;
@@ -198,12 +212,14 @@
 }
 
 .epDragHandle {
+  flex: 0 0 auto;
   cursor: grab;
   color: rgba(0, 0, 0, 0.25);
   padding: 0 2px;
 }
 
 .epNum {
+  flex: 0 0 auto;
   width: 32px;
   font-family: ui-monospace, monospace;
   font-weight: 600;
@@ -213,13 +229,23 @@
 .epName {
   flex: 1;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: rgba(0, 0, 0, 0.45);
 }
 
+.epVideoKeyInput {
+  flex: 1 0 100%;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 12px;
+}
+
 .epProgress {
+  flex: 0 0 auto;
   width: 56px;
 }
 

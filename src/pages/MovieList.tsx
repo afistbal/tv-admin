@@ -555,7 +555,7 @@ export function MovieList() {
       {
         title: "播放量",
         key: "views",
-        width: 148,
+        width: 166,
         render: (_: unknown, row) => <MoviePlayCountCell row={row as Record<string, unknown>} />,
       },
       {

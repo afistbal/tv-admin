@@ -18,6 +18,8 @@ export type AdminMovieRow = {
   play?: number;
   play_7days?: number;
   views_7d?: number;
+  pv?: number;
+  uv?: number;
   favorites?: number;
   [key: string]: unknown;
 };
