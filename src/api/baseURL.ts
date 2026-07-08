@@ -8,6 +8,8 @@ export type AdminSiteConfig = {
 };
 
 const ACTIVE_SITE_KEY = "admin-site";
+const DEFAULT_SITE_KEY: AdminSiteKey = import.meta.env.VITE_APP_FLAG === "prod1" ? "prod1" : "main";
+const LOCKED_SITE_KEY: AdminSiteKey | null = import.meta.env.VITE_APP_FLAG === "prod1" ? "prod1" : null;
 
 function normalizeApiBase(raw: string): string {
   return raw.replace(/\/+$/, "") + "/";
@@ -48,8 +50,11 @@ export const ADMIN_SITES: AdminSiteConfig[] = [
 ];
 
 export function getActiveSiteKey(): AdminSiteKey {
+  if (LOCKED_SITE_KEY) {
+    return LOCKED_SITE_KEY;
+  }
   const raw = localStorage.getItem(ACTIVE_SITE_KEY);
-  return raw === "prod1" ? "prod1" : "main";
+  return raw === "prod1" || raw === "main" ? raw : DEFAULT_SITE_KEY;
 }
 
 export function getActiveAdminSite(): AdminSiteConfig {
@@ -58,6 +63,10 @@ export function getActiveAdminSite(): AdminSiteConfig {
 }
 
 export function setActiveSiteKey(key: AdminSiteKey): void {
+  if (LOCKED_SITE_KEY) {
+    localStorage.setItem(ACTIVE_SITE_KEY, LOCKED_SITE_KEY);
+    return;
+  }
   localStorage.setItem(ACTIVE_SITE_KEY, key);
 }
 
