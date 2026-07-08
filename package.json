@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "prod": "vite --mode prod",
+    "prod1": "vite --mode prod1",
     "build": "tsc -b && vite build",
     "build:prod": "tsc -b && vite build --mode prod",
+    "build:prod1": "tsc -b && vite build --mode prod1",
     "preview": "vite preview"
   },
   "dependencies": {

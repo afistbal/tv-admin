@@ -11,10 +11,16 @@ const PROD_OUT_DIR =
     ? "D:/JJ-TV/movie-admin-prod"
     : "/Users/home/Documents/projects/JJ-TV/movie-admin-prod";
 
+const PROD1_OUT_DIR =
+  process.platform === "win32"
+    ? "D:/JJ-TV/movie-admin-prod1"
+    : "/Users/home/Documents/projects/JJ-TV/movie-admin-prod1";
+
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, rootDir, "");
   const apiProxyTarget = env.VITE_API_PROXY_TARGET || "https://test.yogoshort.com";
   const isProdMode = mode === "prod";
+  const outDir = mode === "prod1" ? PROD1_OUT_DIR : isProdMode ? PROD_OUT_DIR : undefined;
   const isBuild = command === "build";
   /** dev 8666 / npm run prod 8667（6666/6667 为浏览器禁止端口） */
   const devServerPort = isProdMode ? 8667 : 8666;
@@ -33,9 +39,9 @@ export default defineConfig(({ mode, command }) => {
       minify: "esbuild",
       cssMinify: true,
       chunkSizeWarningLimit: 1100,
-      ...(isProdMode
+      ...(outDir
         ? {
-            outDir: PROD_OUT_DIR,
+            outDir,
             /** outDir 在本项目根目录之外时必须显式开启 */
             emptyOutDir: true,
           }
