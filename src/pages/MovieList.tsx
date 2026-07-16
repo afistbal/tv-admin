@@ -557,7 +557,7 @@ export function MovieList() {
         title: (
           <span className={styles.favoriteTitle}>
             <span>收藏数</span>
-            <Tooltip title="(用户侧取值为 爬取收藏量+本站收藏量+展示偏移量)K">
+            <Tooltip title="用户侧显示值：(爬取收藏量+本站收藏量/10 +展示偏移量) K">
               <QuestionCircleOutlined className={styles.favoriteTitleIcon} />
             </Tooltip>
           </span>
@@ -570,14 +570,14 @@ export function MovieList() {
           const crawledFavorite = readFavoriteCount(row as Record<string, unknown>);
           const siteFavorite = Number(row.site_favorite ?? 0);
           const safeSiteFavorite = Number.isFinite(siteFavorite) ? siteFavorite : 0;
-          const totalFavorite = Number(crawledFavorite ?? 0) + safeSiteFavorite + safeOffset;
+          const totalFavorite = Number(crawledFavorite ?? 0) + Math.floor(safeSiteFavorite / 10) + safeOffset;
           const initialOffset = String(safeOffset);
           const busy = favoriteOffsetSavingId === row.id;
           return (
             <div className={styles.favoriteCell}>
               <div className={styles.favoriteLine}>
-                <span className={styles.favoriteLabel}>总收藏数</span>
-                <span className={styles.favoriteValue}>{formatCompactCount(totalFavorite)}</span>
+                <span className={styles.favoriteLabel}>用户侧值</span>
+                <span className={styles.favoriteValue}>{formatCompactCount(totalFavorite)} K</span>
               </div>
               <div className={styles.favoriteLine}>
                 <span className={styles.favoriteLabel}>爬取收藏量</span>
