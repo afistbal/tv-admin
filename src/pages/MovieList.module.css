@@ -204,6 +204,51 @@
 }
 
 /** 操作列：两行——播放/导出/编辑；更多 */
+.favoriteTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.favoriteTitleIcon {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+.favoriteCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.favoriteLine,
+.favoriteOffsetLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.favoriteLabel {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.favoriteValue {
+  min-width: 0;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.88);
+  text-align: right;
+}
+
+.favoriteOffsetInput {
+  width: 52px;
+  text-align: right;
+}
+
 .actionsCell {
   display: flex;
   flex-direction: column;

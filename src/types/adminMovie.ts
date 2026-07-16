@@ -21,6 +21,8 @@ export type AdminMovieRow = {
   views_7d?: number;
   pv?: number;
   uv?: number;
+  site_favorite?: number;
+  favorite_offset?: number;
   favorites?: number;
   [key: string]: unknown;
 };

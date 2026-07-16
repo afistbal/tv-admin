@@ -14,6 +14,8 @@ export type PublishMoviePayload = {
   movie_id?: number;
   title: string;
   title_original?: string;
+  site_favorite?: number;
+  favorite_offset?: number;
   language: string;
   introduction: string;
   cover_key: string;

@@ -34,6 +34,7 @@ type FormValues = {
   sort: string;
   title: string;
   title_original: string;
+  favorite_offset: string;
   language: string;
   introduction: string;
   audio_track: "zh-Hans" | "en";
@@ -158,6 +159,7 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [movieStatus, setMovieStatus] = useState(0);
+  const [siteFavorite, setSiteFavorite] = useState(0);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -195,6 +197,7 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
       introduction: "",
       title: "",
       title_original: "",
+      favorite_offset: "0",
     });
     setAreaSelected([]);
     setTagSelected([]);
@@ -210,6 +213,7 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
     pendingSubClientId.current = null;
     setLoadError(null);
     setMovieStatus(0);
+    setSiteFavorite(0);
     setCreatedAt(null);
     setUpdatedAt(null);
     setVideoPreviewUrl(null);
@@ -232,16 +236,19 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
         const sortVal = info["sort"];
         const titleVal = info["title"];
         const titleOriginalVal = info["title_original"];
+        const favoriteOffsetVal = info["favorite_offset"];
         const track = info["audio_track"];
         form.setFieldsValue({
           sort: sortVal != null && sortVal !== "" ? String(sortVal) : "100",
           title: String(titleVal ?? ""),
           title_original: String(titleOriginalVal ?? ""),
+          favorite_offset: favoriteOffsetVal != null && favoriteOffsetVal !== "" ? String(favoriteOffsetVal) : "0",
           language: String(info["language"] ?? "en"),
           introduction: String(info["introduction"] ?? ""),
           audio_track: track == null || track === "" ? "en" : String(track) === "en" ? "en" : "zh-Hans",
         });
         setMovieStatus(Number(info["status"] ?? 0));
+        setSiteFavorite(Number(info["site_favorite"] ?? 0));
         setCreatedAt(formatDateTimeZh(info["created_at"] as string | undefined));
         setUpdatedAt(formatDateTimeZh(info["updated_at"] as string | undefined));
         setAreaSelected(normalizeIdArray(d.area));
@@ -298,6 +305,7 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
       introduction: "",
       title: "",
       title_original: "",
+      favorite_offset: "0",
     });
   }, [open, isEditMode, movieId, loadMeta, loadMovieDetail, resetState, form]);
 
@@ -611,11 +619,19 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
         return;
       }
 
+      const favoriteOffsetNum = Number(v.favorite_offset || 0);
+      if (!Number.isFinite(favoriteOffsetNum) || !Number.isInteger(favoriteOffsetNum)) {
+        message.warning("展示偏移量必须是整数");
+        return;
+      }
+
       setSaving(true);
       const res = await publishMovie({
         ...(isEditMode && movieId != null ? { movie_id: movieId } : {}),
         title: v.title.trim(),
         title_original: v.title_original?.trim() ?? "",
+        site_favorite: siteFavorite,
+        favorite_offset: favoriteOffsetNum,
         language: v.language.trim() || "en",
         introduction: v.introduction?.trim() ?? "",
         cover_key: coverKey,
@@ -848,6 +864,9 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
               </Form.Item>
               <Form.Item name="title_original" label="又名">
                 <Input placeholder="又名" allowClear />
+              </Form.Item>
+              <Form.Item name="favorite_offset" label="展示偏移量">
+                <Input placeholder="展示偏移量" inputMode="numeric" />
               </Form.Item>
               <Form.Item name="language" label="语言" initialValue="en">
                 <Input placeholder="如 en、zh" />

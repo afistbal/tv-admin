@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button, Dropdown, Image, Input, Modal, Pagination, Select, Space, Switch, Table, Typography, message } from "antd";
+import { Button, Dropdown, Image, Input, Modal, Pagination, Select, Space, Switch, Table, Tooltip, Typography, message } from "antd";
+import { QuestionCircleOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { apiGet, apiPostJson } from "@/api/client";
@@ -120,6 +121,7 @@ export function MovieList() {
   const [watermarkSavingId, setWatermarkSavingId] = useState<number | null>(null);
   const [selfMadeSavingId, setSelfMadeSavingId] = useState<number | null>(null);
   const [sortSavingId, setSortSavingId] = useState<number | null>(null);
+  const [favoriteOffsetSavingId, setFavoriteOffsetSavingId] = useState<number | null>(null);
   /** 操作列：导出 / 改状态 等 */
   const [rowActionBusyId, setRowActionBusyId] = useState<number | null>(null);
   const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
@@ -274,6 +276,46 @@ export function MovieList() {
       }
     },
     [fetchList, page, keyword, language, levelFilter, listOrderBy],
+  );
+
+  const handleFavoriteOffsetCommit = useCallback(
+    async (row: AdminMovieRow, raw: string) => {
+      const trimmed = raw.trim();
+      const n = trimmed === "" ? 0 : Number(trimmed);
+      if (!Number.isFinite(n) || !Number.isInteger(n)) {
+        message.warning("展示偏移量须为整数");
+        return;
+      }
+      if (n === Number(row.favorite_offset ?? 0)) {
+        return;
+      }
+      setFavoriteOffsetSavingId(row.id);
+      try {
+        const movieRes: ApiResult<AdminMovieDetailPayload> = await apiGet<AdminMovieDetailPayload>("admin/movie", {
+          id: row.id,
+        });
+        if (movieRes.c !== 0) {
+          message.error(movieRes.m || "加载失败");
+          return;
+        }
+        const res: ApiResult<unknown> = await apiPostJson(
+          "admin/movie/save",
+          buildMovieSavePayload(row.id, movieRes.d, {
+            favorite_offset: n,
+          }),
+        );
+        if (res.c !== 0) {
+          message.error(res.m || "更新失败");
+          return;
+        }
+        await fetchList();
+      } catch {
+        message.error("网络异常");
+      } finally {
+        setFavoriteOffsetSavingId(null);
+      }
+    },
+    [fetchList],
   );
 
   const playMovieUrl = useCallback((id: number) => `${publicWebOriginForVideo()}/video/${id}`, []);
@@ -512,11 +554,57 @@ export function MovieList() {
         render: (_: unknown, row) => <MoviePlayCountCell row={row as Record<string, unknown>} />,
       },
       {
-        title: "收藏数",
+        title: (
+          <span className={styles.favoriteTitle}>
+            <span>收藏数</span>
+            <Tooltip title="(用户侧取值为 爬取收藏量+本站收藏量+展示偏移量)K">
+              <QuestionCircleOutlined className={styles.favoriteTitleIcon} />
+            </Tooltip>
+          </span>
+        ),
         key: "favorites",
-        width: 96,
-        align: "right",
-        render: (_: unknown, row) => formatCompactCount(readFavoriteCount(row as Record<string, unknown>)),
+        width: 138,
+        render: (_: unknown, row) => {
+          const offset = Number(row.favorite_offset ?? 0);
+          const safeOffset = Number.isFinite(offset) ? offset : 0;
+          const crawledFavorite = readFavoriteCount(row as Record<string, unknown>);
+          const siteFavorite = Number(row.site_favorite ?? 0);
+          const safeSiteFavorite = Number.isFinite(siteFavorite) ? siteFavorite : 0;
+          const totalFavorite = Number(crawledFavorite ?? 0) + safeSiteFavorite + safeOffset;
+          const initialOffset = String(safeOffset);
+          const busy = favoriteOffsetSavingId === row.id;
+          return (
+            <div className={styles.favoriteCell}>
+              <div className={styles.favoriteLine}>
+                <span className={styles.favoriteLabel}>总收藏数</span>
+                <span className={styles.favoriteValue}>{formatCompactCount(totalFavorite)}</span>
+              </div>
+              <div className={styles.favoriteLine}>
+                <span className={styles.favoriteLabel}>爬取收藏量</span>
+                <span className={styles.favoriteValue}>
+                  {formatCompactCount(readFavoriteCount(row as Record<string, unknown>))}
+                </span>
+              </div>
+              <div className={styles.favoriteLine}>
+                <span className={styles.favoriteLabel}>本站收藏量</span>
+                <span className={styles.favoriteValue}>{formatCompactCount(row.site_favorite)}</span>
+              </div>
+              <div className={styles.favoriteOffsetLine}>
+                <span className={styles.favoriteLabel}>展示偏移量</span>
+                <Input
+                  key={`favorite-offset-${row.id}-${initialOffset}`}
+                  size="small"
+                  defaultValue={initialOffset}
+                  disabled={busy}
+                  className={styles.favoriteOffsetInput}
+                  inputMode="numeric"
+                  onBlur={(e) => void handleFavoriteOffsetCommit(row, e.target.value)}
+                  onPressEnter={(e) => e.currentTarget.blur()}
+                />
+              </div>
+            </div>
+          );
+        },
       },
       {
         title: "开关",
@@ -674,11 +762,13 @@ export function MovieList() {
       watermarkSavingId,
       selfMadeSavingId,
       sortSavingId,
+      favoriteOffsetSavingId,
       rowActionBusyId,
       handleRecommendChange,
       handleWatermarkChange,
       handleSelfMadeChange,
       handleSortCommit,
+      handleFavoriteOffsetCommit,
       playMovieUrl,
       handleExportMovie,
       handleMovieStatus,
