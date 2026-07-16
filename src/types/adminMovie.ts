@@ -1,6 +1,7 @@
 export type AdminMovieRow = {
   id: number;
   title?: string;
+  title_original?: string;
   image?: string;
   /** 剧表：无水印标记，`1` 时封面走 `movieCoverUrl` → `movie_images/{id}.webp` */
   is_rename?: number | string;

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button, Dropdown, Image, Input, Modal, Pagination, Select, Space, Switch, Table, Tag, Tooltip, Typography, message } from "antd";
+import { Button, Dropdown, Image, Input, Modal, Pagination, Select, Space, Switch, Table, Typography, message } from "antd";
 import type { MenuProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { apiGet, apiPostJson } from "@/api/client";
 import { downloadMovieExportTxt } from "@/lib/movieExport";
 import type { ApiResult } from "@/api/types";
-import type { AdminMovieDetailPayload, AdminMovieListPayload, AdminMovieRow, AdminTagAreaRow } from "@/types/adminMovie";
+import type { AdminMovieDetailPayload, AdminMovieListPayload, AdminMovieRow } from "@/types/adminMovie";
 import { useAppStaticBase } from "@/config/AppConfigContext";
 import { checkImageUrlExists, movieCoverUrl, movieWatermarkCoverUrl, readMovieIsRename, readMovieIsSelf } from "@/lib/staticAssetOrigin";
 import { publicWebOriginForVideo } from "@/lib/publicWebOrigin";
@@ -26,7 +26,6 @@ import { BatchWatermarkModal } from "./BatchWatermarkModal";
 import { CursorSaveModal } from "./CursorSaveModal";
 import { MovieEditModal } from "./MovieEditModal";
 import { PublishDramaModal } from "./PublishDramaModal";
-import { parseAdminTagRows, tagDisplayLabel } from "@/lib/adminTagDisplay";
 import { isOriginalMovieSource } from "@/lib/dramaPublishApi";
 import { buildMovieSavePayload } from "@/lib/movieSavePayload";
 
@@ -100,38 +99,6 @@ function movieSourceShortLabel(source: unknown): string {
 }
 
 /** `admin/movie/status` 与 slot MovieDetail 一致 */
-function tagRowsFromApi(d: unknown): AdminTagAreaRow[] {
-  return parseAdminTagRows(d);
-}
-
-function parseMovieTagIds(row: AdminMovieRow): number[] {
-  const raw = row.tag ?? row["tags"];
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-  const ids: number[] = [];
-  for (const x of raw) {
-    if (typeof x === "number" && Number.isFinite(x)) {
-      ids.push(x);
-    } else if (x != null && typeof x === "object" && "id" in x) {
-      const n = Number((x as { id: unknown }).id);
-      if (Number.isFinite(n)) {
-        ids.push(n);
-      }
-    }
-  }
-  return ids;
-}
-
-function resolveMovieTagLabels(row: AdminMovieRow, idToName: Map<number, string>): string[] {
-  const namesRaw = row["tag_names"];
-  if (Array.isArray(namesRaw) && namesRaw.every((x) => typeof x === "string" || typeof x === "number")) {
-    return namesRaw.map((x) => String(x).trim()).filter(Boolean);
-  }
-  const ids = parseMovieTagIds(row);
-  return ids.map((id) => idToName.get(id) ?? `#${id}`);
-}
-
 export function MovieList() {
   const [searchParams] = useSearchParams();
   const appStatic = useAppStaticBase();
@@ -155,7 +122,6 @@ export function MovieList() {
   const [sortSavingId, setSortSavingId] = useState<number | null>(null);
   /** 操作列：导出 / 改状态 等 */
   const [rowActionBusyId, setRowActionBusyId] = useState<number | null>(null);
-  const [tagNameById, setTagNameById] = useState<Map<number, string>>(() => new Map());
   const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
   const [batchWatermarkOpen, setBatchWatermarkOpen] = useState(false);
   const [publishDramaOpen, setPublishDramaOpen] = useState(false);
@@ -169,29 +135,6 @@ export function MovieList() {
       return;
     }
     setEditId(row.id);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await apiGet<unknown>("admin/tag");
-        if (cancelled || res.c !== 0) {
-          return;
-        }
-        const list = tagRowsFromApi(res.d);
-        const m = new Map<number, string>();
-        for (const t of list) {
-          m.set(t.id, tagDisplayLabel(t));
-        }
-        setTagNameById(m);
-      } catch {
-        /* ignore */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const fetchList = useCallback(async (overridePage?: number) => {
@@ -516,8 +459,10 @@ export function MovieList() {
         minWidth: 200,
         render: (_: unknown, row) => {
           const text = String(row.title ?? "—");
+          const alias = String(row.title_original ?? "").trim();
           return (
-            <span className={styles.titleCellWrap}>
+            <div className={styles.titleCellWrap}>
+              <div className={styles.titleMainLine}>
               <span
                 role="button"
                 tabIndex={0}
@@ -533,7 +478,15 @@ export function MovieList() {
                 {text}
               </span>
               <Typography.Text className={styles.titleCopy} copyable={{ text }} />
-            </span>
+              </div>
+              <div className={styles.titleAliasLine}>
+                <span className={styles.titleAliasLabel}>又名：</span>
+                <span className={`${styles.titleAliasText} ${alias ? "" : styles.titleAliasEmpty}`}>
+                  {alias || "-"}
+                </span>
+                {alias ? <Typography.Text className={styles.titleCopy} copyable={{ text: alias }} /> : null}
+              </div>
+            </div>
           );
         },
       },
@@ -555,7 +508,7 @@ export function MovieList() {
       {
         title: "播放量",
         key: "views",
-        width: 166,
+        width: 132,
         render: (_: unknown, row) => <MoviePlayCountCell row={row as Record<string, unknown>} />,
       },
       {
@@ -564,32 +517,6 @@ export function MovieList() {
         width: 96,
         align: "right",
         render: (_: unknown, row) => formatCompactCount(readFavoriteCount(row as Record<string, unknown>)),
-      },
-      {
-        title: "标签",
-        key: "tags",
-        width: 168,
-        render: (_: unknown, row) => {
-          const labels = resolveMovieTagLabels(row, tagNameById);
-          if (labels.length === 0) {
-            return <Typography.Text type="secondary">—</Typography.Text>;
-          }
-          const shown = labels.slice(0, 3);
-          const hasMore = labels.length > 3;
-          const fullText = labels.join("、");
-          return (
-            <Tooltip title={fullText} placement="topLeft">
-              <div className={styles.tagCellRow}>
-                {shown.map((name, i) => (
-                  <Tag key={`${row.id}-t-${i}`} bordered={false} className={styles.tagChip} title={name}>
-                    {name}
-                  </Tag>
-                ))}
-                {hasMore ? <span className={styles.tagMore}>…</span> : null}
-              </div>
-            </Tooltip>
-          );
-        },
       },
       {
         title: "开关",
@@ -758,7 +685,6 @@ export function MovieList() {
       handleSetAudioTrack,
       openMovieEdit,
       openPosterPreview,
-      tagNameById,
     ],
   );
 
@@ -833,7 +759,7 @@ export function MovieList() {
           />
           <Input
             allowClear
-            placeholder="按剧名 / ID 搜索"
+            placeholder="按剧名 / 又名 / ID 搜索"
             value={keywordInput}
             onChange={(e) => onKeywordChange(e.target.value)}
             style={{ width: 220 }}
@@ -870,7 +796,7 @@ export function MovieList() {
         size="middle"
         tableLayout="fixed"
         locale={{ emptyText: loading ? "加载中…" : "暂无剧集" }}
-        scroll={{ x: 1148 }}
+        scroll={{ x: 1056 }}
       />
 
       <div className={stylesToolbar.paginationWrap}>

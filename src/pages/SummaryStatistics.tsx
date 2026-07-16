@@ -14,6 +14,7 @@ import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
 import { apiPostJson } from "@/api/client";
+import { getActiveAdminSite } from "@/api/baseURL";
 import type { ApiResult } from "@/api/types";
 import type { AdminStatSummaryRow, AdminStatTotalPayload } from "@/types/adminStatSummary";
 import { mainContentTableSticky } from "@/lib/tableSticky";
@@ -241,8 +242,18 @@ function pickChannelLabel(row: AdminStatSummaryRow): string {
 }
 
 /**
- * 渠道展示顺序：① `A`+数字 包码（如 A100F100、A100Z310）；② yogoshort.com；③ www.yogoshort.com；④ 其余（unknown、localhost、IP 等）最后。
+ * 渠道展示顺序：① `A`+数字包码；② 当前站点裸域；③ 当前站点 www 域；④ 其余最后。
  */
+function activeSiteHostOrder(): string[] {
+  try {
+    const host = new URL(getActiveAdminSite().publicWebOrigin).hostname.toLowerCase();
+    const bare = host.replace(/^www\./, "");
+    return Array.from(new Set([bare, `www.${bare}`]));
+  } catch {
+    return [];
+  }
+}
+
 function channelSortTier(source: string): number {
   const s = source.trim();
   if (s === "") {
@@ -252,11 +263,9 @@ function channelSortTier(source: string): number {
     return 0;
   }
   const low = s.toLowerCase();
-  if (low === "yogoshort.com") {
-    return 1;
-  }
-  if (low === "www.yogoshort.com") {
-    return 2;
+  const hostIndex = activeSiteHostOrder().indexOf(low);
+  if (hostIndex >= 0) {
+    return hostIndex + 1;
   }
   return 3;
 }

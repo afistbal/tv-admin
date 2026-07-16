@@ -33,6 +33,7 @@ import styles from "./PublishDramaModal.module.css";
 type FormValues = {
   sort: string;
   title: string;
+  title_original: string;
   language: string;
   introduction: string;
   audio_track: "zh-Hans" | "en";
@@ -193,6 +194,7 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
       audio_track: "en",
       introduction: "",
       title: "",
+      title_original: "",
     });
     setAreaSelected([]);
     setTagSelected([]);
@@ -229,10 +231,12 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
         const info = d.info;
         const sortVal = info["sort"];
         const titleVal = info["title"];
+        const titleOriginalVal = info["title_original"];
         const track = info["audio_track"];
         form.setFieldsValue({
           sort: sortVal != null && sortVal !== "" ? String(sortVal) : "100",
           title: String(titleVal ?? ""),
+          title_original: String(titleOriginalVal ?? ""),
           language: String(info["language"] ?? "en"),
           introduction: String(info["introduction"] ?? ""),
           audio_track: track == null || track === "" ? "en" : String(track) === "en" ? "en" : "zh-Hans",
@@ -293,6 +297,7 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
       audio_track: "en",
       introduction: "",
       title: "",
+      title_original: "",
     });
   }, [open, isEditMode, movieId, loadMeta, loadMovieDetail, resetState, form]);
 
@@ -610,6 +615,7 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
       const res = await publishMovie({
         ...(isEditMode && movieId != null ? { movie_id: movieId } : {}),
         title: v.title.trim(),
+        title_original: v.title_original?.trim() ?? "",
         language: v.language.trim() || "en",
         introduction: v.introduction?.trim() ?? "",
         cover_key: coverKey,
@@ -839,6 +845,9 @@ export function PublishDramaModal({ open, movieId, staticBase, onClose, onPublis
               </Form.Item>
               <Form.Item name="title" label="短剧名称" rules={[{ required: true, message: "请填写短剧名称" }]}>
                 <Input placeholder="输入短剧名称" />
+              </Form.Item>
+              <Form.Item name="title_original" label="又名">
+                <Input placeholder="又名" allowClear />
               </Form.Item>
               <Form.Item name="language" label="语言" initialValue="en">
                 <Input placeholder="如 en、zh" />

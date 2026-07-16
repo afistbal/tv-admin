@@ -4,6 +4,7 @@ import { readMovieIsSelf } from "@/lib/staticAssetOrigin";
 export type MovieSavePayload = {
   id: number;
   title: string;
+  title_original: string;
   sort: string;
   audio_track: string;
   area: number[];
@@ -24,6 +25,7 @@ export function buildMovieSavePayload(
     is_self?: number;
     episodes?: { id: number; vip: number }[];
     title?: string;
+    title_original?: string;
     sort?: string;
     audio_track?: string;
     area?: number[];
@@ -34,6 +36,7 @@ export function buildMovieSavePayload(
   return {
     id: movieId,
     title: options?.title ?? String(info["title"] ?? ""),
+    title_original: options?.title_original ?? String(info["title_original"] ?? ""),
     sort: options?.sort ?? (info["sort"] != null && info["sort"] !== "" ? String(info["sort"]) : ""),
     audio_track: options?.audio_track ?? readAudioTrackFromInfo(info),
     area: options?.area ?? detail.area,

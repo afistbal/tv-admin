@@ -32,6 +32,7 @@ import styles from "./MovieEditModal.module.css";
 type FormValues = {
   sort: string;
   title: string;
+  title_original: string;
   audio_track: string;
   is_self: boolean;
 };
@@ -196,10 +197,12 @@ export function MovieEditModal(props: {
       const info = d.info;
       const sortVal = info["sort"];
       const titleVal = info["title"];
+      const titleOriginalVal = info["title_original"];
       const track = info["audio_track"];
       form.setFieldsValue({
         sort: sortVal != null && sortVal !== "" ? String(sortVal) : "",
         title: String(titleVal ?? ""),
+        title_original: String(titleOriginalVal ?? ""),
         audio_track:
           track == null || track === "" ? "zh-Hans" : String(track) === "en" ? "en" : "zh-Hans",
         is_self: readMovieIsSelf(info),
@@ -337,6 +340,7 @@ export function MovieEditModal(props: {
         "admin/movie/save",
         buildMovieSavePayload(movieId, detail, {
           title: v.title,
+          title_original: v.title_original,
           sort: v.sort,
           audio_track: v.audio_track,
           area: areaSelected,
@@ -413,6 +417,9 @@ export function MovieEditModal(props: {
                 </Form.Item>
                 <Form.Item name="title" label="短剧名称" rules={[{ required: true, message: "请填写名称" }]}>
                   <Input placeholder="标题" />
+                </Form.Item>
+                <Form.Item name="title_original" label="又名">
+                  <Input placeholder="又名" allowClear />
                 </Form.Item>
                 <Form.Item
                   name="audio_track"

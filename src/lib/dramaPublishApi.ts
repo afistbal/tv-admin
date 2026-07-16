@@ -13,6 +13,7 @@ export type PublishEpisodePayload = {
 export type PublishMoviePayload = {
   movie_id?: number;
   title: string;
+  title_original?: string;
   language: string;
   introduction: string;
   cover_key: string;
