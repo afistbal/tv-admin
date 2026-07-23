@@ -4,7 +4,7 @@ export type AdminPoolSourceType = "recommend_ab" | "search_feed_ab" | "membershi
 export type AdminPoolType = AdminPoolBaseType | AdminPoolSourceType;
 
 export const ADMIN_POOL_TAB_ITEMS: { key: AdminPoolBaseType; label: string }[] = [
-  { key: "recommend", label: "推荐页配置" },
+  { key: "recommend", label: "for you 推荐配置" },
   { key: "search_feed", label: "搜索页配置" },
   { key: "membership", label: "会员页配置" },
 ];
