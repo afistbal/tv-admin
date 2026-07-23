@@ -62,6 +62,7 @@ const menuItems: MenuProps["items"] = [
     label: "短剧管理",
     children: [
       { key: "/drama/movies", label: <Link to="/drama/movies">剧集列表</Link> },
+      { key: "/drama/tk-movies", label: <Link to="/drama/tk-movies">TK剧集列表</Link> },
       { key: "/drama/latest-update", label: <Link to="/drama/latest-update">最新更新</Link> },
     ],
   },
@@ -209,6 +210,7 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
           <CollapsedPopoverLinks
             links={[
               { to: "/drama/movies", label: "剧集列表" },
+              { to: "/drama/tk-movies", label: "TK剧集列表" },
               { to: "/drama/latest-update", label: "最新更新" },
             ]}
           />
@@ -356,6 +358,9 @@ export function BasicLayout() {
   ];
 
   const selectedKeys = useMemo(() => {
+    if (location.pathname.startsWith("/drama/tk-movies")) {
+      return ["/drama/tk-movies"];
+    }
     if (location.pathname.startsWith("/drama/latest-update")) {
       return ["/drama/latest-update"];
     }

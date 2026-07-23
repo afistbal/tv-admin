@@ -1,0 +1,192 @@
+.createGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0 16px;
+}
+
+.span2 { grid-column: span 2; }
+.span3 { grid-column: span 3; }
+.span5 { grid-column: span 5; }
+.span6 { grid-column: span 6; }
+.span10 { grid-column: span 10; }
+.span12 { grid-column: 1 / -1; }
+
+.submitCell {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.submitCell :global(.ant-btn) {
+  width: 160px;
+}
+
+.selfMovieOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.selfMovieCover,
+.selfMovieCoverEmpty {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 54px;
+  border-radius: 4px;
+}
+
+.selfMovieCover {
+  object-fit: cover;
+  border: 1px solid #f0f0f0;
+}
+
+.selfMovieCoverEmpty {
+  display: grid;
+  place-items: center;
+  color: rgba(0, 0, 0, 0.35);
+  background: #f5f5f5;
+  font-size: 10px;
+}
+
+.selfMovieOptionInfo {
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.selfMovieOptionTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.selfMovieLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 8px 6px;
+  border-top: 1px solid #f0f0f0;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.toolbarRight {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.movieCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cover,
+.coverPlaceholder {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 60px;
+  border-radius: 6px;
+}
+
+.cover {
+  object-fit: cover;
+  border: 1px solid #f0f0f0;
+}
+
+.coverPlaceholder {
+  display: grid;
+  place-items: center;
+  color: rgba(0, 0, 0, 0.35);
+  background: #f5f5f5;
+  font-size: 11px;
+}
+
+.movieMeta {
+  min-width: 0;
+}
+
+.movieTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.movieId,
+.subtle {
+  margin-top: 3px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+.progressCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progressCell :global(.ant-progress) {
+  min-width: 90px;
+  margin: 0;
+}
+
+.progressText {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.actionCell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.detailMeta {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 1100px) {
+  .span2,
+  .span3 { grid-column: span 4; }
+  .span5,
+  .span6 { grid-column: span 6; }
+  .span10 { grid-column: span 8; }
+  .submitCell { grid-column: 1 / -1; }
+}
+
+@media (max-width: 700px) {
+  .span2,
+  .span3,
+  .span5,
+  .span6,
+  .span10,
+  .submitCell { grid-column: 1 / -1; }
+  .submitCell :global(.ant-btn) { width: 100%; }
+  .toolbarRight { justify-content: flex-start; }
+}

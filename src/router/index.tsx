@@ -5,6 +5,7 @@ import { BasicLayout } from "@/layouts/BasicLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { DramaLatestUpdate } from "@/pages/DramaLatestUpdate";
 import { MovieList } from "@/pages/MovieList";
+import { TkMovieList } from "@/pages/TkMovieList";
 import { OrderList } from "@/pages/OrderList";
 import { ProductList } from "@/pages/ProductList";
 import { RecommendPoolList } from "@/pages/RecommendPoolList";
@@ -46,6 +47,7 @@ export function AppRouter() {
           <Route path="data/orders" element={<OrderList />} />
           <Route path="drama/latest-update" element={<DramaLatestUpdate />} />
           <Route path="drama/movies" element={<MovieList />} />
+          <Route path="drama/tk-movies" element={<TkMovieList />} />
           <Route path="config/products" element={<ProductList />} />
           <Route path="config/recommend-pool" element={<RecommendPoolList />} />
           <Route path="config/tag-categories" element={<TagCategoryMappings />} />

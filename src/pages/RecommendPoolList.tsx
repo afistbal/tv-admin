@@ -16,8 +16,13 @@ import type { ColumnsType } from "antd/es/table";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { apiGet, apiPostJson } from "@/api/client";
 import type { ApiResult } from "@/api/types";
-import type { AdminPoolListPayload, AdminPoolRow, AdminPoolType } from "@/types/adminPool";
-import { ADMIN_POOL_TAB_ITEMS } from "@/types/adminPool";
+import type {
+  AdminPoolBaseType,
+  AdminPoolListPayload,
+  AdminPoolRow,
+  AdminPoolType,
+} from "@/types/adminPool";
+import { ADMIN_POOL_SOURCE_TYPE, ADMIN_POOL_TAB_ITEMS } from "@/types/adminPool";
 import { useAppStaticBase } from "@/config/AppConfigContext";
 import { movieCoverUrl } from "@/lib/staticAssetOrigin";
 import {
@@ -38,11 +43,18 @@ import { RecommendPoolAddModal } from "./RecommendPoolAddModal";
 import { RecommendPoolSortModal } from "./RecommendPoolSortModal";
 import { RecommendSortConfigModal } from "./RecommendSortConfigModal";
 
-const POOL_TAB_LABEL: Record<AdminPoolType, string> = {
+const POOL_TAB_LABEL: Record<AdminPoolBaseType, string> = {
   recommend: "推荐页",
   search_feed: "搜索页",
   membership: "会员页",
 };
+
+type PoolListKind = "source" | "non-source";
+
+const POOL_LIST_TAB_ITEMS: { key: PoolListKind; label: string }[] = [
+  { key: "source", label: "来源列表" },
+  { key: "non-source", label: "非来源列表" },
+];
 
 function poolMovieRecord(row: AdminPoolRow): Record<string, unknown> | undefined {
   return row.movie as Record<string, unknown> | undefined;
@@ -70,7 +82,8 @@ function compareRows(a: AdminPoolRow, b: AdminPoolRow): number {
 
 export function RecommendPoolList() {
   const appStatic = useAppStaticBase();
-  const [poolType, setPoolType] = useState<AdminPoolType>("recommend");
+  const [basePoolType, setBasePoolType] = useState<AdminPoolBaseType>("recommend");
+  const [listKind, setListKind] = useState<PoolListKind>("source");
   const [loading, setLoading] = useState(false);
   const [allRows, setAllRows] = useState<AdminPoolRow[]>([]);
   const [page, setPage] = useState(1);
@@ -84,6 +97,8 @@ export function RecommendPoolList() {
   const [detailMovieId, setDetailMovieId] = useState<number | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
   const searchTimer = useRef<number | null>(null);
+  const poolType: AdminPoolType =
+    listKind === "source" ? ADMIN_POOL_SOURCE_TYPE[basePoolType] : basePoolType;
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -136,7 +151,19 @@ export function RecommendPoolList() {
   );
 
   const onTabChange = (key: string) => {
-    setPoolType(key as AdminPoolType);
+    setBasePoolType(key as AdminPoolBaseType);
+    setListKind("source");
+    setKeywordInput("");
+    setKeyword("");
+    setLevelFilter("all");
+    setPage(1);
+    setAddOpen(false);
+    setSortConfigOpen(false);
+    setSortEditRow(null);
+  };
+
+  const onListKindChange = (key: string) => {
+    setListKind(key as PoolListKind);
     setKeywordInput("");
     setKeyword("");
     setLevelFilter("all");
@@ -180,7 +207,7 @@ export function RecommendPoolList() {
 
   const handleRemove = useCallback(
     (row: AdminPoolRow) => {
-      const tabLabel = POOL_TAB_LABEL[poolType];
+      const tabLabel = POOL_TAB_LABEL[basePoolType];
       Modal.confirm({
         title: `移出${tabLabel}推荐`,
         content: `确定将「${String(row.movie?.title ?? row.movie_id)}」从${tabLabel}推荐列表移除？`,
@@ -205,7 +232,7 @@ export function RecommendPoolList() {
         },
       });
     },
-    [fetchList, poolType],
+    [basePoolType, fetchList],
   );
 
   const columns: ColumnsType<AdminPoolRow & { _displayRank?: number }> = useMemo(
@@ -316,7 +343,17 @@ export function RecommendPoolList() {
         推荐管理
       </Typography.Title>
 
-      <Tabs activeKey={poolType} onChange={onTabChange} items={ADMIN_POOL_TAB_ITEMS.map(({ key, label }) => ({ key, label }))} />
+      <Tabs
+        activeKey={basePoolType}
+        onChange={onTabChange}
+        items={ADMIN_POOL_TAB_ITEMS.map(({ key, label }) => ({ key, label }))}
+      />
+
+      <Tabs
+        activeKey={listKind}
+        onChange={onListKindChange}
+        items={POOL_LIST_TAB_ITEMS}
+      />
 
       <div className={stylesToolbar.toolbar} style={{ marginTop: 16 }}>
         <Space wrap className={stylesToolbar.toolbarLeft}>
@@ -336,7 +373,7 @@ export function RecommendPoolList() {
           />
         </Space>
         <Space wrap className={stylesToolbar.toolbarRight}>
-          {poolType === "recommend" ? (
+          {basePoolType === "recommend" ? (
             <Button onClick={() => setSortConfigOpen(true)}>推荐排序配置</Button>
           ) : null}
           <Button type="primary" onClick={() => setAddOpen(true)}>

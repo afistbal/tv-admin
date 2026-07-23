@@ -1,11 +1,19 @@
 /** 推荐池列表 `GET admin/pools` 的 type 参数 */
-export type AdminPoolType = "recommend" | "search_feed" | "membership";
+export type AdminPoolBaseType = "recommend" | "search_feed" | "membership";
+export type AdminPoolSourceType = "recommend_ab" | "search_feed_ab" | "membership_ab";
+export type AdminPoolType = AdminPoolBaseType | AdminPoolSourceType;
 
-export const ADMIN_POOL_TAB_ITEMS: { key: AdminPoolType; label: string }[] = [
+export const ADMIN_POOL_TAB_ITEMS: { key: AdminPoolBaseType; label: string }[] = [
   { key: "recommend", label: "推荐页配置" },
   { key: "search_feed", label: "搜索页配置" },
   { key: "membership", label: "会员页配置" },
 ];
+
+export const ADMIN_POOL_SOURCE_TYPE: Record<AdminPoolBaseType, AdminPoolSourceType> = {
+  recommend: "recommend_ab",
+  search_feed: "search_feed_ab",
+  membership: "membership_ab",
+};
 
 export type AdminPoolMovie = {
   id: number;
