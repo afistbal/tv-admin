@@ -22,6 +22,7 @@ import {
   Pagination,
   Spin,
   Table,
+  Tabs,
   Tooltip,
   Typography,
   message,
@@ -42,7 +43,14 @@ import type {
   AdminUserSubscriptionListPayload,
   AdminUserSubscriptionRow,
   AdminUserSubscriptionStat,
+  SubscriptionRenewalStatRow,
 } from "@/types/adminUserSubscription";
+import type {
+  AdminNativeSubscriptionListPayload,
+  AdminNativeSubscriptionRow,
+  AdminNativeSubscriptionStat,
+  NativeSubscriptionPlatform,
+} from "@/types/adminNativeSubscription";
 import { buildSubscriptionRenewalStatRows } from "@/lib/subscriptionRenewalStat";
 import {
   SUBSCRIPTION_DEFAULT_ORDER_BY,
@@ -70,6 +78,7 @@ import {
   formatCnDateTime,
   subscriptionPaySuccessCount,
   productTypeTone,
+  rangeToDaterangeStrings,
   rowStableKey,
   SUBSCRIPTION_ORDER_STATUS_FILTER_OPTIONS,
   SUBSCRIPTION_STATUS_EDIT_OPTIONS,
@@ -81,10 +90,28 @@ import styles from "./SubscriptionUsers.module.css";
 import userListStyles from "./UserList.module.css";
 
 type ViewMode = "calendar" | "table";
+type SubscriptionPlatformTab = "h5" | NativeSubscriptionPlatform;
+
+const SUBSCRIPTION_PLATFORM_TABS: { key: SubscriptionPlatformTab; label: string }[] = [
+  { key: "h5", label: "H5" },
+  { key: "ios", label: "IOS" },
+  { key: "android", label: "Android" },
+];
+
+const NATIVE_SUBSCRIPTION_STATUS_OPTIONS = [
+  { value: "", label: "全部" },
+  { value: "1", label: "待处理" },
+  { value: "2", label: "有效" },
+  { value: "3", label: "过期" },
+  { value: "4", label: "取消" },
+  { value: "5", label: "退款" },
+  { value: "6", label: "失败" },
+];
 
 /** 各列 width 之和，与 columns 保持一致，避免表头/表体横向错位（含复选框列约 48px） */
 const SUBSCRIPTION_TABLE_SCROLL_X =
   48 + 88 + 108 + 176 + 220 + 108 + 168 + 100 + 112 + 108 + 160;
+const NATIVE_SUBSCRIPTION_TABLE_SCROLL_X = 2498;
 
 function cellStr(v: unknown): string {
   if (v == null) {
@@ -92,6 +119,55 @@ function cellStr(v: unknown): string {
   }
   const s = String(v).trim();
   return s === "" ? EMPTY : s;
+}
+
+function CopyableValue({ value, wrap = false }: { value: unknown; wrap?: boolean }) {
+  const text = cellStr(value);
+  return (
+    <Typography.Text
+      copyable={text !== EMPTY ? { text } : false}
+      style={wrap ? { whiteSpace: "normal", overflowWrap: "anywhere" } : undefined}
+    >
+      {text}
+    </Typography.Text>
+  );
+}
+
+function nativeStatusTone(row: AdminNativeSubscriptionRow) {
+  const tones: Record<number, { label: string; dot: string; bg: string }> = {
+    1: { label: "待处理", dot: "#d48806", bg: "rgba(212, 136, 6, 0.12)" },
+    2: { label: "有效", dot: "#2fa84f", bg: "rgba(47, 168, 79, 0.12)" },
+    3: { label: "过期", dot: "#8c8c8c", bg: "rgba(0, 0, 0, 0.06)" },
+    4: { label: "取消", dot: "#9b59b6", bg: "rgba(155, 89, 182, 0.12)" },
+    5: { label: "退款", dot: "#2f6feb", bg: "rgba(47, 111, 235, 0.12)" },
+    6: { label: "失败", dot: "#e03e3e", bg: "rgba(224, 62, 62, 0.12)" },
+  };
+  return tones[Number(row.status)] ?? {
+    label: cellStr(row.status_name || row.status),
+    dot: "#8c8c8c",
+    bg: "rgba(0, 0, 0, 0.06)",
+  };
+}
+
+function buildNativeRenewalStatRows(
+  stat: AdminNativeSubscriptionStat | null,
+): SubscriptionRenewalStatRow[] {
+  if (!stat || !Array.isArray(stat.cycles)) {
+    return [];
+  }
+  return stat.cycles.map((item) => {
+    const cohort = Math.max(0, Number(item.cohort_count) || 0);
+    const success = Math.max(0, Number(item.success_count) || 0);
+    const cycle = Math.max(1, Number(item.cycle) || 1);
+    return {
+      cycle,
+      label: cycle === 1 ? "一次订阅" : `${cycle}次订阅`,
+      pay: cycle === 1 ? null : success,
+      wait: cycle === 1 ? null : Math.max(0, cohort - success),
+      total: cohort,
+      ratePct: Number.isFinite(Number(item.rate)) ? Number(item.rate) : null,
+    };
+  });
 }
 
 function BillingRemainingLabel({ days }: { days: number }) {
@@ -112,6 +188,7 @@ function BillingRemainingLabel({ days }: { days: number }) {
 export function SubscriptionUsers() {
   const { user } = useAuth();
   const canEditSubscriptionStatus = user != null && isAdminUser(user);
+  const [activePlatform, setActivePlatform] = useState<SubscriptionPlatformTab>("h5");
   const [loading, setLoading] = useState(false);
   const [statusEditRow, setStatusEditRow] = useState<AdminUserSubscriptionRow | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
@@ -137,9 +214,23 @@ export function SubscriptionUsers() {
   const [responseCode, setResponseCode] = useState("");
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [batchSaving, setBatchSaving] = useState(false);
+  const [nativeRows, setNativeRows] = useState<AdminNativeSubscriptionRow[]>([]);
+  const [nativeCount, setNativeCount] = useState(0);
+  const [nativePage, setNativePage] = useState(1);
+  const [nativePerPage, setNativePerPage] = useState(SUBSCRIPTION_LIST_PAGE_SIZE);
+  const [nativeStat, setNativeStat] = useState<AdminNativeSubscriptionStat | null>(null);
+  const [nativeKeywordInput, setNativeKeywordInput] = useState("");
+  const [nativeKeyword, setNativeKeyword] = useState("");
+  const [nativeDateRange, setNativeDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [nativeStatus, setNativeStatus] = useState("");
+  const [nativeSourceInput, setNativeSourceInput] = useState("");
+  const [nativeSource, setNativeSource] = useState("");
+  const [nativeOrderBy, setNativeOrderBy] = useState("started_at|DESC");
+  const [nativeRefreshSeq, setNativeRefreshSeq] = useState(0);
   const searchTimer = useRef<number | null>(null);
   const channelSearchTimer = useRef<number | null>(null);
   const responseCodeSearchTimer = useRef<number | null>(null);
+  const listRequestIdRef = useRef(0);
 
   const listQuery = useMemo<SubscriptionListQuery>(
     () => ({
@@ -158,6 +249,7 @@ export function SubscriptionUsers() {
   );
 
   const fetchList = useCallback(async (q: SubscriptionListQuery) => {
+    const requestId = ++listRequestIdRef.current;
     setLoading(true);
     try {
       const body = buildSubscriptionListBody(q);
@@ -165,6 +257,7 @@ export function SubscriptionUsers() {
         "admin/user/subscription",
         body,
       );
+      if (requestId !== listRequestIdRef.current) return;
       if (res.c !== 0) {
         message.error(res.m || "加载失败");
         setApiRows([]);
@@ -179,18 +272,70 @@ export function SubscriptionUsers() {
       setPage(Number(d.current_page) || q.page);
       setSubscriptionStat(d.stat ?? null);
     } catch {
+      if (requestId !== listRequestIdRef.current) return;
       message.error("网络异常");
       setApiRows([]);
       setListCount(0);
       setSubscriptionStat(null);
     } finally {
-      setLoading(false);
+      if (requestId === listRequestIdRef.current) setLoading(false);
     }
   }, []);
 
+  const fetchNativeList = useCallback(
+    async (platform: NativeSubscriptionPlatform, targetPage: number) => {
+      const requestId = ++listRequestIdRef.current;
+      setLoading(true);
+      try {
+        const body: Record<string, unknown> = {
+          platform,
+          page: targetPage,
+          pageSize: nativePerPage,
+        };
+        if (nativeKeyword.trim()) body.keyword = nativeKeyword.trim();
+        if (nativeDateRange) body.daterange = rangeToDaterangeStrings(nativeDateRange);
+        if (nativeStatus !== "") body.status = Number(nativeStatus);
+        if (nativeOrderBy) body.orderBy = nativeOrderBy;
+        if (nativeSource.trim()) body.source = nativeSource.trim();
+
+        const res = await apiPostJson<AdminNativeSubscriptionListPayload>(
+          "admin/user/native-subscription",
+          body,
+        );
+        if (requestId !== listRequestIdRef.current) return;
+        if (res.c !== 0) {
+          message.error(res.m || "加载失败");
+          setNativeRows([]);
+          setNativeCount(0);
+          setNativeStat(null);
+          return;
+        }
+        const d = res.d;
+        setNativeRows(Array.isArray(d.data) ? d.data : []);
+        setNativeCount(Number(d.count) || 0);
+        setNativePerPage(Number(d.per_page) || SUBSCRIPTION_LIST_PAGE_SIZE);
+        setNativePage(Number(d.current_page) || targetPage);
+        setNativeStat(d.stat ?? null);
+      } catch {
+        if (requestId !== listRequestIdRef.current) return;
+        message.error("网络异常");
+        setNativeRows([]);
+        setNativeCount(0);
+        setNativeStat(null);
+      } finally {
+        if (requestId === listRequestIdRef.current) setLoading(false);
+      }
+    },
+    [nativeDateRange, nativeKeyword, nativeOrderBy, nativePerPage, nativeSource, nativeStatus],
+  );
+
   useEffect(() => {
-    void fetchList(listQuery);
-  }, [listQuery, fetchList]);
+    if (activePlatform === "h5") {
+      void fetchList(listQuery);
+      return;
+    }
+    void fetchNativeList(activePlatform, nativePage);
+  }, [activePlatform, fetchList, fetchNativeList, listQuery, nativePage, nativeRefreshSeq]);
 
   useEffect(() => {
     setCalendarMonth((dateRange?.[0] ?? dayjs()).startOf("month"));
@@ -261,6 +406,13 @@ export function SubscriptionUsers() {
     orderBy,
     fetchList,
   ]);
+
+  const runNativeSearch = useCallback(() => {
+    setNativeKeyword(nativeKeywordInput.trim());
+    setNativeSource(nativeSourceInput.trim());
+    setNativePage(1);
+    setNativeRefreshSeq((value) => value + 1);
+  }, [nativeKeywordInput, nativeSourceInput]);
 
   const openStatusEditModal = useCallback(
     (record: AdminUserSubscriptionRow) => {
@@ -400,6 +552,8 @@ export function SubscriptionUsers() {
   );
 
   const pageStatusCounts = useMemo(() => countSubscriptionPageStatus(apiRows), [apiRows]);
+
+  const nativeRenewalStatRows = useMemo(() => buildNativeRenewalStatRows(nativeStat), [nativeStat]);
 
   const columns: ColumnsType<AdminUserSubscriptionRow> = useMemo(
     () => [
@@ -611,6 +765,147 @@ export function SubscriptionUsers() {
     [orderBy, canEditSubscriptionStatus, openStatusEditModal],
   );
 
+  const nativeColumns: ColumnsType<AdminNativeSubscriptionRow> = useMemo(
+    () => [
+      {
+        title: "ID",
+        dataIndex: "id",
+        key: "id",
+        width: 80,
+        fixed: "left",
+        render: (value) => <CopyableValue value={value} />,
+      },
+      {
+        title: "用户 ID",
+        dataIndex: "user_id",
+        key: "user_id",
+        width: 100,
+        fixed: "left",
+        render: (value) => <CopyableValue value={value} />,
+      },
+      {
+        title: "本地订单号",
+        dataIndex: "pay_no",
+        key: "pay_no",
+        width: 260,
+        render: (value) =>
+          cellStr(value) === EMPTY ? (
+            <Typography.Text type="secondary">空订单</Typography.Text>
+          ) : (
+            <CopyableValue value={value} wrap />
+          ),
+      },
+      {
+        title: "商品",
+        key: "product",
+        width: 210,
+        render: (_value, row) => {
+          const name = cellStr(row.product_name);
+          const productIdValue = cellStr(row.product_id);
+          const isSameProductText =
+            name !== EMPTY &&
+            productIdValue !== EMPTY &&
+            name.toLocaleLowerCase() === productIdValue.toLocaleLowerCase();
+          if (isSameProductText) {
+            return (
+              <Typography.Text copyable={{ text: productIdValue }}>
+                {name}
+              </Typography.Text>
+            );
+          }
+          return (
+            <div>
+              <div>{name}</div>
+              <Typography.Text type="secondary">ID：</Typography.Text>
+              <CopyableValue value={row.product_id} wrap />
+            </div>
+          );
+        },
+      },
+      {
+        title: "开始订阅时间",
+        dataIndex: "started_at",
+        key: "started_at",
+        width: 176,
+        sorter: true,
+        sortOrder: orderByToSortOrder(nativeOrderBy, "started_at"),
+        render: (value) => formatCnDateTime(value),
+      },
+      {
+        title: "当前周期结束时间",
+        dataIndex: "period_end_at",
+        key: "period_end_at",
+        width: 176,
+        sorter: true,
+        sortOrder: orderByToSortOrder(nativeOrderBy, "period_end_at"),
+        render: (value) => formatCnDateTime(value),
+      },
+      {
+        title: "状态",
+        key: "status",
+        width: 110,
+        render: (_value, row) => <NotionTag wrap tone={nativeStatusTone(row)} />,
+      },
+      {
+        title: "平台状态",
+        dataIndex: "subscription_state",
+        key: "subscription_state",
+        width: 220,
+        render: (value) => <span style={{ overflowWrap: "anywhere" }}>{cellStr(value)}</span>,
+      },
+      {
+        title: "自动续订",
+        dataIndex: "auto_renewing",
+        key: "auto_renewing",
+        width: 90,
+        align: "center",
+        render: (value) => (Number(value) === 1 ? "是" : "否"),
+      },
+      {
+        title: "续订 / 周期",
+        key: "renewal_count",
+        width: 120,
+        render: (_value, row) => `${Number(row.successful_renewal_count) || 0} / ${Number(row.cycle_count) || 0}`,
+      },
+      { title: "投放渠道", dataIndex: "source", key: "source", width: 110, render: cellStr },
+      { title: "付费方式", dataIndex: "payment_method", key: "payment_method", width: 110, render: cellStr },
+      {
+        title: "金额",
+        key: "amount",
+        width: 100,
+        render: (_value, row) => {
+          const amount = cellStr(row.amount);
+          return amount === EMPTY ? amount : `${amount}${row.currency ? ` ${row.currency}` : ""}`;
+        },
+      },
+      {
+        title: "平台交易号",
+        dataIndex: "provider_id",
+        key: "provider_id",
+        width: 220,
+        render: (value) => <CopyableValue value={value} wrap />,
+      },
+      {
+        title: "订阅链 ID",
+        dataIndex: "chain_id",
+        key: "chain_id",
+        width: 240,
+        render: (value) => <CopyableValue value={value} wrap />,
+      },
+      {
+        title: "更新时间",
+        dataIndex: "updated_at",
+        key: "updated_at",
+        width: 176,
+        render: (value) => formatCnDateTime(value),
+      },
+    ],
+    [nativeOrderBy],
+  );
+
+  const isH5 = activePlatform === "h5";
+  const displayedCount = isH5 ? listCount : nativeCount;
+
   return (
     <div className={styles.page}>
       <div className={styles.pageHead}>
@@ -618,11 +913,22 @@ export function SubscriptionUsers() {
           订阅用户
         </Typography.Title>
         <div className={styles.pageHeadRight}>
-          <span className={styles.totalHint}>共 {listCount} 条</span>
+          <span className={styles.totalHint}>共 {displayedCount} 条</span>
         </div>
       </div>
 
-      <div className={styles.viewBar}>
+      <Tabs
+        activeKey={activePlatform}
+        items={SUBSCRIPTION_PLATFORM_TABS}
+        onChange={(key) => {
+          setActivePlatform(key as SubscriptionPlatformTab);
+          setSelectedRowKeys([]);
+        }}
+      />
+
+      {isH5 ? (
+        <>
+          <div className={styles.viewBar}>
         <Segmented<ViewMode>
           value={viewMode}
           onChange={(v) => setViewMode(v as ViewMode)}
@@ -631,9 +937,9 @@ export function SubscriptionUsers() {
             { label: "表格", value: "table" },
           ]}
         />
-      </div>
+          </div>
 
-      <div className={orderStyles.filterWrap}>
+          <div className={orderStyles.filterWrap}>
         <div className={orderStyles.filterBar}>
           <div className={orderStyles.filterItem}>
             <span className={orderStyles.filterLabel}>时间字段</span>
@@ -767,24 +1073,133 @@ export function SubscriptionUsers() {
             </div>
           ) : null}
         </div>
-      </div>
+          </div>
+        </>
+      ) : (
+        <div className={orderStyles.filterWrap}>
+          <div className={orderStyles.filterBar}>
+            <div className={orderStyles.filterItem}>
+              <span className={orderStyles.filterLabel}>日期</span>
+              <DatePicker.RangePicker
+                className={orderStyles.dateRange}
+                picker="date"
+                format="YYYY-MM-DD"
+                allowClear
+                value={nativeDateRange}
+                presets={subscriptionDateRangePresets()}
+                onChange={(dates) => {
+                  if (dates?.[0] && dates[1]) {
+                    let from = dates[0].startOf("day");
+                    let to = dates[1].startOf("day");
+                    if (from.isAfter(to)) [from, to] = [to, from];
+                    setNativeDateRange([from, to]);
+                  } else {
+                    setNativeDateRange(null);
+                  }
+                  setNativePage(1);
+                }}
+              />
+            </div>
+            <div className={orderStyles.filterItem}>
+              <span className={orderStyles.filterLabel}>状态</span>
+              <Select
+                className={styles.statusField}
+                value={nativeStatus}
+                options={NATIVE_SUBSCRIPTION_STATUS_OPTIONS}
+                onChange={(value) => {
+                  setNativeStatus(value);
+                  setNativePage(1);
+                }}
+              />
+            </div>
+            <div className={orderStyles.filterItem}>
+              <span className={orderStyles.filterLabel}>投放渠道</span>
+              <Input
+                allowClear
+                className={styles.channelField}
+                placeholder="渠道码"
+                value={nativeSourceInput}
+                maxLength={64}
+                onChange={(event) => setNativeSourceInput(event.target.value)}
+                onPressEnter={runNativeSearch}
+              />
+            </div>
+            <div className={orderStyles.filterItem}>
+              <span className={orderStyles.filterLabel}>关键词</span>
+              <Input
+                allowClear
+                className={styles.nativeKeywordField}
+                placeholder="用户、订单、商品或交易号"
+                value={nativeKeywordInput}
+                maxLength={100}
+                onChange={(event) => setNativeKeywordInput(event.target.value)}
+                onPressEnter={runNativeSearch}
+              />
+            </div>
+            <Button type="primary" onClick={runNativeSearch}>
+              搜索
+            </Button>
+          </div>
+        </div>
+      )}
 
       <section className={styles.statSection}>
         <div className={styles.statSectionHead}>
           <Typography.Text className={styles.statSectionTitle}>续订统计</Typography.Text>
           <span className={styles.statPageSummary}>
-            <span className={styles.statPageSuccess}>
-              本页成功：<strong>{pageStatusCounts.success}</strong>
-            </span>
-            <span className={styles.statPageFail}>
-              失败：<strong>{pageStatusCounts.fail}</strong>
-            </span>
+            {isH5 ? (
+              <>
+                <span className={styles.statPageSuccess}>
+                  本页成功：<strong>{pageStatusCounts.success}</strong>
+                </span>
+                <span className={styles.statPageFail}>
+                  失败：<strong>{pageStatusCounts.fail}</strong>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className={styles.statPageSuccess}>
+                  有效订阅：<strong>{Number(nativeStat?.active_subscriptions) || 0}</strong>
+                </span>
+                <span>总订阅：{Number(nativeStat?.total_subscriptions) || 0}</span>
+                <span>续订事件：{Number(nativeStat?.renewal_events) || 0}</span>
+              </>
+            )}
           </span>
         </div>
-        <SubscriptionRenewalStatCards rows={renewalStatRows} loading={loading} />
+        <SubscriptionRenewalStatCards
+          rows={isH5 ? renewalStatRows : nativeRenewalStatRows}
+          loading={loading}
+        />
       </section>
 
-      {viewMode === "calendar" ? (
+      {!isH5 ? (
+        <Table<AdminNativeSubscriptionRow>
+          rowKey="id"
+          loading={loading}
+          columns={nativeColumns}
+          dataSource={nativeRows}
+          pagination={false}
+          scroll={{ x: NATIVE_SUBSCRIPTION_TABLE_SCROLL_X }}
+          size="middle"
+          tableLayout="fixed"
+          className={styles.notionTable}
+          bordered
+          showHeader
+          sticky={mainContentTableSticky}
+          locale={{ emptyText: loading ? "加载中…" : "暂无数据" }}
+          onChange={(_pagination, _filters, sorter) => {
+            const selectedSorter = Array.isArray(sorter) ? sorter[0] : sorter;
+            const field = String(selectedSorter?.columnKey ?? selectedSorter?.field ?? "");
+            if (field === "started_at" || field === "period_end_at") {
+              setNativeOrderBy(tableSorterToOrderBy(sorter, field));
+            } else {
+              setNativeOrderBy("");
+            }
+            setNativePage(1);
+          }}
+        />
+      ) : viewMode === "calendar" ? (
         <Spin spinning={loading}>
           <Suspense fallback={<div className={styles.calendarLoading}>加载日历…</div>}>
             <SubscriptionUsersCalendar rows={apiRows} month={calendarMonth} onMonthChange={setCalendarMonth} />
@@ -827,22 +1242,25 @@ export function SubscriptionUsers() {
         />
       )}
 
-      {listCount > SUBSCRIPTION_LIST_PAGE_SIZE ? (
+      {displayedCount > (isH5 ? SUBSCRIPTION_LIST_PAGE_SIZE : nativePerPage) ? (
         <div className={userListStyles.paginationWrap}>
           <Pagination
-            current={page}
-            pageSize={perPage}
-            total={listCount}
+            current={isH5 ? page : nativePage}
+            pageSize={isH5 ? perPage : nativePerPage}
+            total={displayedCount}
             showSizeChanger={false}
             showTotal={(t) => `共 ${t} 条`}
-            onChange={(p) => setPage(p)}
+            onChange={(nextPage) => {
+              if (isH5) setPage(nextPage);
+              else setNativePage(nextPage);
+            }}
           />
         </div>
       ) : null}
 
       <Modal
         title="修改订阅状态"
-        open={statusEditRow != null}
+        open={isH5 && statusEditRow != null}
         onCancel={closeStatusEditModal}
         onOk={() => void submitStatusEdit()}
         okText="保存"

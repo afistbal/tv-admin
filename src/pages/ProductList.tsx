@@ -20,7 +20,9 @@ type ProductTabKey = "package" | "coin";
 
 const PLATFORM_TAB_ITEMS: { key: PlatformTabKey; label: string }[] = [
   { key: "h5", label: "H5" },
+  { key: "android", label: "Android" },
   { key: "ios", label: "IOS" },
+  { key: "tk", label: "TikTok" },
 ];
 
 const TAB_ITEMS: { key: ProductTabKey; label: string; type: 1 | 2 }[] = [
