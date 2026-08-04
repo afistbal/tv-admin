@@ -92,6 +92,7 @@ const menuItems: MenuProps["items"] = [
     icon: <SettingOutlined />,
     label: "配置管理",
     children: [
+      { key: "/config/settings", label: <Link to="/config/settings">配置列表</Link> },
       { key: "/config/products", label: <Link to="/config/products">产品管理</Link> },
       { key: "/config/recommend-pool", label: <Link to="/config/recommend-pool">推荐管理</Link> },
       { key: "/config/tag-categories", label: <Link to="/config/tag-categories">Tag 分类管理</Link> },
@@ -266,6 +267,7 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
         content={
           <CollapsedPopoverLinks
             links={[
+              { to: "/config/settings", label: "配置列表" },
               { to: "/config/products", label: "产品管理" },
               { to: "/config/recommend-pool", label: "推荐管理" },
               { to: "/config/tag-categories", label: "Tag 分类管理" },
@@ -399,6 +401,9 @@ export function BasicLayout() {
     }
     if (location.pathname.startsWith("/config/products")) {
       return ["/config/products"];
+    }
+    if (location.pathname.startsWith("/config/settings")) {
+      return ["/config/settings"];
     }
     return [];
   }, [location.pathname]);
@@ -547,7 +552,11 @@ export function BasicLayout() {
             {collapsed ? (
               <CollapsedSideNav pathname={location.pathname} />
             ) : (
-              <SideMenu selectedKeys={selectedKeys} openKeys={openKeys} onOpenChange={setOpenKeys} />
+              <SideMenu
+                selectedKeys={selectedKeys}
+                openKeys={openKeys}
+                onOpenChange={setOpenKeys}
+              />
             )}
           </div>
         </Sider>

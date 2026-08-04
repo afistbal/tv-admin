@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "@/auth/RequireAuth";
 import { BasicLayout } from "@/layouts/BasicLayout";
 import { Dashboard } from "@/pages/Dashboard";
+import { ConfigManagement } from "@/pages/ConfigManagement";
 import { DramaLatestUpdate } from "@/pages/DramaLatestUpdate";
 import { MovieList } from "@/pages/MovieList";
 import { TkMovieList } from "@/pages/TkMovieList";
@@ -49,6 +50,7 @@ export function AppRouter() {
           <Route path="drama/movies" element={<MovieList />} />
           <Route path="drama/tk-movies" element={<TkMovieList />} />
           <Route path="config/products" element={<ProductList />} />
+          <Route path="config/settings" element={<ConfigManagement />} />
           <Route path="config/recommend-pool" element={<RecommendPoolList />} />
           <Route path="config/tag-categories" element={<TagCategoryMappings />} />
           <Route path="chat/feedback" element={<FeedbackList />} />
