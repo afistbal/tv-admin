@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Input, Modal, Table, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { apiPostJson } from "@/api/client";
@@ -17,6 +17,13 @@ type SearchResultRow = {
   raw: Record<string, unknown>;
 };
 
+type RunningLogRow = {
+  key: string;
+  ffmpegId: string;
+  createTime: string;
+  runningTime: string;
+};
+
 const TOKEN_CONFIG_KEY = "third-party-token";
 const SEARCH_CONFIG_KEY = "third-party-search";
 
@@ -24,6 +31,9 @@ const CONFIG_ROWS: ConfigRow[] = [
   { key: TOKEN_CONFIG_KEY, name: "三方token信息" },
   { key: SEARCH_CONFIG_KEY, name: "三方search 拉剧" },
 ];
+
+const RUNNING_INFO_POLL_MS = 30_000;
+const SEARCH_SAVE_REFRESH_DELAY_MS = 3_000;
 
 function tokenContentFromResponse(data: unknown): string {
   if (typeof data === "string") {
@@ -33,6 +43,73 @@ function tokenContentFromResponse(data: unknown): string {
     return "";
   }
   return JSON.stringify(data, null, 2);
+}
+
+function runningInfoText(data: unknown): string {
+  if (data == null || data === "") {
+    return "暂无";
+  }
+  if (typeof data === "string") {
+    const value = data.trim();
+    if (!value) {
+      return "暂无";
+    }
+    try {
+      return JSON.stringify(JSON.parse(value) as unknown, null, 2);
+    } catch {
+      return value;
+    }
+  }
+  return JSON.stringify(data, null, 2);
+}
+
+function ffmpegIdsText(data: unknown): string {
+  let parsed = data;
+  if (typeof parsed === "string") {
+    const raw = parsed;
+    try {
+      parsed = JSON.parse(raw) as unknown;
+    } catch {
+      return raw.trim() || "暂无";
+    }
+  }
+  const values = Array.isArray(parsed)
+    ? parsed
+    : parsed != null && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).ffmpeg)
+      ? ((parsed as Record<string, unknown>).ffmpeg as unknown[])
+      : [];
+  const ids = values.map((value) => String(value ?? "").trim()).filter(Boolean);
+  return ids.length > 0 ? ids.join(", ") : "暂无";
+}
+
+function runningLogRows(data: string): RunningLogRow[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data) as unknown;
+  } catch {
+    return [];
+  }
+  if (parsed == null || typeof parsed !== "object") {
+    return [];
+  }
+  const root = parsed as Record<string, unknown>;
+  const detail = root.detail != null && typeof root.detail === "object" ? root.detail as Record<string, unknown> : {};
+  const backend =
+    detail.backend != null && typeof detail.backend === "object"
+      ? detail.backend as Record<string, unknown>
+      : {};
+  const createTime = String(backend.create_time ?? "—");
+  const runningTime = String(backend.running_time ?? "—");
+  const ids = Array.isArray(root.ffmpeg)
+    ? root.ffmpeg.map((value) => String(value ?? "").trim()).filter(Boolean)
+    : [];
+  const values = ids.length > 0 ? ids : ["—"];
+  return values.map((ffmpegId, index) => ({
+    key: `${ffmpegId}-${index}`,
+    ffmpegId,
+    createTime,
+    runningTime,
+  }));
 }
 
 function searchResultRowsFromResponse(data: unknown): SearchResultRow[] {
@@ -80,6 +157,144 @@ export function ConfigManagement() {
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [savingSearch, setSavingSearch] = useState(false);
   const [searchLoaded, setSearchLoaded] = useState(false);
+  const [ffmpegInfo, setFfmpegInfo] = useState("暂无");
+  const [loadingFfmpegInfo, setLoadingFfmpegInfo] = useState(false);
+  const [logsModalOpen, setLogsModalOpen] = useState(false);
+  const [allLogs, setAllLogs] = useState("暂无日志");
+  const [loadingAllLogs, setLoadingAllLogs] = useState(false);
+  const [ffmpegRestartSeq, setFfmpegRestartSeq] = useState(0);
+  const [ffmpegRestartPaused, setFfmpegRestartPaused] = useState(false);
+
+  const ffmpegRequestRef = useRef<Promise<string> | null>(null);
+  const allLogsRequestRef = useRef<Promise<string> | null>(null);
+  const ffmpegRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const requestRunningInfo = useCallback((type: "all" | "ffmpeg"): Promise<string> => {
+    const requestRef = type === "ffmpeg" ? ffmpegRequestRef : allLogsRequestRef;
+    if (requestRef.current) {
+      return requestRef.current;
+    }
+    const request = apiPostJson<unknown>("admin/drama/running-info", { type })
+      .then((res) => {
+        if (res.c !== 0) {
+          throw new Error(res.m || "获取运行信息失败");
+        }
+        return type === "ffmpeg" ? ffmpegIdsText(res.d) : runningInfoText(res.d);
+      })
+      .finally(() => {
+        requestRef.current = null;
+      });
+    requestRef.current = request;
+    return request;
+  }, []);
+
+  useEffect(() => {
+    if (!isYogoSite || logsModalOpen || ffmpegRestartPaused) {
+      return;
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async () => {
+      setLoadingFfmpegInfo(true);
+      try {
+        const text = await requestRunningInfo("ffmpeg");
+        if (!cancelled) {
+          setFfmpegInfo(text);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setFfmpegInfo(error instanceof Error ? `加载失败：${error.message}` : "加载失败");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingFfmpegInfo(false);
+          timer = setTimeout(() => void poll(), RUNNING_INFO_POLL_MS);
+        }
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [ffmpegRestartPaused, ffmpegRestartSeq, isYogoSite, logsModalOpen, requestRunningInfo]);
+
+  useEffect(() => {
+    if (!isYogoSite || !logsModalOpen) {
+      return;
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async () => {
+      setLoadingAllLogs(true);
+      try {
+        const text = await requestRunningInfo("all");
+        if (!cancelled) {
+          setAllLogs(text);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setAllLogs(error instanceof Error ? `加载失败：${error.message}` : "加载失败");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingAllLogs(false);
+          timer = setTimeout(() => void poll(), RUNNING_INFO_POLL_MS);
+        }
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [isYogoSite, logsModalOpen, requestRunningInfo]);
+
+  useEffect(
+    () => () => {
+      if (ffmpegRestartTimerRef.current) {
+        clearTimeout(ffmpegRestartTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const clearFfmpegRestartTimer = useCallback(() => {
+    if (ffmpegRestartTimerRef.current) {
+      clearTimeout(ffmpegRestartTimerRef.current);
+      ffmpegRestartTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleFfmpegRefreshAfterSave = useCallback(() => {
+    clearFfmpegRestartTimer();
+    setFfmpegRestartPaused(true);
+    ffmpegRestartTimerRef.current = setTimeout(() => {
+      ffmpegRestartTimerRef.current = null;
+      setFfmpegRestartPaused(false);
+      setFfmpegRestartSeq((value) => value + 1);
+    }, SEARCH_SAVE_REFRESH_DELAY_MS);
+  }, [clearFfmpegRestartTimer]);
+
+  const openLogsModal = useCallback(() => {
+    clearFfmpegRestartTimer();
+    setFfmpegRestartPaused(false);
+    setLogsModalOpen(true);
+  }, [clearFfmpegRestartTimer]);
+
+  const closeLogsModal = useCallback(() => {
+    clearFfmpegRestartTimer();
+    setFfmpegRestartPaused(false);
+    setLogsModalOpen(false);
+  }, [clearFfmpegRestartTimer]);
 
   const openTokenModal = useCallback(async () => {
     setTokenModalOpen(true);
@@ -172,13 +387,14 @@ export function ConfigManagement() {
         return;
       }
       message.success("三方search保存成功");
+      scheduleFfmpegRefreshAfterSave();
       setSearchModalOpen(false);
     } catch {
       message.error("保存三方search失败");
     } finally {
       setSavingSearch(false);
     }
-  }, [searchContent, searchLoaded, selectedSearchKey]);
+  }, [scheduleFfmpegRefreshAfterSave, searchContent, searchLoaded, selectedSearchKey]);
 
   const columns: ColumnsType<ConfigRow> = [
     { title: "配置项", dataIndex: "name", key: "name" },
@@ -236,9 +452,37 @@ export function ConfigManagement() {
     },
   ];
 
+  const allLogRows = runningLogRows(allLogs);
+
   return (
     <div>
       <Typography.Title level={4}>配置管理</Typography.Title>
+      {isYogoSite ? (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: "12px 16px",
+            border: "1px solid #e8e8e8",
+            borderRadius: 6,
+            background: "#fafafa",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <Typography.Text strong style={{ flexShrink: 0 }}>
+              抓取 FFmpeg ID：
+            </Typography.Text>
+            <Typography.Text
+              copyable={ffmpegInfo && ffmpegInfo !== "暂无" ? { text: ffmpegInfo } : false}
+              style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+            >
+              {loadingFfmpegInfo && ffmpegInfo === "暂无" ? "加载中..." : ffmpegInfo}
+            </Typography.Text>
+          </div>
+          <Button type="link" style={{ height: "auto", marginTop: 8, padding: 0 }} onClick={openLogsModal}>
+            抓取详情日志
+          </Button>
+        </div>
+      ) : null}
       <Table<ConfigRow>
         rowKey="key"
         columns={columns}
@@ -337,6 +581,67 @@ export function ConfigManagement() {
           autoSize={{ minRows: 4, maxRows: 8 }}
           disabled={loadingSearch}
         />
+      </Modal>
+
+      <Modal
+        title={<span style={{ color: "#f0f6fc" }}>抓取详情日志</span>}
+        open={logsModalOpen}
+        width="min(900px, calc(100vw - 32px))"
+        footer={null}
+        closeIcon={<span style={{ color: "#f0f6fc", fontSize: 20 }}>×</span>}
+        onCancel={closeLogsModal}
+        destroyOnClose
+        styles={{
+          content: { background: "#0d1117" },
+          header: { background: "#0d1117", borderBottom: "1px solid #30363d" },
+          body: { paddingTop: 16, background: "#0d1117" },
+        }}
+      >
+        <div style={{ marginBottom: 8, color: "#8b949e", fontSize: 12 }}>
+          {loadingAllLogs ? "正在刷新..." : "每 30 秒自动刷新"}
+        </div>
+        <div style={{ maxHeight: "62vh", overflow: "auto", border: "1px solid #30363d", borderRadius: 6 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", color: "#e6edf3", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "#161b22" }}>
+                <th style={{ padding: "10px 12px", borderBottom: "1px solid #30363d", textAlign: "left" }}>
+                  FFmpeg ID
+                </th>
+                <th style={{ padding: "10px 12px", borderBottom: "1px solid #30363d", textAlign: "left" }}>
+                  创建时间
+                </th>
+                <th style={{ padding: "10px 12px", borderBottom: "1px solid #30363d", textAlign: "left" }}>
+                  运行时间
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {allLogRows.map((row) => (
+                <tr key={row.key} style={{ background: "#010409" }}>
+                  <td
+                    style={{
+                      padding: "10px 12px",
+                      borderBottom: "1px solid #21262d",
+                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {row.ffmpegId}
+                  </td>
+                  <td style={{ padding: "10px 12px", borderBottom: "1px solid #21262d" }}>{row.createTime}</td>
+                  <td style={{ padding: "10px 12px", borderBottom: "1px solid #21262d" }}>{row.runningTime}</td>
+                </tr>
+              ))}
+              {allLogRows.length === 0 ? (
+                <tr style={{ background: "#010409" }}>
+                  <td colSpan={3} style={{ padding: 24, color: "#8b949e", textAlign: "center" }}>
+                    {loadingAllLogs ? "加载中..." : "暂无日志"}
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </Modal>
     </div>
   );
