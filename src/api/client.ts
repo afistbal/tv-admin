@@ -82,3 +82,23 @@ export async function apiPostJson<T>(path: string, data: Record<string, unknown>
   });
   return (await res.json()) as ApiResult<T>;
 }
+
+export async function apiPutJson<T>(path: string, data: Record<string, unknown>): Promise<ApiResult<T>> {
+  const res = await fetch(buildUrl(path), {
+    method: "PUT",
+    headers: {
+      ...clientHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+  return (await res.json()) as ApiResult<T>;
+}
+
+export async function apiDelete<T>(path: string): Promise<ApiResult<T>> {
+  const res = await fetch(buildUrl(path), {
+    method: "DELETE",
+    headers: clientHeaders(),
+  });
+  return (await res.json()) as ApiResult<T>;
+}

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Input, Modal, Table, Typography, message } from "antd";
+import { Button, Input, Modal, Table, Tabs, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { apiPostJson } from "@/api/client";
 import { getActiveSiteKey } from "@/api/baseURL";
+import { TikTokAdConfig } from "./TikTokAdConfig";
 
 type ConfigRow = {
   key: string;
@@ -145,6 +146,7 @@ function searchResultRowsFromResponse(data: unknown): SearchResultRow[] {
 
 export function ConfigManagement() {
   const isYogoSite = getActiveSiteKey() === "main";
+  const [activeTab, setActiveTab] = useState("third-party");
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
   const [tokenContent, setTokenContent] = useState("");
   const [loadingToken, setLoadingToken] = useState(false);
@@ -189,7 +191,7 @@ export function ConfigManagement() {
   }, []);
 
   useEffect(() => {
-    if (!isYogoSite || logsModalOpen || ffmpegRestartPaused) {
+    if (!isYogoSite || activeTab !== "third-party" || logsModalOpen || ffmpegRestartPaused) {
       return;
     }
     let cancelled = false;
@@ -221,10 +223,10 @@ export function ConfigManagement() {
         clearTimeout(timer);
       }
     };
-  }, [ffmpegRestartPaused, ffmpegRestartSeq, isYogoSite, logsModalOpen, requestRunningInfo]);
+  }, [activeTab, ffmpegRestartPaused, ffmpegRestartSeq, isYogoSite, logsModalOpen, requestRunningInfo]);
 
   useEffect(() => {
-    if (!isYogoSite || !logsModalOpen) {
+    if (!isYogoSite || activeTab !== "third-party" || !logsModalOpen) {
       return;
     }
     let cancelled = false;
@@ -256,7 +258,7 @@ export function ConfigManagement() {
         clearTimeout(timer);
       }
     };
-  }, [isYogoSite, logsModalOpen, requestRunningInfo]);
+  }, [activeTab, isYogoSite, logsModalOpen, requestRunningInfo]);
 
   useEffect(
     () => () => {
@@ -295,6 +297,18 @@ export function ConfigManagement() {
     setFfmpegRestartPaused(false);
     setLogsModalOpen(false);
   }, [clearFfmpegRestartTimer]);
+
+  const changeActiveTab = useCallback(
+    (key: string) => {
+      if (key !== "third-party") {
+        clearFfmpegRestartTimer();
+        setFfmpegRestartPaused(false);
+        setLogsModalOpen(false);
+      }
+      setActiveTab(key);
+    },
+    [clearFfmpegRestartTimer],
+  );
 
   const openTokenModal = useCallback(async () => {
     setTokenModalOpen(true);
@@ -457,38 +471,65 @@ export function ConfigManagement() {
   return (
     <div>
       <Typography.Title level={4}>配置管理</Typography.Title>
-      {isYogoSite ? (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: "12px 16px",
-            border: "1px solid #e8e8e8",
-            borderRadius: 6,
-            background: "#fafafa",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-            <Typography.Text strong style={{ flexShrink: 0 }}>
-              抓取 FFmpeg ID：
-            </Typography.Text>
-            <Typography.Text
-              copyable={ffmpegInfo && ffmpegInfo !== "暂无" ? { text: ffmpegInfo } : false}
-              style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-            >
-              {loadingFfmpegInfo && ffmpegInfo === "暂无" ? "加载中..." : ffmpegInfo}
-            </Typography.Text>
-          </div>
-          <Button type="link" style={{ height: "auto", marginTop: 8, padding: 0 }} onClick={openLogsModal}>
-            抓取详情日志
-          </Button>
-        </div>
-      ) : null}
-      <Table<ConfigRow>
-        rowKey="key"
-        columns={columns}
-        dataSource={isYogoSite ? CONFIG_ROWS : []}
-        pagination={false}
-        bordered
+      <Tabs
+        activeKey={activeTab}
+        onChange={changeActiveTab}
+        items={[
+          {
+            key: "third-party",
+            label: "三方配置",
+            children: (
+              <>
+                {isYogoSite ? (
+                  <div
+                    style={{
+                      marginBottom: 16,
+                      padding: "12px 16px",
+                      border: "1px solid #e8e8e8",
+                      borderRadius: 6,
+                      background: "#fafafa",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                      <Typography.Text strong style={{ flexShrink: 0 }}>
+                        抓取 FFmpeg ID：
+                      </Typography.Text>
+                      <Typography.Text
+                        copyable={ffmpegInfo && ffmpegInfo !== "暂无" ? { text: ffmpegInfo } : false}
+                        style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                      >
+                        {loadingFfmpegInfo && ffmpegInfo === "暂无" ? "加载中..." : ffmpegInfo}
+                      </Typography.Text>
+                    </div>
+                    <Button
+                      type="link"
+                      style={{ height: "auto", marginTop: 8, padding: 0 }}
+                      onClick={openLogsModal}
+                    >
+                      抓取详情日志
+                    </Button>
+                  </div>
+                ) : null}
+                <Table<ConfigRow>
+                  rowKey="key"
+                  columns={columns}
+                  dataSource={isYogoSite ? CONFIG_ROWS : []}
+                  pagination={false}
+                  bordered
+                />
+              </>
+            ),
+          },
+          ...(isYogoSite
+            ? [
+                {
+                  key: "tiktok-ads",
+                  label: "tiktok广告配置",
+                  children: <TikTokAdConfig />,
+                },
+              ]
+            : []),
+        ]}
       />
 
       <Modal
