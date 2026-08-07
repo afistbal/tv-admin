@@ -49,6 +49,12 @@ const LANGUAGES: { value: string; label: string }[] = [
 type MovieSourceFilter = "all" | "0" | "1";
 type MovieStatusFilter = "all" | "0" | "1" | "2" | "3";
 type MovieSelfFilter = "all" | "0" | "1";
+type MovieBatchAction = "trash" | "restore";
+
+type MovieBatchResult = {
+  success_ids?: Array<number | string>;
+  failed_ids?: Array<number | string>;
+};
 
 const MOVIE_SOURCE_OPTIONS: { value: MovieSourceFilter; label: string }[] = [
   { value: "all", label: "全部来源" },
@@ -116,6 +122,8 @@ export function MovieList() {
   const [statusFilter, setStatusFilter] = useState<MovieStatusFilter>("all");
   const [selfFilter, setSelfFilter] = useState<MovieSelfFilter>("all");
   const [listOrderBy, setListOrderBy] = useState<"" | "play" | "favorite">("");
+  const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
+  const [batchAction, setBatchAction] = useState<MovieBatchAction | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [recommendSavingId, setRecommendSavingId] = useState<number | null>(null);
   const [watermarkSavingId, setWatermarkSavingId] = useState<number | null>(null);
@@ -187,6 +195,10 @@ export function MovieList() {
   useEffect(() => {
     void fetchList();
   }, [page, keyword, language, levelFilter, sourceFilter, statusFilter, selfFilter, listOrderBy, fetchList]);
+
+  useEffect(() => {
+    setSelectedRowKeys([]);
+  }, [page, keyword, language, levelFilter, sourceFilter, statusFilter, selfFilter, listOrderBy]);
 
   /** 仪表盘播放排行等入口：`/drama/movies?id=` 预填搜索 */
   useEffect(() => {
@@ -328,6 +340,76 @@ export function MovieList() {
       setRowActionBusyId(null);
     }
   }, []);
+
+  const runMovieBatchAction = useCallback(
+    async (action: MovieBatchAction, ids: number[]) => {
+      if (ids.length === 0) {
+        message.warning("请先勾选要操作的剧集");
+        return;
+      }
+
+      setBatchAction(action);
+      try {
+        const res: ApiResult<MovieBatchResult> = await apiPostJson(`admin/movie/${action}`, {
+          id: ids.join(","),
+        });
+        const successIds = Array.isArray(res.d?.success_ids) ? res.d.success_ids.map(Number).filter(Number.isFinite) : [];
+        const failedIds = Array.isArray(res.d?.failed_ids) ? res.d.failed_ids.map(Number).filter(Number.isFinite) : [];
+
+        // 该接口文档的成功示例使用 c=1，与项目其余接口的 c=0 约定不同，因此以逐项结果为准。
+        if (successIds.length === 0 && failedIds.length === 0) {
+          if (res.c !== 0) {
+            message.error(res.m || (action === "trash" ? "短剧资源清理失败，请稍后重试" : "回退删除失败，请稍后重试"));
+            return;
+          }
+          successIds.push(...ids);
+        }
+
+        if (failedIds.length === 0) {
+          message.success(action === "trash" ? `已删除 ${successIds.length} 部剧集` : `已将 ${successIds.length} 部剧集回退到草稿`);
+        } else if (successIds.length > 0) {
+          message.warning(`成功 ${successIds.length} 部，失败 ${failedIds.length} 部（ID：${failedIds.join("、")}）`);
+        } else {
+          message.error(res.m || `操作失败（ID：${failedIds.join("、")}）`);
+        }
+
+        setSelectedRowKeys(failedIds);
+        await fetchList();
+      } catch {
+        message.error("网络异常");
+      } finally {
+        setBatchAction(null);
+      }
+    },
+    [fetchList],
+  );
+
+  const confirmMovieTrash = useCallback(
+    (ids: number[]) => {
+      Modal.confirm({
+        title: ids.length > 1 ? `确定批量删除所选 ${ids.length} 部剧集？` : "确定删除该剧集？",
+        content: "删除后剧集将变为“已删除”状态，10 分钟内可以回退到草稿。",
+        okText: "确定删除",
+        okButtonProps: { danger: true },
+        cancelText: "取消",
+        onOk: () => runMovieBatchAction("trash", ids),
+      });
+    },
+    [runMovieBatchAction],
+  );
+
+  const confirmMovieRestore = useCallback(
+    (ids: number[]) => {
+      Modal.confirm({
+        title: "回退删除",
+        content: "10分钟内已删除的剧可以回退到草稿，确定回退吗？",
+        okText: "确定回退",
+        cancelText: "取消",
+        onOk: () => runMovieBatchAction("restore", ids),
+      });
+    },
+    [runMovieBatchAction],
+  );
 
   const handleMovieStatus = useCallback(
     (row: AdminMovieRow, status: number, confirmTitle: string) => {
@@ -676,7 +758,8 @@ export function MovieList() {
         fixed: "right",
         className: styles.opCol,
         render: (_: unknown, row) => {
-          const busy = rowActionBusyId === row.id;
+          const busy = rowActionBusyId === row.id || batchAction != null;
+          const isDeleted = Number(row.status) === 3;
           const moreItems: MenuProps["items"] = [
             {
               key: "audioZh",
@@ -694,21 +777,27 @@ export function MovieList() {
             {
               key: "status1",
               label: "上架",
-              disabled: busy,
+              disabled: busy || isDeleted,
               onClick: () => handleMovieStatus(row, 1, "确定将该短剧上架？"),
             },
             {
               key: "status2",
               label: "下架",
-              disabled: busy,
+              disabled: busy || isDeleted,
               onClick: () => handleMovieStatus(row, 2, "确定将该短剧下架？"),
             },
             {
               key: "status3",
               label: "删除",
               danger: true,
-              disabled: busy,
-              onClick: () => handleMovieStatus(row, 3, "确定删除该短剧？删除后不可恢复。"),
+              disabled: busy || isDeleted,
+              onClick: () => confirmMovieTrash([row.id]),
+            },
+            {
+              key: "restore",
+              label: "回退删除",
+              disabled: busy || !isDeleted,
+              onClick: () => confirmMovieRestore([row.id]),
             },
           ];
           return (
@@ -764,6 +853,7 @@ export function MovieList() {
       sortSavingId,
       favoriteOffsetSavingId,
       rowActionBusyId,
+      batchAction,
       handleRecommendChange,
       handleWatermarkChange,
       handleSelfMadeChange,
@@ -772,11 +862,17 @@ export function MovieList() {
       playMovieUrl,
       handleExportMovie,
       handleMovieStatus,
+      confirmMovieTrash,
+      confirmMovieRestore,
       handleSetAudioTrack,
       openMovieEdit,
       openPosterPreview,
     ],
   );
+
+  const selectedRows = rows.filter((row) => selectedRowKeys.includes(row.id));
+  const selectedTrashIds = selectedRows.filter((row) => Number(row.status) !== 3).map((row) => row.id);
+  const selectedRestoreIds = selectedRows.filter((row) => Number(row.status) === 3).map((row) => row.id);
 
   return (
     <div>
@@ -787,6 +883,22 @@ export function MovieList() {
       <div className={stylesToolbar.toolbar}>
         <Space wrap className={stylesToolbar.toolbarLeft}>
           <Typography.Text type="secondary">共 {total} 部</Typography.Text>
+          <Typography.Text type="secondary">已选 {selectedRowKeys.length} 部</Typography.Text>
+          <Button
+            danger
+            disabled={selectedTrashIds.length === 0 || batchAction != null}
+            loading={batchAction === "trash"}
+            onClick={() => confirmMovieTrash(selectedTrashIds)}
+          >
+            批量删除
+          </Button>
+          <Button
+            disabled={selectedRestoreIds.length === 0 || batchAction != null}
+            loading={batchAction === "restore"}
+            onClick={() => confirmMovieRestore(selectedRestoreIds)}
+          >
+            回退删除
+          </Button>
         </Space>
         <Space wrap className={stylesToolbar.toolbarRight}>
           <Select
@@ -881,6 +993,11 @@ export function MovieList() {
         loading={loading}
         columns={columns}
         dataSource={rows}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: (keys) => setSelectedRowKeys(keys.map(Number).filter(Number.isFinite)),
+          getCheckboxProps: () => ({ disabled: batchAction != null }),
+        }}
         pagination={false}
         sticky={mainContentTableSticky}
         size="middle"

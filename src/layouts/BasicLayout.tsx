@@ -35,7 +35,10 @@ const menuItems: MenuProps["items"] = [
     key: "sub-users",
     icon: <TeamOutlined />,
     label: "用户管理",
-    children: [{ key: "/users/list", label: <Link to="/users/list">用户列表</Link> }],
+    children: [
+      { key: "/users/list", label: <Link to="/users/list">用户列表</Link> },
+      { key: "/users/behavior-log", label: <Link to="/users/behavior-log">行为日志</Link> },
+    ],
   },
   {
     key: "sub-data",
@@ -172,7 +175,17 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
         </Link>
       </Tooltip>
 
-      <Popover {...popCommon} content={<CollapsedPopoverLinks links={[{ to: "/users/list", label: "用户列表" }]} />}>
+      <Popover
+        {...popCommon}
+        content={
+          <CollapsedPopoverLinks
+            links={[
+              { to: "/users/list", label: "用户列表" },
+              { to: "/users/behavior-log", label: "行为日志" },
+            ]}
+          />
+        }
+      >
         <div
           className={`${styles.collapsedIconBtn} ${usersActive ? styles.collapsedIconBtnActive : ""}`}
           role="button"
@@ -377,6 +390,9 @@ export function BasicLayout() {
     }
     if (location.pathname.startsWith("/data/promotion-sources")) {
       return ["/data/promotion-sources"];
+    }
+    if (location.pathname.startsWith("/users/behavior-log")) {
+      return ["/users/behavior-log"];
     }
     if (location.pathname.startsWith("/users")) {
       return ["/users/list"];

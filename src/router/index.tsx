@@ -18,6 +18,7 @@ import { TagCategoryMappings } from "@/pages/TagCategoryMappings";
 import { UserActivity } from "@/pages/UserActivity";
 import { FeedbackList } from "@/pages/FeedbackList";
 import { UserList } from "@/pages/UserList";
+import { BehaviorLog } from "@/pages/BehaviorLog";
 
 /** 登录页单独分包，其余后台页同步引入，避免切换菜单时 lazy + Suspense(null) 造成主区域白屏闪烁 */
 const LoginLazy = lazy(() => import("@/pages/Login").then((m) => ({ default: m.Login })));
@@ -39,6 +40,7 @@ export function AppRouter() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users/list" element={<UserList />} />
+          <Route path="users/behavior-log" element={<BehaviorLog />} />
           <Route path="users/activity/:userId" element={<UserActivity />} />
           <Route path="data/promotion-sources" element={<PromotionSources />} />
           <Route path="data/promotion-list" element={<PromotionList />} />
