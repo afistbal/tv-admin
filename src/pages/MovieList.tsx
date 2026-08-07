@@ -47,7 +47,7 @@ const LANGUAGES: { value: string; label: string }[] = [
 ];
 
 type MovieSourceFilter = "all" | "0" | "1";
-type MovieStatusFilter = "all" | "0" | "1" | "2" | "3";
+type MovieStatusFilter = "all" | "0" | "1" | "2" | "3" | "5" | "6";
 type MovieSelfFilter = "all" | "0" | "1";
 type MovieBatchAction = "trash" | "restore";
 
@@ -68,6 +68,8 @@ const MOVIE_STATUS_OPTIONS: { value: MovieStatusFilter; label: string }[] = [
   { value: "1", label: "已上架" },
   { value: "2", label: "已下架" },
   { value: "3", label: "已删除" },
+  { value: "5", label: "待删除" },
+  { value: "6", label: "删除中" },
 ];
 
 const MOVIE_SELF_OPTIONS: { value: MovieSelfFilter; label: string }[] = [
@@ -98,7 +100,18 @@ function movieStatusShortLabel(status: unknown): string {
   if (s === 3) {
     return "已删除";
   }
+  if (s === 5) {
+    return "待删除";
+  }
+  if (s === 6) {
+    return "删除中";
+  }
   return "—";
+}
+
+function isMovieInDeleteFlow(status: unknown): boolean {
+  const value = Number(status);
+  return value === 3 || value === 5 || value === 6;
 }
 
 function movieSourceShortLabel(source: unknown): string {
@@ -366,7 +379,11 @@ export function MovieList() {
         }
 
         if (failedIds.length === 0) {
-          message.success(action === "trash" ? `已删除 ${successIds.length} 部剧集` : `已将 ${successIds.length} 部剧集回退到草稿`);
+          message.success(
+            action === "trash"
+              ? `已提交 ${successIds.length} 部剧集的删除任务`
+              : `已将 ${successIds.length} 部剧集回退到草稿`,
+          );
         } else if (successIds.length > 0) {
           message.warning(`成功 ${successIds.length} 部，失败 ${failedIds.length} 部（ID：${failedIds.join("、")}）`);
         } else {
@@ -388,7 +405,8 @@ export function MovieList() {
     (ids: number[]) => {
       Modal.confirm({
         title: ids.length > 1 ? `确定批量删除所选 ${ids.length} 部剧集？` : "确定删除该剧集？",
-        content: "删除后剧集将变为“已删除”状态，10 分钟内可以回退到草稿。",
+        content:
+          "删除任务提交后，剧集状态将依次变为“待删除”→“删除中”→“已删除”。处于“待删除”或“删除中”状态的剧集请勿重复删除。",
         okText: "确定删除",
         okButtonProps: { danger: true },
         cancelText: "取消",
@@ -760,6 +778,7 @@ export function MovieList() {
         render: (_: unknown, row) => {
           const busy = rowActionBusyId === row.id || batchAction != null;
           const isDeleted = Number(row.status) === 3;
+          const isInDeleteFlow = isMovieInDeleteFlow(row.status);
           const moreItems: MenuProps["items"] = [
             {
               key: "audioZh",
@@ -777,20 +796,20 @@ export function MovieList() {
             {
               key: "status1",
               label: "上架",
-              disabled: busy || isDeleted,
+              disabled: busy || isInDeleteFlow,
               onClick: () => handleMovieStatus(row, 1, "确定将该短剧上架？"),
             },
             {
               key: "status2",
               label: "下架",
-              disabled: busy || isDeleted,
+              disabled: busy || isInDeleteFlow,
               onClick: () => handleMovieStatus(row, 2, "确定将该短剧下架？"),
             },
             {
               key: "status3",
               label: "删除",
               danger: true,
-              disabled: busy || isDeleted,
+              disabled: busy || isInDeleteFlow,
               onClick: () => confirmMovieTrash([row.id]),
             },
             {
@@ -871,7 +890,7 @@ export function MovieList() {
   );
 
   const selectedRows = rows.filter((row) => selectedRowKeys.includes(row.id));
-  const selectedTrashIds = selectedRows.filter((row) => Number(row.status) !== 3).map((row) => row.id);
+  const selectedTrashIds = selectedRows.filter((row) => !isMovieInDeleteFlow(row.status)).map((row) => row.id);
   const selectedRestoreIds = selectedRows.filter((row) => Number(row.status) === 3).map((row) => row.id);
 
   return (

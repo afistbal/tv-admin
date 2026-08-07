@@ -9,7 +9,7 @@ export type AdminMovieRow = {
   is_self?: number | string;
   sort?: number;
   audio_track?: string;
-  /** `0` 草稿、`1` 上架、`2` 下架、`3` 已删除 */
+  /** `0` 草稿、`1` 上架、`2` 下架、`3` 已删除、`5` 待删除、`6` 删除中 */
   status?: number;
   /** `0` 自动拉取、`1` 手动上传（original） */
   source?: number;
