@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Input, Modal, Table, Tabs, Typography, message } from "antd";
+import { Button, Input, Modal, Switch, Table, Tabs, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { apiPostJson } from "@/api/client";
+import { apiGet, apiPostJson } from "@/api/client";
 import { getActiveSiteKey } from "@/api/baseURL";
 import { TikTokAdConfig } from "./TikTokAdConfig";
 
@@ -27,14 +27,51 @@ type RunningLogRow = {
 
 const TOKEN_CONFIG_KEY = "third-party-token";
 const SEARCH_CONFIG_KEY = "third-party-search";
+const IOS_IFRAME_SETTING_KEY = "ios-iframe";
 
 const CONFIG_ROWS: ConfigRow[] = [
   { key: TOKEN_CONFIG_KEY, name: "三方token信息" },
   { key: SEARCH_CONFIG_KEY, name: "三方search 拉剧" },
 ];
 
+const BASIC_CONFIG_ROWS: ConfigRow[] = [{ key: IOS_IFRAME_SETTING_KEY, name: IOS_IFRAME_SETTING_KEY }];
+
 const RUNNING_INFO_POLL_MS = 30_000;
 const SEARCH_SAVE_REFRESH_DELAY_MS = 3_000;
+
+type SettingRecord = Record<string, unknown>;
+
+function settingRows(data: unknown): SettingRecord[] {
+  if (Array.isArray(data)) {
+    return data.filter((item): item is SettingRecord => item != null && typeof item === "object");
+  }
+  if (data == null || typeof data !== "object") {
+    return [];
+  }
+  const root = data as SettingRecord;
+  for (const key of ["data", "items", "list"]) {
+    if (Array.isArray(root[key])) {
+      return (root[key] as unknown[]).filter(
+        (item): item is SettingRecord => item != null && typeof item === "object",
+      );
+    }
+  }
+  return [root];
+}
+
+function iosIframeSetting(data: unknown): { id?: string | number; enabled: boolean } {
+  const rows = settingRows(data);
+  const row = rows.find(
+    (item) => String(item.key ?? item.name ?? item.slug ?? "").trim() === IOS_IFRAME_SETTING_KEY,
+  );
+  const root = data != null && typeof data === "object" && !Array.isArray(data) ? (data as SettingRecord) : null;
+  const raw = row?.value ?? row?.content ?? row?.enabled ?? root?.[IOS_IFRAME_SETTING_KEY];
+  const normalized = typeof raw === "string" ? raw.trim().toLowerCase() : raw;
+  return {
+    id: row?.id as string | number | undefined,
+    enabled: normalized === true || normalized === 1 || normalized === "1" || normalized === "true" || normalized === "on",
+  };
+}
 
 function tokenContentFromResponse(data: unknown): string {
   if (typeof data === "string") {
@@ -166,10 +203,67 @@ export function ConfigManagement() {
   const [loadingAllLogs, setLoadingAllLogs] = useState(false);
   const [ffmpegRestartSeq, setFfmpegRestartSeq] = useState(0);
   const [ffmpegRestartPaused, setFfmpegRestartPaused] = useState(false);
+  const [iosIframesId, setIosIframesId] = useState<string | number>();
+  const [iosIframesEnabled, setIosIframesEnabled] = useState(false);
+  const [loadingIosIframes, setLoadingIosIframes] = useState(false);
+  const [savingIosIframes, setSavingIosIframes] = useState(false);
 
   const ffmpegRequestRef = useRef<Promise<string> | null>(null);
   const allLogsRequestRef = useRef<Promise<string> | null>(null);
   const ffmpegRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadIosIframes = useCallback(async () => {
+    setLoadingIosIframes(true);
+    try {
+      const res = await apiGet<unknown>("admin/settings");
+      if (res.c !== 0) {
+        message.error(res.m || "获取 ios-iframe 配置失败");
+        return;
+      }
+      const setting = iosIframeSetting(res.d);
+      setIosIframesId(setting.id);
+      setIosIframesEnabled(setting.enabled);
+    } catch {
+      message.error("获取 ios-iframe 配置失败");
+    } finally {
+      setLoadingIosIframes(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isYogoSite) {
+      void loadIosIframes();
+    }
+  }, [isYogoSite, loadIosIframes]);
+
+  const saveIosIframes = useCallback(
+    async (enabled: boolean) => {
+      setSavingIosIframes(true);
+      try {
+        const res = await apiPostJson<unknown>("admin/settings", {
+          ...(iosIframesId == null ? {} : { id: iosIframesId }),
+          key: IOS_IFRAME_SETTING_KEY,
+          name: IOS_IFRAME_SETTING_KEY,
+          value: enabled ? 1 : 0,
+        });
+        if (res.c !== 0) {
+          message.error(res.m || "保存 ios-iframe 配置失败");
+          return;
+        }
+        const saved = iosIframeSetting(res.d);
+        if (saved.id != null) {
+          setIosIframesId(saved.id);
+        }
+        setIosIframesEnabled(enabled);
+        message.success(`ios-iframe 已${enabled ? "开启" : "关闭"}`);
+      } catch {
+        message.error("保存 ios-iframe 配置失败");
+      } finally {
+        setSavingIosIframes(false);
+      }
+    },
+    [iosIframesId],
+  );
 
   const requestRunningInfo = useCallback((type: "all" | "ffmpeg"): Promise<string> => {
     const requestRef = type === "ffmpeg" ? ffmpegRequestRef : allLogsRequestRef;
@@ -416,13 +510,33 @@ export function ConfigManagement() {
       title: "操作",
       key: "action",
       width: 120,
-      render: (_, row) =>
+      render: (_, row) => (
         <Button
           type="link"
           onClick={() => void (row.key === SEARCH_CONFIG_KEY ? openSearchModal() : openTokenModal())}
         >
-            配置
-        </Button>,
+          配置
+        </Button>
+      ),
+    },
+  ];
+
+  const basicConfigColumns: ColumnsType<ConfigRow> = [
+    { title: "配置项", dataIndex: "name", key: "name" },
+    {
+      title: "状态",
+      key: "status",
+      width: 180,
+      render: () => (
+        <Switch
+          checked={iosIframesEnabled}
+          checkedChildren="开启"
+          unCheckedChildren="关闭"
+          loading={loadingIosIframes || savingIosIframes}
+          disabled={loadingIosIframes || savingIosIframes}
+          onChange={(checked) => void saveIosIframes(checked)}
+        />
+      ),
     },
   ];
 
@@ -526,6 +640,19 @@ export function ConfigManagement() {
                   key: "tiktok-ads",
                   label: "tiktok广告配置",
                   children: <TikTokAdConfig />,
+                },
+                {
+                  key: "basic-config",
+                  label: "基础配置",
+                  children: (
+                    <Table<ConfigRow>
+                      rowKey="key"
+                      columns={basicConfigColumns}
+                      dataSource={BASIC_CONFIG_ROWS}
+                      pagination={false}
+                      bordered
+                    />
+                  ),
                 },
               ]
             : []),

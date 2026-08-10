@@ -72,10 +72,25 @@ function paymentStatus(status: unknown): string {
 
 function platformLabel(platform: unknown): string {
   const p = Number(platform);
+  if (p === 99) {
+    return "谷歌原生支付";
+  }
+  if (p === 98) {
+    return "Apple 原生支付";
+  }
+  if (p === 97) {
+    return "TK 支付";
+  }
   if (p === 1 || p === 2) {
     return "Airwallex";
   }
   return "Unknown";
+}
+
+function platformTag(platform: unknown): ReactNode {
+  const p = Number(platform);
+  const color = p === 99 ? "blue" : p === 98 ? "default" : p === 97 ? "magenta" : "cyan";
+  return <Tag color={color}>{platformLabel(platform)}</Tag>;
 }
 
 /** 与 slot `Order.tsx` / `OrderDetail.tsx` 一致：`type === 2` 为续订订单；兼容 string 与其它字段名 */
@@ -311,6 +326,12 @@ export function OrderList() {
         render: (v: unknown) => statusTag(v),
       },
       {
+        title: "支付渠道",
+        dataIndex: "platform",
+        width: 130,
+        render: (v: unknown) => platformTag(v),
+      },
+      {
         title: "时间",
         key: "time_pair",
         width: 200,
@@ -467,7 +488,7 @@ export function OrderList() {
         dataSource={rows}
         pagination={false}
         sticky={mainContentTableSticky}
-        scroll={{ x: 1110 }}
+        scroll={{ x: 1240 }}
         size="middle"
       />
 
