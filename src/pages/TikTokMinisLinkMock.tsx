@@ -23,22 +23,12 @@ import { rowsFromSourceListPayload } from "@/lib/adminSourceList";
 import type { AdminMovieListPayload, AdminMovieRow } from "@/types/adminMovie";
 import styles from "./TikTokMinisLinkMock.module.css";
 
-type TikTokAdRow = {
-  id: number;
-  name: string;
-  ad_id: string;
-  enabled: boolean;
-};
-
-type TikTokAdListPayload = {
-  data?: TikTokAdRow[];
-};
-
 type MinisLinkRow = {
   id: number;
-  ad_config_id: number;
+  ad_config_id?: number | null;
   movie_id?: number | null;
   source_id?: number | null;
+  creative_id?: string | null;
   minis_path: string;
   title?: string | null;
   image_url?: string | null;
@@ -62,9 +52,9 @@ type TikTokSourceOption = {
 };
 
 type AddValues = {
-  adRecordId: number;
   movieId?: number;
   sourceId?: number;
+  creativeId?: string;
   title?: string;
   imageUrl?: string;
   remark: string;
@@ -73,20 +63,27 @@ type AddValues = {
 type EditValues = Pick<AddValues, "remark">;
 
 function buildMinisPath(
-  ads: TikTokAdRow[],
   sources: TikTokSourceOption[],
   movieId?: number,
-  adRecordId?: number,
   sourceId?: number,
+  creativeId?: string,
 ): string {
-  const pathname = movieId ? `/video/${movieId}/1` : "/";
-  const adUnitId = ads.find((ad) => ad.id === adRecordId)?.ad_id;
+  const pathname = movieId ? `/video/${movieId}/1` : "";
   const params = new URLSearchParams();
   const normalizedSource = sources.find((source) => source.value === sourceId)?.source.trim();
+  const normalizedCreativeId = creativeId?.trim();
   if (normalizedSource) params.set("s", normalizedSource);
-  if (adUnitId) params.set("ad_unit_id", adUnitId);
+  if (normalizedCreativeId) params.set("creative_id", normalizedCreativeId);
   const query = params.toString();
-  return query ? `${pathname}?${query}` : pathname;
+  if (!query) return pathname;
+  return `${pathname || "/"}?${query}`;
+}
+
+function creativeIdFromRow(row?: MinisLinkRow | null): string {
+  if (!row) return "";
+  return row.creative_id?.trim()
+    || new URLSearchParams(row.minis_path.split("?")[1] || "").get("creative_id")?.trim()
+    || "";
 }
 
 export function TikTokMinisLinkMock() {
@@ -107,17 +104,15 @@ export function TikTokMinisLinkMock() {
   const [moviePage, setMoviePage] = useState(1);
   const [movieKeyword, setMovieKeyword] = useState("");
   const [movieLoading, setMovieLoading] = useState(false);
-  const [adRows, setAdRows] = useState<TikTokAdRow[]>([]);
-  const [adLoading, setAdLoading] = useState(false);
   const [sourceOptions, setSourceOptions] = useState<TikTokSourceOption[]>([]);
   const [sourceLoading, setSourceLoading] = useState(false);
   const movieLoadingRef = useRef(false);
   const movieRequestIdRef = useRef(0);
   const movieSearchTimerRef = useRef<number | null>(null);
-  const selectedAdRecordId = Form.useWatch("adRecordId", addForm);
   const selectedMovieId = Form.useWatch("movieId", addForm);
   const selectedSourceId = Form.useWatch("sourceId", addForm);
-  const minisPath = buildMinisPath(adRows, sourceOptions, selectedMovieId, selectedAdRecordId, selectedSourceId);
+  const selectedCreativeId = Form.useWatch("creativeId", addForm);
+  const minisPath = buildMinisPath(sourceOptions, selectedMovieId, selectedSourceId, selectedCreativeId);
 
   const fetchLinks = useCallback(async (targetPage: number) => {
     setListLoading(true);
@@ -142,35 +137,6 @@ export function TikTokMinisLinkMock() {
   useEffect(() => {
     void fetchLinks(page);
   }, [fetchLinks, page]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setAdLoading(true);
-    void apiGet<TikTokAdListPayload>("admin/tiktok-ads", { page: 1 })
-      .then((res) => {
-        if (cancelled) return;
-        if (res.c !== 0) {
-          message.error(res.m || "加载 TikTok 广告位失败");
-          setAdRows([]);
-          return;
-        }
-        const ads = (Array.isArray(res.d?.data) ? res.d.data : [])
-          .map((row) => ({ ...row, enabled: Boolean(row.enabled) }));
-        setAdRows(ads);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          message.error("加载 TikTok 广告位失败，请检查网络或接口配置");
-          setAdRows([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setAdLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const fetchMovies = useCallback(async (targetPage: number, targetKeyword = "", append = false) => {
     if (append && movieLoadingRef.current) return;
@@ -279,8 +245,7 @@ export function TikTokMinisLinkMock() {
 
   const openAdd = () => {
     addForm.resetFields();
-    const defaultAd = adRows.find((ad) => ad.enabled && ad.name.includes("默认"));
-    addForm.setFieldsValue({ adRecordId: defaultAd?.id, remark: "" });
+    addForm.setFieldsValue({ remark: "" });
     setAddOptionalOpen(false);
     setAddOpen(true);
   };
@@ -295,10 +260,10 @@ export function TikTokMinisLinkMock() {
     setSaving(true);
     try {
       const res = await apiPostJson<MinisLinkRow>("admin/tiktok/minis/link/save", {
-        ad_config_id: values.adRecordId,
         movie_id: values.movieId ?? null,
         source_id: values.sourceId ?? null,
-        minis_path: minisPath,
+        creative_id: values.creativeId?.trim() || "",
+        ...(minisPath ? { minis_path: minisPath } : {}),
         title: values.title?.trim() || "",
         image_url: values.imageUrl?.trim() || "",
         remark: values.remark.trim(),
@@ -350,9 +315,10 @@ export function TikTokMinisLinkMock() {
     try {
       const res = await apiPostJson<MinisLinkRow>("admin/tiktok/minis/link/save", {
         id: editingRow.id,
-        ad_config_id: editingRow.ad_config_id,
+        ...(editingRow.ad_config_id != null ? { ad_config_id: editingRow.ad_config_id } : {}),
         movie_id: editingRow.movie_id ?? null,
         source_id: editingRow.source_id ?? null,
+        creative_id: creativeIdFromRow(editingRow),
         minis_path: editingRow.minis_path,
         title: editingRow.title || "",
         image_url: editingRow.image_url || "",
@@ -434,7 +400,12 @@ export function TikTokMinisLinkMock() {
           {row.movie_id ? (
             <div className={styles.infoLine}><span className={styles.infoLabel}>剧集：</span><span>{movieTitle(row.movie_id)}</span></div>
           ) : null}
-          <div className={styles.infoLine}><span className={styles.infoLabel}>广告位：</span><span>{adDisplayName(row.ad_config_id)}</span></div>
+          {creativeIdFromRow(row) ? (
+            <div className={styles.infoLine}>
+              <span className={styles.infoLabel}>广告位置 ID：</span>
+              <span>{creativeIdFromRow(row)}</span>
+            </div>
+          ) : null}
         </div>
       ),
     },
@@ -471,15 +442,8 @@ export function TikTokMinisLinkMock() {
     },
   ];
 
-  const adDisplayName = (adRecordId: number): string => {
-    const ad = adRows.find((item) => item.id === adRecordId);
-    return ad ? `${ad.name}（${ad.ad_id}）` : String(adRecordId);
-  };
   const sourceDisplayName = (sourceId: number): string =>
     sourceOptions.find((source) => source.value === sourceId)?.source ?? String(sourceId);
-  const adOptions = adRows
-    .filter((ad) => ad.enabled)
-    .map((ad) => ({ value: ad.id, label: `${ad.name}（${ad.ad_id}）` }));
   const movieOptions = movieRows.map((movie) => ({ value: movie.id, label: `${movie.id} · ${movie.title || "未命名短剧"}` }));
   const movieTitle = (movieId?: number) => {
     if (movieId == null) return "";
@@ -550,9 +514,6 @@ export function TikTokMinisLinkMock() {
         destroyOnHidden
       >
         <Form<AddValues> form={addForm} layout="vertical" requiredMark="optional">
-          <Form.Item name="adRecordId" label="关联广告位" rules={[{ required: true, message: "请选择关联广告位" }]}>
-            <Select options={adOptions} loading={adLoading} placeholder="请选择广告位" />
-          </Form.Item>
           <Form.Item name="movieId" label="关联剧">
             <Select
               options={movieOptions}
@@ -578,6 +539,16 @@ export function TikTokMinisLinkMock() {
               options={sourceOptions}
               placeholder="请选择 TikTok 推广来源"
               notFoundContent={sourceLoading ? <Spin size="small" /> : "暂无 TikTok 推广来源"}
+            />
+          </Form.Item>
+          <Form.Item
+            name="creativeId"
+            label="广告位置 ID"
+          >
+            <Input
+              allowClear
+              placeholder="请输入广告位置 ID"
+              maxLength={128}
             />
           </Form.Item>
           <Form.Item label="Minis Path">
@@ -615,7 +586,7 @@ export function TikTokMinisLinkMock() {
           <Form.Item
             name="remark"
             label="备注"
-            rules={[{ required: true, whitespace: true, message: "请输入备注" }, { max: 100 }]}
+            rules={[{ max: 100 }]}
           >
             <Input.TextArea
               placeholder="例如：8 月美国广告投放"
@@ -645,14 +616,14 @@ export function TikTokMinisLinkMock() {
                 {editingRow?.minis_link || "—"}
               </Typography.Text>
             </Descriptions.Item>
-            <Descriptions.Item label="广告位">
-              {editingRow ? adDisplayName(editingRow.ad_config_id) : "—"}
-            </Descriptions.Item>
             <Descriptions.Item label="关联剧">
               {editingRow?.movie_id ? movieTitle(editingRow.movie_id) : "—"}
             </Descriptions.Item>
             <Descriptions.Item label="来源">
               {editingRow?.source_id ? sourceDisplayName(editingRow.source_id) : "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="广告位置 ID">
+              {creativeIdFromRow(editingRow) || "—"}
             </Descriptions.Item>
             <Descriptions.Item label="Minis Path">
               <Typography.Text copyable={{ text: editingRow?.minis_path || "" }}>
@@ -671,7 +642,7 @@ export function TikTokMinisLinkMock() {
           <Form.Item
             name="remark"
             label="备注"
-            rules={[{ required: true, whitespace: true, message: "请输入备注" }, { max: 100 }]}
+            rules={[{ max: 100 }]}
           >
             <Input.TextArea maxLength={100} showCount autoSize={{ minRows: 2, maxRows: 5 }} />
           </Form.Item>

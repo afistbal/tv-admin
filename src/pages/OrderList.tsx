@@ -107,6 +107,12 @@ function isRenewalOrder(row: AdminOrderRow | AdminOrderInfo): boolean {
   return flag === true || flag === 1 || flag === "1";
 }
 
+function orderProductName(value: unknown): string {
+  const name = String(value ?? "").trim();
+  if (!name) return "—";
+  return name.replace(/^YogoShort\s+Subscription\s*-\s*/i, "") || name;
+}
+
 export function OrderList() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<AdminOrderRow[]>([]);
@@ -118,7 +124,7 @@ export function OrderList() {
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(() => defaultTodayRange());
   const [orderStatus, setOrderStatus] = useState<string>("");
   const [orderType, setOrderType] = useState<string>("");
-  const [filterTestOrders, setFilterTestOrders] = useState(false);
+  const [orderEnvironment, setOrderEnvironment] = useState<"0" | "1">("0");
   const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailInfo, setDetailInfo] = useState<AdminOrderInfo | null>(null);
@@ -127,7 +133,14 @@ export function OrderList() {
   const searchTimer = useRef<number | null>(null);
 
   const fetchList = useCallback(
-    async (p: number, kw: string, range: [Dayjs, Dayjs] | null, status: string, type: string) => {
+    async (
+      p: number,
+      kw: string,
+      range: [Dayjs, Dayjs] | null,
+      status: string,
+      type: string,
+      isTest: "0" | "1",
+    ) => {
     setLoading(true);
     try {
       const kwTrim = kw.trim();
@@ -136,6 +149,7 @@ export function OrderList() {
         keyword: kwTrim || undefined,
         status: status === "" ? undefined : status,
         type: type === "" ? undefined : type,
+        is_test: isTest,
       };
       if (range != null) {
         q.daterange = rangeToDaterangeStrings(range);
@@ -174,13 +188,8 @@ export function OrderList() {
   };
 
   useEffect(() => {
-    void fetchList(page, keyword, dateRange, orderStatus, orderType);
-  }, [page, keyword, dateRange, orderStatus, orderType, fetchList]);
-
-  const displayedRows = useMemo(
-    () => filterTestOrders ? rows.filter((row) => Number(row.is_test) !== 1) : rows,
-    [filterTestOrders, rows],
-  );
+    void fetchList(page, keyword, dateRange, orderStatus, orderType, orderEnvironment);
+  }, [page, keyword, dateRange, orderStatus, orderType, orderEnvironment, fetchList]);
 
   useEffect(() => {
     if (detailOrderId == null) {
@@ -290,22 +299,24 @@ export function OrderList() {
       {
         title: "商品",
         key: "product_amount",
-        width: 108,
+        width: 168,
         render: (_: unknown, record) => {
           const amt = record.amount;
           const amtStr = amt != null && amt !== "" ? `$${String(amt)}` : "—";
           return (
-            <div className={styles.timeCell}>
-              <div className={styles.timeLine}>
-                <Space wrap size={4}>
-                  <Typography.Text ellipsis>{String(record.product_name ?? "—")}</Typography.Text>
-                  {isRenewalOrder(record) ? <Tag color="lime">续订</Tag> : null}
-                </Space>
-              </div>
-              <div className={styles.timeLine}>
+            <div className={orderStyles.productCell}>
+              <Typography.Text
+                className={orderStyles.productName}
+                ellipsis={{ tooltip: orderProductName(record.product_name) }}
+              >
+                {orderProductName(record.product_name)}
+              </Typography.Text>
+              <div className={orderStyles.productMetaLine}>
                 <Typography.Text type="secondary" style={{ fontSize: 13 }}>
                   {amtStr}
                 </Typography.Text>
+                {isRenewalOrder(record) ? <Tag color="lime">续订</Tag> : null}
+                {Number(record.is_test) === 1 ? <Tag color="warning">测试</Tag> : null}
               </div>
             </div>
           );
@@ -321,7 +332,6 @@ export function OrderList() {
             <Typography.Text copyable={String(v ?? "").trim() ? { text: String(v) } : false}>
               {String(v ?? "—")}
             </Typography.Text>
-            {Number(record.is_test) === 1 ? <Tag color="warning">测试</Tag> : null}
             <OrderPaymentMethodDisplay result={record.result} />
           </div>
         ),
@@ -461,6 +471,21 @@ export function OrderList() {
             />
           </div>
           <div className={orderStyles.filterItem}>
+            <span className={orderStyles.filterLabel}>订单环境：</span>
+            <Select<"0" | "1">
+              value={orderEnvironment}
+              onChange={(value) => {
+                setOrderEnvironment(value);
+                setPage(1);
+              }}
+              style={{ width: 128 }}
+              options={[
+                { label: "正式订单", value: "0" },
+                { label: "测试/沙盒", value: "1" },
+              ]}
+            />
+          </div>
+          <div className={orderStyles.filterItem}>
             <span className={orderStyles.filterLabel}>关键词：</span>
             <Input
               allowClear
@@ -478,17 +503,11 @@ export function OrderList() {
               setKeyword(kw);
               setPage(1);
               if (page === 1) {
-                void fetchList(1, kw, dateRange, orderStatus, orderType);
+                void fetchList(1, kw, dateRange, orderStatus, orderType, orderEnvironment);
               }
             }}
           >
             搜索
-          </Button>
-          <Button
-            type={filterTestOrders ? "primary" : "default"}
-            onClick={() => setFilterTestOrders((current) => !current)}
-          >
-            过滤测试单
           </Button>
           <span className={orderStyles.totalHint}>共 {total} 条</span>
         </div>
@@ -498,7 +517,7 @@ export function OrderList() {
         rowKey="id"
         loading={loading}
         columns={columns}
-        dataSource={displayedRows}
+        dataSource={rows}
         pagination={false}
         sticky={mainContentTableSticky}
         scroll={{ x: 1240 }}
@@ -548,6 +567,12 @@ export function OrderList() {
               </Descriptions.Item>
               <Descriptions.Item label="支付状态">{paymentStatus(detailInfo.status)}</Descriptions.Item>
               <Descriptions.Item label="支付渠道">{platformLabel(detailInfo.platform)}</Descriptions.Item>
+              <Descriptions.Item label="订单环境">
+                {Number(detailInfo.is_test) === 1
+                  ? <Tag color="warning">测试</Tag>
+                  : <Tag color="success">正式</Tag>}
+                {detailInfo.apple_environment ? ` ${detailInfo.apple_environment}` : null}
+              </Descriptions.Item>
               <Descriptions.Item label="金额">{detailInfo.amount != null ? `$${String(detailInfo.amount)}` : "—"}</Descriptions.Item>
               <Descriptions.Item label="退款金额">
                 {detailInfo.refund_amount != null ? `$${String(detailInfo.refund_amount)}` : "—"}

@@ -15,6 +15,8 @@ export type AdminOrderRow = {
   platform?: number | string;
   /** `1` 表示沙盒单或测试单 */
   is_test?: number | string | boolean;
+  /** Apple 回调环境；其他支付平台通常为 null */
+  apple_environment?: "Sandbox" | "Production" | string | null;
   /** Airwallex 支付明细 JSON 字符串 */
   result?: string | null;
   [key: string]: unknown;
@@ -34,6 +36,8 @@ export type AdminOrderInfo = {
   platform?: number;
   /** `1` 表示沙盒单或测试单 */
   is_test?: number | string | boolean;
+  /** Apple 回调环境；其他支付平台通常为 null */
+  apple_environment?: "Sandbox" | "Production" | string | null;
   amount?: string;
   refund_amount?: string;
   sn?: string;
