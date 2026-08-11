@@ -14,7 +14,7 @@ export const SUBSCRIPTION_TIME_TYPE_OPTIONS: { value: SubscriptionTimeType; labe
   { value: "billing_at", label: "结束时间" },
 ];
 
-/** 与产品管理 id 一致：1 周 / 2 月 / 3 年 / 4 日 */
+/** 与产品管理 id 一致：1 周 / 2 月 / 3 年 / 4 日 / 5 季 */
 export const SUBSCRIPTION_PRODUCT_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "全部" },
   ...SUBSCRIPTION_PRODUCT_FILTER_OPTIONS,

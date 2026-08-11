@@ -22,7 +22,7 @@ if (import.meta.env.DEV && "serviceWorker" in navigator) {
 createRoot(document.getElementById("root")!).render(
   <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: "#1677ff" } }}>
     <AntdApp>
-      <HashRouter>
+      <HashRouter future={{ v7_startTransition: true }}>
         <AuthProvider>
           <AppConfigProvider>
             <App />

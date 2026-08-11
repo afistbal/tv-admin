@@ -13,6 +13,8 @@ export type AdminOrderRow = {
   amount?: string;
   status?: number;
   platform?: number | string;
+  /** `1` 表示沙盒单或测试单 */
+  is_test?: number | string | boolean;
   /** Airwallex 支付明细 JSON 字符串 */
   result?: string | null;
   [key: string]: unknown;
@@ -30,6 +32,8 @@ export type AdminOrderInfo = {
   user_id?: string | number;
   status?: number;
   platform?: number;
+  /** `1` 表示沙盒单或测试单 */
+  is_test?: number | string | boolean;
   amount?: string;
   refund_amount?: string;
   sn?: string;

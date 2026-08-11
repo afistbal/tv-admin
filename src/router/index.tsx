@@ -15,6 +15,7 @@ import { PromotionSources } from "@/pages/PromotionSources";
 import { SubscriptionUsers } from "@/pages/SubscriptionUsers";
 import { SummaryStatistics } from "@/pages/SummaryStatistics";
 import { TagCategoryMappings } from "@/pages/TagCategoryMappings";
+import { TikTokConfig } from "@/pages/TikTokConfig";
 import { UserActivity } from "@/pages/UserActivity";
 import { FeedbackList } from "@/pages/FeedbackList";
 import { UserList } from "@/pages/UserList";
@@ -53,6 +54,7 @@ export function AppRouter() {
           <Route path="drama/tk-movies" element={<TkMovieList />} />
           <Route path="config/products" element={<ProductList />} />
           <Route path="config/settings" element={<ConfigManagement />} />
+          <Route path="config/tiktok" element={<TikTokConfig />} />
           <Route path="config/recommend-pool" element={<RecommendPoolList />} />
           <Route path="config/tag-categories" element={<TagCategoryMappings />} />
           <Route path="chat/feedback" element={<FeedbackList />} />

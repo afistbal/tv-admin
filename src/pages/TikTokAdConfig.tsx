@@ -311,7 +311,7 @@ export function TikTokAdConfig() {
         confirmLoading={saving}
         onOk={() => void saveEditor()}
         onCancel={() => setEditorOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form<TikTokAdFormValues> form={form} layout="vertical" requiredMark="optional">
           <Form.Item name="name" label="名称" rules={[{ required: true, message: "请输入名称" }, { max: 100 }]}>

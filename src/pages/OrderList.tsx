@@ -118,6 +118,7 @@ export function OrderList() {
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(() => defaultTodayRange());
   const [orderStatus, setOrderStatus] = useState<string>("");
   const [orderType, setOrderType] = useState<string>("");
+  const [filterTestOrders, setFilterTestOrders] = useState(false);
   const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailInfo, setDetailInfo] = useState<AdminOrderInfo | null>(null);
@@ -175,6 +176,11 @@ export function OrderList() {
   useEffect(() => {
     void fetchList(page, keyword, dateRange, orderStatus, orderType);
   }, [page, keyword, dateRange, orderStatus, orderType, fetchList]);
+
+  const displayedRows = useMemo(
+    () => filterTestOrders ? rows.filter((row) => Number(row.is_test) !== 1) : rows,
+    [filterTestOrders, rows],
+  );
 
   useEffect(() => {
     if (detailOrderId == null) {
@@ -315,6 +321,7 @@ export function OrderList() {
             <Typography.Text copyable={String(v ?? "").trim() ? { text: String(v) } : false}>
               {String(v ?? "—")}
             </Typography.Text>
+            {Number(record.is_test) === 1 ? <Tag color="warning">测试</Tag> : null}
             <OrderPaymentMethodDisplay result={record.result} />
           </div>
         ),
@@ -477,6 +484,12 @@ export function OrderList() {
           >
             搜索
           </Button>
+          <Button
+            type={filterTestOrders ? "primary" : "default"}
+            onClick={() => setFilterTestOrders((current) => !current)}
+          >
+            过滤测试单
+          </Button>
           <span className={orderStyles.totalHint}>共 {total} 条</span>
         </div>
       </div>
@@ -485,7 +498,7 @@ export function OrderList() {
         rowKey="id"
         loading={loading}
         columns={columns}
-        dataSource={rows}
+        dataSource={displayedRows}
         pagination={false}
         sticky={mainContentTableSticky}
         scroll={{ x: 1240 }}

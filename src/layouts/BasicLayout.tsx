@@ -28,6 +28,29 @@ const { Header, Sider, Content } = Layout;
 
 /** 展开侧栏时保持三个分组常开；用常量避免每次路由变化都 new 数组触发菜单无意义重绘 */
 const DEFAULT_SUBMENU_OPEN_KEYS = ["sub-users", "sub-data", "sub-drama", "sub-stats", "sub-chat", "sub-config"] as const;
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "tv-admin-sidebar-collapsed";
+const SUBMENU_OPEN_KEYS_STORAGE_KEY = "tv-admin-submenu-open-keys";
+
+function readStoredSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function readStoredSubmenuOpenKeys(): string[] {
+  try {
+    const raw = localStorage.getItem(SUBMENU_OPEN_KEYS_STORAGE_KEY);
+    if (raw == null) return [...DEFAULT_SUBMENU_OPEN_KEYS];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [...DEFAULT_SUBMENU_OPEN_KEYS];
+    const allowed = new Set<string>(DEFAULT_SUBMENU_OPEN_KEYS);
+    return parsed.map(String).filter((key) => allowed.has(key));
+  } catch {
+    return [...DEFAULT_SUBMENU_OPEN_KEYS];
+  }
+}
 
 const menuItems: MenuProps["items"] = [
   { key: "/dashboard", icon: <DashboardOutlined />, label: <Link to="/dashboard">仪表盘</Link> },
@@ -96,6 +119,7 @@ const menuItems: MenuProps["items"] = [
     label: "配置管理",
     children: [
       { key: "/config/settings", label: <Link to="/config/settings">配置列表</Link> },
+      { key: "/config/tiktok", label: <Link to="/config/tiktok">TikTok 配置</Link> },
       { key: "/config/products", label: <Link to="/config/products">产品管理</Link> },
       { key: "/config/recommend-pool", label: <Link to="/config/recommend-pool">推荐管理</Link> },
       { key: "/config/tag-categories", label: <Link to="/config/tag-categories">Tag 分类管理</Link> },
@@ -281,6 +305,7 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
           <CollapsedPopoverLinks
             links={[
               { to: "/config/settings", label: "配置列表" },
+              { to: "/config/tiktok", label: "TikTok 配置" },
               { to: "/config/products", label: "产品管理" },
               { to: "/config/recommend-pool", label: "推荐管理" },
               { to: "/config/tag-categories", label: "Tag 分类管理" },
@@ -312,6 +337,7 @@ function SideMenu(props: {
     <Menu
       theme="dark"
       mode="inline"
+      motion={{ motionAppear: false, motionEnter: false, motionLeave: false }}
       selectedKeys={selectedKeys}
       openKeys={openKeys}
       onOpenChange={onOpenChange}
@@ -324,9 +350,9 @@ function SideMenu(props: {
 export function BasicLayout() {
   const { isMobile, isLandscapePhone } = useMobileH5State();
   const pageZoom = usePageZoom();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(readStoredSidebarCollapsed);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [openKeys, setOpenKeys] = useState<string[]>(() => [...DEFAULT_SUBMENU_OPEN_KEYS]);
+  const [openKeys, setOpenKeys] = useState<string[]>(readStoredSubmenuOpenKeys);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -334,21 +360,22 @@ export function BasicLayout() {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  /** 切换路由后仍保持各一级分组默认展开（pathname 变化时若已是展开态则不重复 set，减轻菜单闪动） */
   useEffect(() => {
-    if (collapsed || isMobile) {
-      return;
+    try {
+      localStorage.setItem(SUBMENU_OPEN_KEYS_STORAGE_KEY, JSON.stringify(openKeys));
+    } catch {
+      /* 浏览器禁用存储时保持当前会话状态即可 */
     }
-    setOpenKeys((prev) => {
-      if (
-        prev.length === DEFAULT_SUBMENU_OPEN_KEYS.length &&
-        DEFAULT_SUBMENU_OPEN_KEYS.every((k, i) => prev[i] === k)
-      ) {
-        return prev;
-      }
-      return [...DEFAULT_SUBMENU_OPEN_KEYS];
-    });
-  }, [location.pathname, collapsed, isMobile]);
+  }, [openKeys]);
+
+  useEffect(() => {
+    if (isMobile) return;
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, collapsed ? "1" : "0");
+    } catch {
+      /* 浏览器禁用存储时保持当前会话状态即可 */
+    }
+  }, [collapsed, isMobile]);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -418,6 +445,9 @@ export function BasicLayout() {
     if (location.pathname.startsWith("/config/products")) {
       return ["/config/products"];
     }
+    if (location.pathname.startsWith("/config/tiktok")) {
+      return ["/config/tiktok"];
+    }
     if (location.pathname.startsWith("/config/settings")) {
       return ["/config/settings"];
     }
@@ -465,7 +495,7 @@ export function BasicLayout() {
           <Dropdown
             menu={{ items: userMenu }}
             placement="bottomRight"
-            dropdownRender={(menu) => (
+            popupRender={(menu) => (
               <div className={styles.userDropdownPanel}>
                 {menu}
                 {isMobile ? (

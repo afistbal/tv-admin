@@ -62,6 +62,7 @@
 .siderMenuScroll :global(.ant-menu) {
   height: auto !important;
   max-height: none !important;
+  padding-bottom: 56px;
   overflow: visible !important;
   border-inline-end: none !important;
 }
@@ -102,7 +103,7 @@
 .collapsedNav {
   display: flex;
   flex-direction: column;
-  padding: 8px 0;
+  padding: 8px 0 56px;
 }
 
 .collapsedIconBtn {

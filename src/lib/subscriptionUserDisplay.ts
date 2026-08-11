@@ -63,12 +63,13 @@ export type NotionTagTone = {
   bg: string;
 };
 
-/** 产品 id：1 周 / 2 月 / 3 年 / 4 日 */
+/** 产品 id：1 周 / 2 月 / 3 年 / 4 日 / 5 季 */
 export const SUBSCRIPTION_PRODUCT_BY_ID: Record<number, NotionTagTone> = {
   1: { label: "周", dot: "#2fa84f", bg: "rgba(47, 168, 79, 0.12)" },
   2: { label: "月", dot: "#2f6feb", bg: "rgba(47, 111, 235, 0.12)" },
   3: { label: "年", dot: "#9b59b6", bg: "rgba(155, 89, 182, 0.12)" },
   4: { label: "日", dot: "#e67e22", bg: "rgba(230, 126, 34, 0.12)" },
+  5: { label: "季", dot: "#13a8a8", bg: "rgba(19, 168, 168, 0.12)" },
 };
 
 export const SUBSCRIPTION_PRODUCT_FILTER_OPTIONS: { value: string; label: string }[] = Object.entries(

@@ -3,7 +3,6 @@ import { Button, Input, Modal, Switch, Table, Tabs, Typography, message } from "
 import type { ColumnsType } from "antd/es/table";
 import { apiGet, apiPostJson } from "@/api/client";
 import { getActiveSiteKey } from "@/api/baseURL";
-import { TikTokAdConfig } from "./TikTokAdConfig";
 
 type ConfigRow = {
   key: string;
@@ -27,7 +26,7 @@ type RunningLogRow = {
 
 const TOKEN_CONFIG_KEY = "third-party-token";
 const SEARCH_CONFIG_KEY = "third-party-search";
-const IOS_IFRAME_SETTING_KEY = "ios-iframe";
+const IOS_IFRAME_SETTING_KEY = "ios_iframe";
 
 const CONFIG_ROWS: ConfigRow[] = [
   { key: TOKEN_CONFIG_KEY, name: "三方token信息" },
@@ -217,14 +216,14 @@ export function ConfigManagement() {
     try {
       const res = await apiGet<unknown>("admin/settings");
       if (res.c !== 0) {
-        message.error(res.m || "获取 ios-iframe 配置失败");
+        message.error(res.m || "获取 ios_iframe 配置失败");
         return;
       }
       const setting = iosIframeSetting(res.d);
       setIosIframesId(setting.id);
       setIosIframesEnabled(setting.enabled);
     } catch {
-      message.error("获取 ios-iframe 配置失败");
+      message.error("获取 ios_iframe 配置失败");
     } finally {
       setLoadingIosIframes(false);
     }
@@ -247,7 +246,7 @@ export function ConfigManagement() {
           value: enabled ? 1 : 0,
         });
         if (res.c !== 0) {
-          message.error(res.m || "保存 ios-iframe 配置失败");
+          message.error(res.m || "保存 ios_iframe 配置失败");
           return;
         }
         const saved = iosIframeSetting(res.d);
@@ -255,9 +254,9 @@ export function ConfigManagement() {
           setIosIframesId(saved.id);
         }
         setIosIframesEnabled(enabled);
-        message.success(`ios-iframe 已${enabled ? "开启" : "关闭"}`);
+        message.success(`ios_iframe 已${enabled ? "开启" : "关闭"}`);
       } catch {
-        message.error("保存 ios-iframe 配置失败");
+        message.error("保存 ios_iframe 配置失败");
       } finally {
         setSavingIosIframes(false);
       }
@@ -636,11 +635,6 @@ export function ConfigManagement() {
           },
           ...(isYogoSite
             ? [
-                {
-                  key: "tiktok-ads",
-                  label: "tiktok广告配置",
-                  children: <TikTokAdConfig />,
-                },
                 {
                   key: "basic-config",
                   label: "基础配置",
