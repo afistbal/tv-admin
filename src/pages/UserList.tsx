@@ -335,14 +335,7 @@ export function UserList() {
         dataIndex: "anonymous",
         width: 140,
         render: (v: unknown, record) => {
-          const isTui = Number(record.is_tui);
-          const isTuiLabel = record.is_tui == null || record.is_tui === ""
-            ? "—"
-            : isTui === 1
-              ? "是"
-              : isTui === 0
-                ? "否"
-                : "—";
+          const canViewAll = String(record.source ?? "").trim().startsWith("A100") || Number(record.is_tui) === 1;
           return (
             <div className={styles.timeCell}>
               <div className={styles.timeLine}>
@@ -350,7 +343,7 @@ export function UserList() {
               </div>
               <div className={styles.timeLine}>
                 <span className={styles.timeLabel}>看全部：</span>
-                <span>{isTuiLabel}</span>
+                <span>{canViewAll ? "是" : "否"}</span>
               </div>
             </div>
           );
