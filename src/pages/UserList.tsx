@@ -334,8 +334,27 @@ export function UserList() {
         title: "登录方式",
         dataIndex: "anonymous",
         width: 140,
-        render: (v: unknown) =>
-          Number(v) === 1 ? <Tag color="orange">游客</Tag> : <Tag color="blue">注册用户</Tag>,
+        render: (v: unknown, record) => {
+          const isTui = Number(record.is_tui);
+          const isTuiLabel = record.is_tui == null || record.is_tui === ""
+            ? "—"
+            : isTui === 1
+              ? "是"
+              : isTui === 0
+                ? "否"
+                : "—";
+          return (
+            <div className={styles.timeCell}>
+              <div className={styles.timeLine}>
+                {Number(v) === 1 ? <Tag color="orange">游客</Tag> : <Tag color="blue">注册用户</Tag>}
+              </div>
+              <div className={styles.timeLine}>
+                <span className={styles.timeLabel}>看全部：</span>
+                <span>{isTuiLabel}</span>
+              </div>
+            </div>
+          );
+        },
       },
       {
         title: "是否VIP",
