@@ -151,6 +151,7 @@ async function downloadImageAsFile(url: string, filename: string) {
 type DramaListRow = {
   key: string;
   movieId: number;
+  publicId: string;
   title: string;
   coverUrl: string;
   coverImageFile: string;
@@ -181,6 +182,7 @@ function buildDramaListRows(movies: TRow[], staticBase: string): DramaListRow[] 
       {
         key: String(movieId),
         movieId,
+        publicId: pickText(row, ["public_id"], ""),
         title,
         coverUrl,
         coverImageFile: coverPath ? imageBasename(coverPath) : "",
@@ -291,10 +293,23 @@ export function DramaLatestUpdate() {
         className: styles.titleColumn,
         ellipsis: true,
         width: 240,
-        render: (title: string) => (
-          <Typography.Text ellipsis={{ tooltip: title }} copyable={title && title !== "—" ? { text: title } : false}>
-            {title}
-          </Typography.Text>
+        render: (title: string, record: DramaListRow) => (
+          <div className={styles.titleCell}>
+            <Typography.Text
+              type="secondary"
+              className={styles.titlePublicIdLine}
+              copyable={record.publicId ? { text: record.publicId } : false}
+            >
+              长id: {record.publicId || "-"}
+            </Typography.Text>
+            <Typography.Text
+              className={styles.titleText}
+              ellipsis={{ tooltip: title }}
+              copyable={title && title !== "—" ? { text: title } : false}
+            >
+              {title}
+            </Typography.Text>
+          </div>
         ),
       },
       {

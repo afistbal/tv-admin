@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { App, Button, ConfigProvider, Divider, Form, Input, Space, Spin } from "antd";
-import { GoogleOutlined } from "@ant-design/icons";
+import { App, Button, ConfigProvider, Divider, Form, Input, Space, Spin, Tabs } from "antd";
+import { GoogleOutlined, LockOutlined, UserOutlined } from "@ant-design/icons";
 import { useAuth } from "@/auth/AuthContext";
+import { useManagementAuth } from "@/auth/ManagementAuthContext";
 import { apiPostJson } from "@/api/client";
 import { emailVerify } from "@/lib/emailVerify";
 import styles from "./Login.module.css";
 
 type EmailForm = { email: string; code: string };
+type ManagementForm = { account: string; password: string };
+type LoginBackend = "drama" | "management";
 
 /** 登录页字号与控件高度（相对上一版整体约缩小 20%，数值取整） */
 const loginTheme = {
@@ -45,12 +48,22 @@ export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, bootstrapping, revalidateSession, loginWithEmailCode, loginWithGooglePopup, clearSessionForSiteSwitch } = useAuth();
+  const {
+    authenticated: managementAuthenticated,
+    login: loginManagement,
+  } = useManagementAuth();
   const loginRetryRef = useRef(false);
-  const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
+  const loginState = location.state as { from?: string; backend?: LoginBackend } | null;
+  const from = loginState?.from ?? "/dashboard";
+  const [backend, setBackend] = useState<LoginBackend>(
+    loginState?.backend === "management" ? "management" : "drama",
+  );
 
   const [emailForm] = Form.useForm<EmailForm>();
+  const [managementForm] = Form.useForm<ManagementForm>();
   const [codeSeconds, setCodeSeconds] = useState(0);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [managementLoading, setManagementLoading] = useState(false);
   const codeTimerRef = useRef<number | null>(null);
 
   const clearCodeTimer = () => {
@@ -76,15 +89,21 @@ export function Login() {
   };
 
   useEffect(() => {
-    if (!bootstrapping && user) {
+    if (backend === "drama" && !bootstrapping && user) {
       loginRetryRef.current = false;
-      navigate(from, { replace: true });
+      navigate(from.startsWith("/management") ? "/dashboard" : from, { replace: true });
     }
-  }, [bootstrapping, user, navigate, from]);
+  }, [backend, bootstrapping, user, navigate, from]);
+
+  useEffect(() => {
+    if (backend === "management" && managementAuthenticated) {
+      navigate(from.startsWith("/management") ? from : "/management/users", { replace: true });
+    }
+  }, [backend, managementAuthenticated, navigate, from]);
 
   /** 首屏 bootstrap 若遇网络/非 JSON 未写入 user，但 token 仍在，则再请求一次 login/token */
   useEffect(() => {
-    if (bootstrapping || user) {
+    if (backend !== "drama" || bootstrapping || user) {
       return;
     }
     const t = localStorage.getItem("token");
@@ -93,7 +112,7 @@ export function Login() {
     }
     loginRetryRef.current = true;
     void revalidateSession();
-  }, [bootstrapping, user, revalidateSession]);
+  }, [backend, bootstrapping, user, revalidateSession]);
 
   useEffect(() => () => clearCodeTimer(), []);
 
@@ -154,7 +173,22 @@ export function Login() {
     }
   };
 
-  if (bootstrapping) {
+  const onManagementFinish = async (values: ManagementForm) => {
+    setManagementLoading(true);
+    try {
+      const result = await loginManagement(values.account, values.password);
+      if (!result.ok) {
+        message.error(result.message);
+        return;
+      }
+      message.success("登录成功");
+      navigate(from.startsWith("/management") ? from : "/management/users", { replace: true });
+    } finally {
+      setManagementLoading(false);
+    }
+  };
+
+  if (bootstrapping && backend === "drama") {
     return (
       <ConfigProvider theme={loginTheme}>
         <div className={styles.pageLoading}>
@@ -169,56 +203,100 @@ export function Login() {
       <div className={styles.page}>
         <div className={styles.login}>
           <h2 className={styles.title}>管理端</h2>
-          <Form<EmailForm>
-            id="tv-admin-login-form"
-            form={emailForm}
-            className={styles.form}
-            layout="horizontal"
-            size="large"
-            labelCol={{ flex: "83px" }}
-            wrapperCol={{ flex: "1" }}
-            colon={false}
-            onFinish={onEmailFinish}
-            requiredMark={false}
-          >
-          <Form.Item
-            name="email"
-            label="邮箱"
-            rules={[{ required: true, message: "请输入邮箱" }]}
-          >
-            <Input placeholder="请输入邮箱" autoComplete="email" maxLength={128} />
-          </Form.Item>
-          <Form.Item label="验证码" required>
-            <Space.Compact className={styles.codeCompact} block>
-              <Form.Item name="code" noStyle rules={[{ required: true, message: "请输入验证码" }]}>
-                <Input placeholder="请输入验证码" maxLength={6} style={{ width: "100%" }} />
-              </Form.Item>
-              <Button type="default" size="large" disabled={codeSeconds > 0} onClick={() => void sendEmailCode()}>
-                {codeSeconds > 0 ? `${codeSeconds}s` : "获取验证码"}
+          <Tabs
+            className={styles.backendTabs}
+            activeKey={backend}
+            centered
+            items={[
+              { key: "drama", label: "短剧后台" },
+              { key: "management", label: "新后台管理" },
+            ]}
+            onChange={(key) => setBackend(key as LoginBackend)}
+          />
+
+          {backend === "drama" ? (
+            <>
+              <Form<EmailForm>
+                id="tv-admin-login-form"
+                form={emailForm}
+                className={styles.form}
+                layout="horizontal"
+                size="large"
+                labelCol={{ flex: "83px" }}
+                wrapperCol={{ flex: "1" }}
+                colon={false}
+                onFinish={onEmailFinish}
+                requiredMark={false}
+              >
+                <Form.Item name="email" label="邮箱" rules={[{ required: true, message: "请输入邮箱" }]}>
+                  <Input placeholder="请输入邮箱" autoComplete="email" maxLength={128} />
+                </Form.Item>
+                <Form.Item label="验证码" required>
+                  <Space.Compact className={styles.codeCompact} block>
+                    <Form.Item name="code" noStyle rules={[{ required: true, message: "请输入验证码" }]}>
+                      <Input placeholder="请输入验证码" maxLength={6} style={{ width: "100%" }} />
+                    </Form.Item>
+                    <Button type="default" size="large" disabled={codeSeconds > 0} onClick={() => void sendEmailCode()}>
+                      {codeSeconds > 0 ? `${codeSeconds}s` : "获取验证码"}
+                    </Button>
+                  </Space.Compact>
+                </Form.Item>
+              </Form>
+              <div className={styles.submitWrap}>
+                <Button type="primary" htmlType="submit" form="tv-admin-login-form" size="large">
+                  登录
+                </Button>
+              </div>
+
+              <Divider plain className={styles.divider}>或</Divider>
+
+              <Button
+                type="default"
+                size="large"
+                icon={<GoogleOutlined className={styles.googleIcon} />}
+                className={styles.googleBtn}
+                loading={googleLoading}
+                onClick={() => void onGoogle()}
+              >
+                Google 登录
               </Button>
-            </Space.Compact>
-          </Form.Item>
-        </Form>
-        <div className={styles.submitWrap}>
-          <Button type="primary" htmlType="submit" form="tv-admin-login-form" size="large">
-            登录
-          </Button>
-        </div>
-
-        <Divider plain className={styles.divider}>
-          或
-        </Divider>
-
-        <Button
-          type="default"
-          size="large"
-          icon={<GoogleOutlined className={styles.googleIcon} />}
-          className={styles.googleBtn}
-          loading={googleLoading}
-          onClick={() => void onGoogle()}
-        >
-          Google 登录
-        </Button>
+            </>
+          ) : (
+            <Form<ManagementForm>
+              id="management-admin-login-form"
+              form={managementForm}
+              className={styles.form}
+              layout="horizontal"
+              size="large"
+              labelCol={{ flex: "83px" }}
+              wrapperCol={{ flex: "1" }}
+              colon={false}
+              requiredMark={false}
+              onFinish={(values) => void onManagementFinish(values)}
+            >
+              <Form.Item name="account" label="账号" rules={[{ required: true, message: "请输入账号" }]}>
+                <Input
+                  prefix={<UserOutlined />}
+                  placeholder="请输入账号"
+                  autoComplete="username"
+                  maxLength={12}
+                />
+              </Form.Item>
+              <Form.Item name="password" label="密码" rules={[{ required: true, message: "请输入密码" }]}>
+                <Input.Password
+                  prefix={<LockOutlined />}
+                  placeholder="请输入密码"
+                  autoComplete="current-password"
+                  maxLength={128}
+                />
+              </Form.Item>
+              <div className={styles.submitWrap}>
+                <Button type="primary" htmlType="submit" size="large" block loading={managementLoading}>
+                  登录新后台
+                </Button>
+              </div>
+            </Form>
+          )}
         </div>
       </div>
     </ConfigProvider>

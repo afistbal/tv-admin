@@ -3,8 +3,8 @@ export type AdminUserRow = {
   unique_id?: string;
   email?: string;
   anonymous?: number;
-  /** 是否可看全部：0=否，1=是 */
-  is_tui?: number | string | null;
+  /** 内容查看层级：1=看自制，2=看自制+首次分享剧，3=看全部 */
+  level?: number | string | null;
   vip?: number;
   admin?: number;
   /** 注册/访问来源，如渠道码、域名、IP */

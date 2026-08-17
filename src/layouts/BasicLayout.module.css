@@ -214,11 +214,23 @@ a.collapsedIconBtn {
   cursor: pointer;
 }
 
+.headerWelcomeGroup {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .headerWelcome {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.managementSwitch {
+  flex-shrink: 0;
 }
 
 .headerActions {
@@ -299,6 +311,14 @@ a.collapsedIconBtn {
 
   .headerUserName {
     max-width: 88px;
+  }
+
+  .headerWelcomeGroup {
+    gap: 8px;
+  }
+
+  .managementSwitch {
+    padding-inline: 8px;
   }
 }
 

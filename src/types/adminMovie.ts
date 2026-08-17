@@ -1,5 +1,6 @@
 export type AdminMovieRow = {
   id: number;
+  public_id?: string | number;
   title?: string;
   title_original?: string;
   image?: string;

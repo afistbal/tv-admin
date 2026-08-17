@@ -132,6 +132,19 @@
   color: rgba(0, 0, 0, 0.45);
 }
 
+.levelValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.levelInfoIcon {
+  color: #1677ff;
+  font-size: 13px;
+  cursor: help;
+}
+
 /* 列表「来源」列第二行：来源参数单行 urlencode + hover 多行可复制 */
 .fromSourceLine {
   display: flex;

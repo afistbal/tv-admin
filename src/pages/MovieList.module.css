@@ -160,6 +160,13 @@
   max-width: 100%;
 }
 
+.titlePublicIdLine:global(.ant-typography) {
+  margin-bottom: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
 .titleLink {
   display: inline;
   min-width: 0;

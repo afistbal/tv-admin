@@ -1,12 +1,12 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "@/auth/RequireAuth";
+import { RequireManagementAuth } from "@/auth/RequireManagementAuth";
 import { BasicLayout } from "@/layouts/BasicLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { ConfigManagement } from "@/pages/ConfigManagement";
 import { DramaLatestUpdate } from "@/pages/DramaLatestUpdate";
 import { MovieList } from "@/pages/MovieList";
-import { TkMovieList } from "@/pages/TkMovieList";
 import { OrderList } from "@/pages/OrderList";
 import { ProductList } from "@/pages/ProductList";
 import { RecommendPoolList } from "@/pages/RecommendPoolList";
@@ -20,6 +20,12 @@ import { UserActivity } from "@/pages/UserActivity";
 import { FeedbackList } from "@/pages/FeedbackList";
 import { UserList } from "@/pages/UserList";
 import { BehaviorLog } from "@/pages/BehaviorLog";
+import {
+  ManagementGuideList,
+  ManagementSiteConfig,
+  ManagementUserList,
+  ManagementVisitLogs,
+} from "@/pages/ManagementLists";
 
 /** 登录页单独分包，其余后台页同步引入，避免切换菜单时 lazy + Suspense(null) 造成主区域白屏闪烁 */
 const LoginLazy = lazy(() => import("@/pages/Login").then((m) => ({ default: m.Login })));
@@ -51,13 +57,23 @@ export function AppRouter() {
           <Route path="data/orders" element={<OrderList />} />
           <Route path="drama/latest-update" element={<DramaLatestUpdate />} />
           <Route path="drama/movies" element={<MovieList />} />
-          <Route path="drama/tk-movies" element={<TkMovieList />} />
           <Route path="config/products" element={<ProductList />} />
           <Route path="config/settings" element={<ConfigManagement />} />
           <Route path="config/tiktok" element={<TikTokConfig />} />
           <Route path="config/recommend-pool" element={<RecommendPoolList />} />
           <Route path="config/tag-categories" element={<TagCategoryMappings />} />
           <Route path="chat/feedback" element={<FeedbackList />} />
+        </Route>
+      </Route>
+      <Route element={<RequireManagementAuth />}>
+        <Route element={<BasicLayout />}>
+          <Route path="management" element={<Navigate to="/management/users" replace />} />
+          <Route path="management/users" element={<ManagementUserList />} />
+          <Route path="management/data" element={<Navigate to="/management/data/visit-logs" replace />} />
+          <Route path="management/data/visit-logs" element={<ManagementVisitLogs />} />
+          <Route path="management/data/guides" element={<ManagementGuideList />} />
+          <Route path="management/config" element={<Navigate to="/management/config/site" replace />} />
+          <Route path="management/config/site" element={<ManagementSiteConfig />} />
         </Route>
       </Route>
       <Route

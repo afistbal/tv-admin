@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import getPlacements from "antd/es/_util/placements";
 import {
+  AppstoreOutlined,
+  ArrowLeftOutlined,
   BarChartOutlined,
+  DatabaseOutlined,
   DashboardOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -14,11 +17,12 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Drawer, Dropdown, Layout, Menu, Popover, Space, Tag, Tooltip, theme, Typography } from "antd";
+import { Button, Drawer, Dropdown, Layout, Menu, Popover, Space, Tag, Tooltip, theme, Typography } from "antd";
 import type { MenuProps } from "antd";
 import { MobilePageZoom } from "@/components/MobilePageZoom";
 import { MobileZoomViewport } from "@/components/MobileZoomViewport";
 import { useAuth } from "@/auth/AuthContext";
+import { useManagementAuth } from "@/auth/ManagementAuthContext";
 import { useMobileH5State } from "@/hooks/useIsMobileH5";
 import { usePageZoom } from "@/hooks/usePageZoom";
 import { MAIN_CONTENT_SCROLL_ID } from "@/lib/tableSticky";
@@ -88,7 +92,6 @@ const menuItems: MenuProps["items"] = [
     label: "短剧管理",
     children: [
       { key: "/drama/movies", label: <Link to="/drama/movies">剧集列表</Link> },
-      { key: "/drama/tk-movies", label: <Link to="/drama/tk-movies">TK剧集列表</Link> },
       { key: "/drama/latest-update", label: <Link to="/drama/latest-update">最新更新</Link> },
     ],
   },
@@ -123,6 +126,41 @@ const menuItems: MenuProps["items"] = [
       { key: "/config/products", label: <Link to="/config/products">产品管理</Link> },
       { key: "/config/recommend-pool", label: <Link to="/config/recommend-pool">推荐管理</Link> },
       { key: "/config/tag-categories", label: <Link to="/config/tag-categories">Tag 分类管理</Link> },
+    ],
+  },
+];
+
+/** 管理后台使用独立路由和菜单，后续接新接口时不会误用原后台页面参数。 */
+const managementMenuItems: MenuProps["items"] = [
+  {
+    key: "/management/users",
+    icon: <TeamOutlined />,
+    label: <Link to="/management/users">用户列表</Link>,
+  },
+  {
+    key: "management-data",
+    icon: <DatabaseOutlined />,
+    label: "数据管理",
+    children: [
+      {
+        key: "/management/data/visit-logs",
+        label: <Link to="/management/data/visit-logs">访问日志</Link>,
+      },
+      {
+        key: "/management/data/guides",
+        label: <Link to="/management/data/guides">引导列表</Link>,
+      },
+    ],
+  },
+  {
+    key: "management-config",
+    icon: <SettingOutlined />,
+    label: "配置管理",
+    children: [
+      {
+        key: "/management/config/site",
+        label: <Link to="/management/config/site">站点配置</Link>,
+      },
     ],
   },
 ];
@@ -248,7 +286,6 @@ function CollapsedSideNav({ pathname }: { pathname: string }) {
           <CollapsedPopoverLinks
             links={[
               { to: "/drama/movies", label: "剧集列表" },
-              { to: "/drama/tk-movies", label: "TK剧集列表" },
               { to: "/drama/latest-update", label: "最新更新" },
             ]}
           />
@@ -331,19 +368,79 @@ function SideMenu(props: {
   openKeys: string[];
   onOpenChange: (keys: string[]) => void;
   onNavigate?: () => void;
+  management?: boolean;
 }) {
-  const { selectedKeys, openKeys, onOpenChange, onNavigate } = props;
+  const { selectedKeys, openKeys, onOpenChange, onNavigate, management = false } = props;
   return (
     <Menu
       theme="dark"
       mode="inline"
       motion={{ motionAppear: false, motionEnter: false, motionLeave: false }}
       selectedKeys={selectedKeys}
-      openKeys={openKeys}
-      onOpenChange={onOpenChange}
-      items={menuItems}
+      defaultOpenKeys={management ? ["management-data", "management-config"] : undefined}
+      openKeys={management ? undefined : openKeys}
+      onOpenChange={management ? undefined : onOpenChange}
+      items={management ? managementMenuItems : menuItems}
       onClick={onNavigate}
     />
+  );
+}
+
+function CollapsedManagementNav({ pathname }: { pathname: string }) {
+  return (
+    <nav className={styles.collapsedNav} aria-label="管理后台导航">
+      <Tooltip title="用户列表" placement="right">
+        <Link
+          to="/management/users"
+          className={`${styles.collapsedIconBtn} ${pathname.startsWith("/management/users") ? styles.collapsedIconBtnActive : ""}`}
+        >
+          <TeamOutlined />
+        </Link>
+      </Tooltip>
+      <Tooltip title="数据管理" placement="right">
+        <Popover
+          content={
+            <CollapsedPopoverLinks
+              links={[
+                { to: "/management/data/visit-logs", label: "访问日志" },
+                { to: "/management/data/guides", label: "引导列表" },
+              ]}
+            />
+          }
+          placement="rightTop"
+          trigger="hover"
+          color="#001529"
+          classNames={{ root: styles.collapsedPopoverRoot }}
+          overlayInnerStyle={{ padding: 0, background: "transparent", boxShadow: "none" }}
+        >
+          <div
+            className={`${styles.collapsedIconBtn} ${pathname.startsWith("/management/data") ? styles.collapsedIconBtnActive : ""}`}
+            role="button"
+            aria-label="数据管理"
+          >
+            <DatabaseOutlined />
+          </div>
+        </Popover>
+      </Tooltip>
+      <Tooltip title="配置管理" placement="right">
+        <Popover
+          content={<CollapsedPopoverLinks links={[{ to: "/management/config/site", label: "站点配置" }]} />}
+          placement="rightTop"
+          trigger="hover"
+          color="#001529"
+          classNames={{ root: styles.collapsedPopoverRoot }}
+          overlayInnerStyle={{ padding: 0, background: "transparent", boxShadow: "none" }}
+        >
+          <div
+            className={`${styles.collapsedIconBtn} ${pathname.startsWith("/management/config") ? styles.collapsedIconBtnActive : ""}`}
+            role="button"
+            aria-label="配置管理"
+          >
+            <SettingOutlined />
+          </div>
+        </Popover>
+      </Tooltip>
+    </nav>
   );
 }
 
@@ -355,7 +452,9 @@ export function BasicLayout() {
   const [openKeys, setOpenKeys] = useState<string[]>(readStoredSubmenuOpenKeys);
   const location = useLocation();
   const navigate = useNavigate();
+  const isManagement = location.pathname.startsWith("/management");
   const { user, logout } = useAuth();
+  const { user: managementUser, logout: logoutManagement } = useManagementAuth();
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
@@ -393,15 +492,31 @@ export function BasicLayout() {
       icon: <LogoutOutlined />,
       label: "退出登录",
       onClick: () => {
-        logout();
-        navigate("/login", { replace: true });
+        if (isManagement) {
+          logoutManagement();
+        } else {
+          logout();
+        }
+        navigate("/login", {
+          replace: true,
+          state: { backend: isManagement ? "management" : "drama" },
+        });
       },
     },
   ];
 
   const selectedKeys = useMemo(() => {
-    if (location.pathname.startsWith("/drama/tk-movies")) {
-      return ["/drama/tk-movies"];
+    if (location.pathname.startsWith("/management/users")) {
+      return ["/management/users"];
+    }
+    if (location.pathname.startsWith("/management/data/visit-logs")) {
+      return ["/management/data/visit-logs"];
+    }
+    if (location.pathname.startsWith("/management/data/guides")) {
+      return ["/management/data/guides"];
+    }
+    if (location.pathname.startsWith("/management/config/site")) {
+      return ["/management/config/site"];
     }
     if (location.pathname.startsWith("/drama/latest-update")) {
       return ["/drama/latest-update"];
@@ -456,6 +571,15 @@ export function BasicLayout() {
 
   const closeMobileNav = () => setMobileNavOpen(false);
 
+  const activeUserName = isManagement
+    ? String(
+        managementUser?.nickName ??
+          managementUser?.userName ??
+          managementUser?.cellPhone ??
+          "管理员",
+      )
+    : String(user?.name ?? user?.email ?? "账号");
+
   const zoomControls = (theme: "light" | "dark" = "light") => (
     <MobilePageZoom
       theme={theme}
@@ -487,9 +611,19 @@ export function BasicLayout() {
         ) : (
           <MenuFoldOutlined className={styles.menuTrigger} onClick={() => setCollapsed(true)} />
         )}
-        <Typography.Text type="secondary" className={styles.headerWelcome} style={{ flex: 1 }}>
-          欢迎回来{user?.name ? `，${String(user.name)}` : ""}
-        </Typography.Text>
+        <div className={styles.headerWelcomeGroup}>
+          <Typography.Text type="secondary" className={styles.headerWelcome}>
+            欢迎回来{activeUserName ? `，${activeUserName}` : ""}
+          </Typography.Text>
+          <Button
+            type={isManagement ? "default" : "primary"}
+            icon={isManagement ? <ArrowLeftOutlined /> : <AppstoreOutlined />}
+            className={styles.managementSwitch}
+            onClick={() => navigate(isManagement ? "/dashboard" : "/management/users")}
+          >
+            {isManagement ? "返回原后台" : "管理后台"}
+          </Button>
+        </div>
         <Space size={isMobile ? "small" : "middle"} className={styles.headerActions}>
           {!isMobile ? <Tag color="blue">管理员</Tag> : null}
           <Dropdown
@@ -512,7 +646,7 @@ export function BasicLayout() {
             <Space style={{ cursor: "pointer" }} className={styles.headerUser}>
               <UserOutlined />
               <Typography.Text className={styles.headerUserName}>
-                {user?.name ?? user?.email ?? "账号"}
+                {activeUserName}
               </Typography.Text>
             </Space>
           </Dropdown>
@@ -559,7 +693,7 @@ export function BasicLayout() {
           }}
           title={
             <Typography.Title level={5} style={{ color: "#fff", margin: 0 }}>
-              TV 管理后台
+              {isManagement ? "新管理后台" : "TV 管理后台"}
             </Typography.Title>
           }
         >
@@ -569,6 +703,7 @@ export function BasicLayout() {
               openKeys={openKeys}
               onOpenChange={setOpenKeys}
               onNavigate={closeMobileNav}
+              management={isManagement}
             />
           </div>
         </Drawer>
@@ -591,17 +726,22 @@ export function BasicLayout() {
             }}
           >
             <Typography.Title level={4} style={{ color: "#fff", margin: 0, whiteSpace: "nowrap" }}>
-              {collapsed ? "TV" : "TV 管理后台"}
+              {collapsed ? (isManagement ? "管" : "TV") : isManagement ? "新管理后台" : "TV 管理后台"}
             </Typography.Title>
           </div>
           <div className={styles.siderMenuScroll}>
             {collapsed ? (
-              <CollapsedSideNav pathname={location.pathname} />
+              isManagement ? (
+                <CollapsedManagementNav pathname={location.pathname} />
+              ) : (
+                <CollapsedSideNav pathname={location.pathname} />
+              )
             ) : (
               <SideMenu
                 selectedKeys={selectedKeys}
                 openKeys={openKeys}
                 onOpenChange={setOpenKeys}
+                management={isManagement}
               />
             )}
           </div>

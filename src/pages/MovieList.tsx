@@ -602,24 +602,32 @@ export function MovieList() {
         render: (_: unknown, row) => {
           const text = String(row.title ?? "—");
           const alias = String(row.title_original ?? "").trim();
+          const publicId = String(row.public_id ?? "").trim();
           return (
             <div className={styles.titleCellWrap}>
-              <div className={styles.titleMainLine}>
-              <span
-                role="button"
-                tabIndex={0}
-                className={styles.titleLink}
-                onClick={() => openMovieEdit(row)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    openMovieEdit(row);
-                  }
-                }}
+              <Typography.Text
+                type="secondary"
+                className={styles.titlePublicIdLine}
+                copyable={publicId ? { text: publicId } : false}
               >
-                {text}
-              </span>
-              <Typography.Text className={styles.titleCopy} copyable={{ text }} />
+                长id: {publicId || "-"}
+              </Typography.Text>
+              <div className={styles.titleMainLine}>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className={styles.titleLink}
+                  onClick={() => openMovieEdit(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openMovieEdit(row);
+                    }
+                  }}
+                >
+                  {text}
+                </span>
+                <Typography.Text className={styles.titleCopy} copyable={{ text }} />
               </div>
               <div className={styles.titleAliasLine}>
                 <span className={styles.titleAliasLabel}>又名：</span>

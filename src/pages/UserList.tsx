@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { InfoCircleOutlined } from "@ant-design/icons";
 import {
   Avatar,
   Button,
@@ -121,6 +122,12 @@ function fmtAliveMinutes(alive: unknown): string {
   }
   return `${(n / 60).toFixed(2)} 分钟`;
 }
+
+const USER_LEVEL_DESCRIPTIONS: Record<number, string> = {
+  1: "看自制",
+  2: "看自制 + 首次分享剧",
+  3: "看全部",
+};
 
 export function UserList() {
   const navigate = useNavigate();
@@ -335,15 +342,25 @@ export function UserList() {
         dataIndex: "anonymous",
         width: 140,
         render: (v: unknown, record) => {
-          const canViewAll = String(record.source ?? "").trim().startsWith("A100") || Number(record.is_tui) === 1;
+          const rawLevel = Number(record.level);
+          const level = rawLevel === 1 || rawLevel === 2 || rawLevel === 3 ? rawLevel : "—";
+          const levelDescription = typeof level === "number" ? USER_LEVEL_DESCRIPTIONS[level] : "暂无层级说明";
           return (
             <div className={styles.timeCell}>
               <div className={styles.timeLine}>
                 {Number(v) === 1 ? <Tag color="orange">游客</Tag> : <Tag color="blue">注册用户</Tag>}
               </div>
               <div className={styles.timeLine}>
-                <span className={styles.timeLabel}>看全部：</span>
-                <span>{canViewAll ? "是" : "否"}</span>
+                <span className={styles.timeLabel}>层级：</span>
+                <span className={styles.levelValue}>
+                  {level}
+                  <Tooltip title={levelDescription} placement="top">
+                    <InfoCircleOutlined
+                      className={styles.levelInfoIcon}
+                      aria-label="查看层级说明"
+                    />
+                  </Tooltip>
+                </span>
               </div>
             </div>
           );

@@ -9,6 +9,14 @@ type ConfigRow = {
   name: string;
 };
 
+type BasicSettingRow = {
+  rowKey: string;
+  id?: string | number;
+  key: string;
+  name: string;
+  value: unknown;
+};
+
 type SearchResultRow = {
   key: string;
   id: string;
@@ -33,8 +41,6 @@ const CONFIG_ROWS: ConfigRow[] = [
   { key: SEARCH_CONFIG_KEY, name: "三方search 拉剧" },
 ];
 
-const BASIC_CONFIG_ROWS: ConfigRow[] = [{ key: IOS_IFRAME_SETTING_KEY, name: IOS_IFRAME_SETTING_KEY }];
-
 const RUNNING_INFO_POLL_MS = 30_000;
 const SEARCH_SAVE_REFRESH_DELAY_MS = 3_000;
 
@@ -56,6 +62,40 @@ function settingRows(data: unknown): SettingRecord[] {
     }
   }
   return [root];
+}
+
+function basicSettingRows(data: unknown): BasicSettingRow[] {
+  const rows = settingRows(data);
+  const looksLikeSettingRows = rows.some((row) => row.key != null || row.name != null || row.slug != null);
+  if (looksLikeSettingRows) {
+    return rows.flatMap((row, index) => {
+      const key = String(row.key ?? row.name ?? row.slug ?? "").trim();
+      if (!key) return [];
+      return [{
+        rowKey: String(row.id ?? key ?? index),
+        id: row.id as string | number | undefined,
+        key,
+        name: String(row.name ?? row.key ?? row.slug ?? key).trim() || key,
+        value: row.value ?? row.content ?? row.enabled ?? null,
+      }];
+    });
+  }
+
+  if (data == null || typeof data !== "object" || Array.isArray(data)) return [];
+  const root = data as SettingRecord;
+  return Object.entries(root).map(([key, value]) => ({
+    rowKey: key,
+    key,
+    name: key,
+    value,
+  }));
+}
+
+function settingValueText(value: unknown): string {
+  if (value == null || value === "") return "—";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return JSON.stringify(value, null, 2);
+  return String(value);
 }
 
 function iosIframeSetting(data: unknown): { id?: string | number; enabled: boolean } {
@@ -204,6 +244,7 @@ export function ConfigManagement() {
   const [ffmpegRestartPaused, setFfmpegRestartPaused] = useState(false);
   const [iosIframesId, setIosIframesId] = useState<string | number>();
   const [iosIframesEnabled, setIosIframesEnabled] = useState(false);
+  const [basicSettings, setBasicSettings] = useState<BasicSettingRow[]>([]);
   const [loadingIosIframes, setLoadingIosIframes] = useState(false);
   const [savingIosIframes, setSavingIosIframes] = useState(false);
 
@@ -219,6 +260,7 @@ export function ConfigManagement() {
         message.error(res.m || "获取 ios_iframe 配置失败");
         return;
       }
+      setBasicSettings(basicSettingRows(res.d));
       const setting = iosIframeSetting(res.d);
       setIosIframesId(setting.id);
       setIosIframesEnabled(setting.enabled);
@@ -254,6 +296,9 @@ export function ConfigManagement() {
           setIosIframesId(saved.id);
         }
         setIosIframesEnabled(enabled);
+        setBasicSettings((current) => current.map((row) => (
+          row.key === IOS_IFRAME_SETTING_KEY ? { ...row, value: enabled ? 1 : 0 } : row
+        )));
         message.success(`ios_iframe 已${enabled ? "开启" : "关闭"}`);
       } catch {
         message.error("保存 ios_iframe 配置失败");
@@ -520,22 +565,39 @@ export function ConfigManagement() {
     },
   ];
 
-  const basicConfigColumns: ColumnsType<ConfigRow> = [
-    { title: "配置项", dataIndex: "name", key: "name" },
+  const basicConfigColumns: ColumnsType<BasicSettingRow> = [
     {
-      title: "状态",
-      key: "status",
-      width: 180,
-      render: () => (
-        <Switch
-          checked={iosIframesEnabled}
-          checkedChildren="开启"
-          unCheckedChildren="关闭"
-          loading={loadingIosIframes || savingIosIframes}
-          disabled={loadingIosIframes || savingIosIframes}
-          onChange={(checked) => void saveIosIframes(checked)}
-        />
+      title: "配置项",
+      dataIndex: "key",
+      key: "key",
+      width: 260,
+      render: (key: string, row) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <Typography.Text copyable={{ text: key }}>{key}</Typography.Text>
+          {row.name !== key ? <Typography.Text type="secondary">{row.name}</Typography.Text> : null}
+        </div>
       ),
+    },
+    {
+      title: "配置值",
+      key: "value",
+      render: (_, row) => row.key === IOS_IFRAME_SETTING_KEY ? (
+          <Switch
+            checked={iosIframesEnabled}
+            checkedChildren="开启"
+            unCheckedChildren="关闭"
+            loading={loadingIosIframes || savingIosIframes}
+            disabled={loadingIosIframes || savingIosIframes}
+            onChange={(checked) => void saveIosIframes(checked)}
+          />
+        ) : (
+          <Typography.Text
+            copyable={row.value == null || row.value === "" ? false : { text: settingValueText(row.value) }}
+            style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+          >
+            {settingValueText(row.value)}
+          </Typography.Text>
+        ),
     },
   ];
 
@@ -639,10 +701,11 @@ export function ConfigManagement() {
                   key: "basic-config",
                   label: "基础配置",
                   children: (
-                    <Table<ConfigRow>
-                      rowKey="key"
+                    <Table<BasicSettingRow>
+                      rowKey="rowKey"
                       columns={basicConfigColumns}
-                      dataSource={BASIC_CONFIG_ROWS}
+                      dataSource={basicSettings}
+                      loading={loadingIosIframes}
                       pagination={false}
                       bordered
                     />
